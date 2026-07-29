@@ -1,2 +1,79 @@
-# vk-arrows-puzzle
-Phaser 3 Arrow Puzzle game for VK Games. Redesigned mechanics, visuals and audio based on classic arrow escape puzzles.
+# 🎯 Arrow Pulse — Phaser 3 Puzzle for VK Games
+
+Современная головоломка на основе механики «Стрелки / Arrow Escape».
+
+**Механика:**  
+Нажимай на стрелку — она улетает в своём направлении, если путь свободен. Убери все стрелки, чтобы пройти уровень.
+
+## Особенности
+- Phaser 3
+- Процедурная графика (неоновый стиль)
+- Плавные анимации вылета стрелок
+- Звуки через Web Audio API
+- Несколько уровней с растущей сложностью
+- Готово к интеграции в VK Mini Apps / VK Games
+- Полностью работает оффлайн после загрузки
+
+## Быстрый старт (десктоп)
+
+1. Клонируй репозиторий
+2. Открой `index.html` в браузере (работает даже через `file://`)
+
+Или запусти локальный сервер:
+
+```bash
+# Python
+python -m http.server 8080
+
+# или Node
+npx serve .
+```
+
+Затем открой http://localhost:8080
+
+## 📱 Тест с телефона Android (локально)
+
+### Самый простой способ:
+1. На компьютере запусти сервер:
+   ```bash
+   python -m http.server 8080
+   ```
+2. Узнай IP компьютера в локальной сети (`ipconfig` / `ifconfig`)
+3. На телефоне в одной Wi-Fi сети открой в Chrome:
+   `http://192.168.x.x:8080`
+
+### Альтернатива (без компьютера):
+- Установи на Android приложение **«Simple HTTP Server»** или **«KSWEB»** / Termux
+- Скопируй папку проекта на телефон
+- Запусти сервер из папки проекта
+
+Файл `LOCAL_ANDROID.md` содержит подробную инструкцию.
+
+## Структура проекта
+
+```
+├── index.html          # Главный файл
+├── js/
+│   ├── main.js         # Конфиг Phaser + сцены
+│   ├── scenes/
+│   │   ├── Boot.js
+│   │   ├── Menu.js
+│   │   ├── Game.js       # Основная логика
+│   │   └── Win.js
+│   └── levels.js       # Данные уровней
+├── css/style.css
+├── LOCAL_ANDROID.md
+└── README.md
+```
+
+## Интеграция в VK Games
+
+1. Зарегистрируй приложение в [VK Mini Apps](https://vk.com/apps?act=manage)
+2. Загрузи файлы на хостинг (или GitHub Pages)
+3. Добавь `@vkontakte/vk-bridge` и вызовы `VKWebAppInit` итд.
+4. Для монетизации — используй VK Ads / In-App.
+
+В коде уже есть заготовки под VK Bridge (комментарии).
+
+## Лицензия
+MIT — делай что хочешь.
