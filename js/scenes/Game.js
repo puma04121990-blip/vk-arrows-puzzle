@@ -18,32 +18,36 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    this.add.rectangle(0, 0, width, height, 0x0a0a12).setOrigin(0);
+    // Background
+    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const gridGlow = this.add.graphics();
-    gridGlow.fillStyle(0x12122a, 0.6);
-    gridGlow.fillRoundedRect(30, 180, width - 60, height - 320, 24);
+    // Soft panel
+    const panel = this.add.graphics();
+    panel.fillStyle(0x12121f, 0.85);
+    panel.fillRoundedRect(28, 170, width - 56, height - 300, 28);
 
-    this.add.text(width / 2, 60, `УРОВЕНЬ ${this.levelIndex + 1}`, {
-      fontFamily: 'Arial Black',
-      fontSize: '32px',
+    // Header
+    this.add.text(width / 2, 58, `УРОВЕНЬ ${this.levelIndex + 1}`, {
+      fontFamily: 'Arial Black, Arial',
+      fontSize: '34px',
       color: '#00f5d4'
     }).setOrigin(0.5);
 
-    this.movesText = this.add.text(width / 2, 110, 'Ходы: 0', {
+    this.movesText = this.add.text(width / 2, 108, 'Ходы: 0', {
       fontFamily: 'Arial',
       fontSize: '22px',
-      color: '#a0a0c0'
+      color: '#8a8aaa'
     }).setOrigin(0.5);
 
+    // Grid metrics
     const size = this.levelData.size;
-    const maxGridW = width - 80;
-    const maxGridH = height - 360;
+    const maxGridW = width - 100;
+    const maxGridH = height - 380;
     this.cellSize = Math.floor(Math.min(maxGridW / size, maxGridH / size));
     const gridW = this.cellSize * size;
     const gridH = this.cellSize * size;
     this.offsetX = (width - gridW) / 2;
-    this.offsetY = 200 + (maxGridH - gridH) / 2;
+    this.offsetY = 190 + (maxGridH - gridH) / 2;
 
     this.drawGrid(size);
     this.createArrows();
@@ -57,18 +61,10 @@ class GameScene extends Phaser.Scene {
       for (let x = 0; x < size; x++) {
         const cx = this.offsetX + x * this.cellSize + this.cellSize / 2;
         const cy = this.offsetY + y * this.cellSize + this.cellSize / 2;
-        g.fillStyle(0x2a2a4a, 0.6);
-        g.fillCircle(cx, cy, 3.5);
+        g.fillStyle(0x2a2a42, 0.7);
+        g.fillCircle(cx, cy, 4);
       }
     }
-  }
-
-  // Convert grid cell to pixel center
-  cellToPixel(x, y) {
-    return {
-      x: this.offsetX + x * this.cellSize + this.cellSize / 2,
-      y: this.offsetY + y * this.cellSize + this.cellSize / 2
-    };
   }
 
   createArrows() {
@@ -76,190 +72,132 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00f5d4, 0xff6b6b, 0xfeca57, 0x48dbfb,
-      0xff9ff3, 0x1dd1a1, 0xf368e0, 0xff9f43,
-      0x54a0ff, 0x5f27cd, 0x01a3a4, 0xff9ff3
+      0x00f5d4, // cyan
+      0xff6b6b, // coral
+      0xfeca57, // yellow
+      0x54a0ff, // blue
+      0xff9ff3, // pink
+      0x1dd1a1, // green
+      0xff9f43, // orange
+      0x5f27cd  // purple
     ];
 
     this.levelData.arrows.forEach((a, i) => {
       const color = colors[i % colors.length];
+      const container = this.add.container(0, 0);
+
       const g = this.add.graphics();
-      this.drawLongArrow(g, a.path, a.dir, color);
+      this.drawArrow(g, a.dir, color);
 
-      // Make the whole graphics interactive
-      g.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height), Phaser.Geom.Rectangle.Contains);
-      // Better: we will use a more precise hit later, for now broad + check in handler
+      container.add(g);
+      container.setSize(this.cellSize * 0.9, this.cellSize * 0.9);
+      container.setInteractive(
+        new Phaser.Geom.Rectangle(
+          -this.cellSize * 0.4,
+          -this.cellSize * 0.4,
+          this.cellSize * 0.8,
+          this.cellSize * 0.8
+        ),
+        Phaser.Geom.Rectangle.Contains
+      );
 
-      g.arrowData = {
-        path: a.path.map(p => ({ ...p })),
+      const px = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
+      const py = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
+      container.setPosition(px, py);
+
+      container.arrowData = {
+        x: a.x,
+        y: a.y,
         dir: a.dir,
         color: color,
-        removed: false,
-        graphics: g
+        graphics: g,
+        removed: false
       };
 
-      g.on('pointerdown', (pointer) => {
-        // Only react if the click is near the arrow path
-        if (this.isPointNearPath(pointer.x, pointer.y, a.path)) {
-          this.onArrowClick(g);
-        }
-      });
+      container.on('pointerdown', () => this.onArrowClick(container));
 
-      this.arrows.push(g);
+      this.arrows.push(container);
     });
   }
 
-  isPointNearPath(px, py, path) {
-    const threshold = this.cellSize * 0.45;
-    for (const cell of path) {
-      const p = this.cellToPixel(cell.x, cell.y);
-      const dx = px - p.x;
-      const dy = py - p.y;
-      if (dx * dx + dy * dy < threshold * threshold) return true;
-    }
-    // Also check segments between points
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = this.cellToPixel(path[i].x, path[i].y);
-      const b = this.cellToPixel(path[i + 1].x, path[i + 1].y);
-      if (this.distToSegment(px, py, a.x, a.y, b.x, b.y) < threshold) return true;
-    }
-    return false;
-  }
-
-  distToSegment(px, py, x1, y1, x2, y2) {
-    const A = px - x1;
-    const B = py - y1;
-    const C = x2 - x1;
-    const D = y2 - y1;
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = lenSq !== 0 ? dot / lenSq : -1;
-    let xx, yy;
-    if (param < 0) { xx = x1; yy = y1; }
-    else if (param > 1) { xx = x2; yy = y2; }
-    else { xx = x1 + param * C; yy = y1 + param * D; }
-    const dx = px - xx;
-    const dy = py - yy;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  drawLongArrow(g, path, dir, color) {
+  // Clean, readable arrow
+  drawArrow(g, dir, color) {
     g.clear();
-    if (path.length === 0) return;
+    const s = this.cellSize * 0.36; // scale
 
-    const thickness = Math.max(10, this.cellSize * 0.28);
+    // Soft outer glow
+    g.fillStyle(color, 0.22);
+    this._drawArrowShape(g, dir, s * 1.25);
 
-    // Draw the body as thick rounded line
-    g.lineStyle(thickness, color, 1);
-    g.beginPath();
-
-    const first = this.cellToPixel(path[0].x, path[0].y);
-    g.moveTo(first.x, first.y);
-
-    for (let i = 1; i < path.length; i++) {
-      const p = this.cellToPixel(path[i].x, path[i].y);
-      g.lineTo(p.x, p.y);
-    }
-    g.strokePath();
-
-    // Soft glow
-    g.lineStyle(thickness + 6, color, 0.18);
-    g.beginPath();
-    g.moveTo(first.x, first.y);
-    for (let i = 1; i < path.length; i++) {
-      const p = this.cellToPixel(path[i].x, path[i].y);
-      g.lineTo(p.x, p.y);
-    }
-    g.strokePath();
-
-    // Arrow head at the last point
-    const head = this.cellToPixel(path[path.length - 1].x, path[path.length - 1].y);
-    const headSize = thickness * 1.6;
-
+    // Main body
     g.fillStyle(color, 1);
-    if (dir === 0) { // up
-      g.fillTriangle(
-        head.x, head.y - headSize,
-        head.x - headSize * 0.7, head.y + headSize * 0.3,
-        head.x + headSize * 0.7, head.y + headSize * 0.3
-      );
-    } else if (dir === 1) { // right
-      g.fillTriangle(
-        head.x + headSize, head.y,
-        head.x - headSize * 0.3, head.y - headSize * 0.7,
-        head.x - headSize * 0.3, head.y + headSize * 0.7
-      );
-    } else if (dir === 2) { // down
-      g.fillTriangle(
-        head.x, head.y + headSize,
-        head.x - headSize * 0.7, head.y - headSize * 0.3,
-        head.x + headSize * 0.7, head.y - headSize * 0.3
-      );
-    } else { // left
-      g.fillTriangle(
-        head.x - headSize, head.y,
-        head.x + headSize * 0.3, head.y - headSize * 0.7,
-        head.x + headSize * 0.3, head.y + headSize * 0.7
-      );
+    this._drawArrowShape(g, dir, s);
+
+    // Small highlight
+    g.fillStyle(0xffffff, 0.25);
+    this._drawArrowShape(g, dir, s * 0.55);
+  }
+
+  _drawArrowShape(g, dir, s) {
+    if (dir === 0) { // UP
+      // shaft
+      g.fillRoundedRect(-s * 0.22, -s * 0.15, s * 0.44, s * 0.85, 6);
+      // head
+      g.fillTriangle(0, -s * 1.05, -s * 0.62, -s * 0.15, s * 0.62, -s * 0.15);
+    } else if (dir === 1) { // RIGHT
+      g.fillRoundedRect(-s * 0.7, -s * 0.22, s * 0.85, s * 0.44, 6);
+      g.fillTriangle(s * 1.05, 0, s * 0.15, -s * 0.62, s * 0.15, s * 0.62);
+    } else if (dir === 2) { // DOWN
+      g.fillRoundedRect(-s * 0.22, -s * 0.7, s * 0.44, s * 0.85, 6);
+      g.fillTriangle(0, s * 1.05, -s * 0.62, s * 0.15, s * 0.62, s * 0.15);
+    } else { // LEFT
+      g.fillRoundedRect(-s * 0.15, -s * 0.22, s * 0.85, s * 0.44, 6);
+      g.fillTriangle(-s * 1.05, 0, -s * 0.15, -s * 0.62, -s * 0.15, s * 0.62);
     }
   }
 
-  onArrowClick(g) {
-    if (this.isAnimating || g.arrowData.removed) return;
+  onArrowClick(container) {
+    if (this.isAnimating || container.arrowData.removed) return;
 
-    if (this.canEscape(g.arrowData)) {
+    if (this.canEscape(container.arrowData)) {
       this.playSuccessSound();
-      this.animateEscape(g);
+      this.animateEscape(container);
     } else {
       this.playFailSound();
-      this.shakeArrow(g);
+      this.shakeArrow(container);
     }
-  }
-
-  // Collect all cells occupied by remaining arrows
-  getOccupiedCells() {
-    const occupied = new Set();
-    this.arrows.forEach(a => {
-      if (a.arrowData.removed) return;
-      a.arrowData.path.forEach(p => {
-        occupied.add(`${p.x},${p.y}`);
-      });
-    });
-    return occupied;
   }
 
   canEscape(data) {
     const size = this.levelData.size;
-    const occupied = this.getOccupiedCells();
+    let cx = data.x;
+    let cy = data.y;
 
-    // Head position
-    const head = data.path[data.path.length - 1];
-    let cx = head.x;
-    let cy = head.y;
-
-    // Move one step in the direction of the head and keep going until edge
     while (true) {
       if (data.dir === 0) cy--;
       else if (data.dir === 1) cx++;
       else if (data.dir === 2) cy++;
       else if (data.dir === 3) cx--;
 
-      if (cx < 0 || cx >= size || cy < 0 || cy >= size) {
-        return true; // reached edge freely
-      }
+      // Free if we reached the edge
+      if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
 
-      if (occupied.has(`${cx},${cy}`)) {
-        return false; // blocked by another arrow
-      }
+      // Blocked if another active arrow sits here
+      const blocked = this.arrows.some(a =>
+        !a.arrowData.removed &&
+        a.arrowData.x === cx &&
+        a.arrowData.y === cy
+      );
+      if (blocked) return false;
     }
   }
 
-  animateEscape(g) {
+  animateEscape(container) {
     this.isAnimating = true;
     this.moves++;
     this.movesText.setText(`Ходы: ${this.moves}`);
 
-    const data = g.arrowData;
+    const data = container.arrowData;
     data.removed = true;
     this.remaining--;
 
@@ -269,69 +207,68 @@ class GameScene extends Phaser.Scene {
     else if (data.dir === 2) dy = 1;
     else if (data.dir === 3) dx = -1;
 
-    const dist = 1100;
-
     this.tweens.add({
-      targets: g,
-      x: g.x + dx * dist,
-      y: g.y + dy * dist,
+      targets: container,
+      x: container.x + dx * 1000,
+      y: container.y + dy * 1000,
       alpha: 0,
-      duration: 480,
+      scale: 0.5,
+      duration: 420,
       ease: 'Cubic.easeIn',
       onComplete: () => {
-        g.destroy();
+        container.destroy();
         this.isAnimating = false;
 
-        // Particles at head position
-        const head = data.path[data.path.length - 1];
-        const p = this.cellToPixel(head.x, head.y);
-        this.emitParticles(p.x, p.y, data.color);
+        this.emitParticles(
+          container.x - dx * 1000,
+          container.y - dy * 1000,
+          data.color
+        );
 
         if (this.remaining <= 0) {
-          this.time.delayedCall(280, () => this.levelComplete());
+          this.time.delayedCall(250, () => this.levelComplete());
         }
       }
     });
   }
 
-  shakeArrow(g) {
+  shakeArrow(container) {
     this.tweens.add({
-      targets: g,
-      x: g.x + 7,
-      duration: 40,
+      targets: container,
+      x: container.x + 9,
+      duration: 35,
       yoyo: true,
-      repeat: 4,
-      ease: 'Sine.easeInOut'
+      repeat: 4
     });
 
-    // Flash red briefly
-    const original = g.arrowData.color;
-    this.drawLongArrow(g, g.arrowData.path, g.arrowData.dir, 0xff3333);
-    this.time.delayedCall(180, () => {
-      if (!g.arrowData.removed) {
-        this.drawLongArrow(g, g.arrowData.path, g.arrowData.dir, original);
+    // Red flash
+    const g = container.arrowData.graphics;
+    this.drawArrow(g, container.arrowData.dir, 0xff3333);
+    this.time.delayedCall(160, () => {
+      if (!container.arrowData.removed) {
+        this.drawArrow(g, container.arrowData.dir, container.arrowData.color);
       }
     });
   }
 
   emitParticles(x, y, color) {
-    const particles = this.add.particles(x, y, 'particle', {
-      speed: { min: 90, max: 240 },
-      scale: { start: 0.55, end: 0 },
-      lifespan: 520,
-      quantity: 14,
+    const p = this.add.particles(x, y, 'particle', {
+      speed: { min: 80, max: 220 },
+      scale: { start: 0.5, end: 0 },
+      lifespan: 480,
+      quantity: 12,
       tint: color,
       blendMode: 'ADD'
     });
-    this.time.delayedCall(600, () => particles.destroy());
+    this.time.delayedCall(550, () => p.destroy());
   }
 
   levelComplete() {
     window.gameData.moves = this.moves;
     const ideal = this.levelData.arrows.length;
     let stars = 3;
-    if (this.moves > ideal + 5) stars = 1;
-    else if (this.moves > ideal + 2) stars = 2;
+    if (this.moves > ideal + 4) stars = 1;
+    else if (this.moves > ideal + 1) stars = 2;
     window.gameData.stars = stars;
     this.scene.start('Win');
   }
@@ -339,22 +276,22 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    const restartBtn = this.add.text(width * 0.25, height - 70, '↺ ЗАНОВО', {
+    const restartBtn = this.add.text(width * 0.25, height - 68, '↺ ЗАНОВО', {
       fontFamily: 'Arial',
-      fontSize: '24px',
-      color: '#a0a0c0',
+      fontSize: '23px',
+      color: '#aaaacc',
       backgroundColor: '#1a1a2e',
-      padding: { x: 20, y: 12 }
+      padding: { x: 18, y: 11 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     restartBtn.on('pointerdown', () => this.scene.restart());
 
-    const menuBtn = this.add.text(width * 0.75, height - 70, 'МЕНЮ', {
+    const menuBtn = this.add.text(width * 0.75, height - 68, 'МЕНЮ', {
       fontFamily: 'Arial',
-      fontSize: '24px',
-      color: '#a0a0c0',
+      fontSize: '23px',
+      color: '#aaaacc',
       backgroundColor: '#1a1a2e',
-      padding: { x: 20, y: 12 }
+      padding: { x: 18, y: 11 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     menuBtn.on('pointerdown', () => this.scene.start('Menu'));
@@ -367,7 +304,7 @@ class GameScene extends Phaser.Scene {
     } catch (e) {}
   }
 
-  playTone(freq, duration, type = 'sine', vol = 0.15) {
+  playTone(freq, duration, type = 'sine', vol = 0.12) {
     if (!this.audioCtx) return;
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
@@ -382,11 +319,11 @@ class GameScene extends Phaser.Scene {
   }
 
   playSuccessSound() {
-    this.playTone(523, 0.07, 'sine', 0.11);
-    this.time.delayedCall(55, () => this.playTone(784, 0.11, 'sine', 0.09));
+    this.playTone(523, 0.07);
+    this.time.delayedCall(50, () => this.playTone(784, 0.1));
   }
 
   playFailSound() {
-    this.playTone(170, 0.14, 'sawtooth', 0.07);
+    this.playTone(160, 0.13, 'sawtooth', 0.07);
   }
 }
