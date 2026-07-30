@@ -17,17 +17,14 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.add.rectangle(0, 0, width, height, 0x0c0c16).setOrigin(0);
 
-    // Soft panel with subtle border
     const panel = this.add.graphics();
     panel.fillStyle(0x141422, 0.9);
     panel.fillRoundedRect(24, 165, width - 48, height - 290, 26);
     panel.lineStyle(1.5, 0x2a2a45, 0.6);
     panel.strokeRoundedRect(24, 165, width - 48, height - 290, 26);
 
-    // Header
     this.add.text(width / 2, 56, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: '32px',
@@ -52,7 +49,7 @@ class GameScene extends Phaser.Scene {
     this.drawGrid(size);
     this.createArrows();
     this.createUI();
-    this.setupSounds();
+    this.initAudio();
   }
 
   drawGrid(size) {
@@ -72,14 +69,8 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00e8c8, // teal
-      0xff6b6b, // coral
-      0xffd166, // warm yellow
-      0x4cc9f0, // sky blue
-      0xf72585, // pink
-      0x2ec4b6, // green-teal
-      0xff9f1c, // orange
-      0x7b2cbf  // purple
+      0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0,
+      0xf72585, 0x2ec4b6, 0xff9f1c, 0x7b2cbf
     ];
 
     this.levelData.arrows.forEach((a, i) => {
@@ -110,6 +101,9 @@ class GameScene extends Phaser.Scene {
       zone.on('pointerdown', () => {
         if (data.removed) return;
 
+        // Разблокируем аудио при первом тапе
+        this.unlockAudio();
+
         this.tweens.add({
           targets: g,
           scaleX: 0.86,
@@ -129,30 +123,27 @@ class GameScene extends Phaser.Scene {
     g.clear();
     const s = this.cellSize * 0.34;
 
-    // Soft outer glow
     g.fillStyle(color, 0.18);
     this._shape(g, dir, s * 1.32);
 
-    // Main body
     g.fillStyle(color, 1);
     this._shape(g, dir, s);
 
-    // Small highlight for volume
     g.fillStyle(0xffffff, 0.18);
     this._shape(g, dir, s * 0.48);
   }
 
   _shape(g, dir, s) {
-    if (dir === 0) { // UP
+    if (dir === 0) {
       g.fillRoundedRect(-s * 0.2, -s * 0.12, s * 0.4, s * 0.82, 5);
       g.fillTriangle(0, -s * 1.02, -s * 0.58, -s * 0.12, s * 0.58, -s * 0.12);
-    } else if (dir === 1) { // RIGHT
+    } else if (dir === 1) {
       g.fillRoundedRect(-s * 0.68, -s * 0.2, s * 0.82, s * 0.4, 5);
       g.fillTriangle(s * 1.02, 0, s * 0.12, -s * 0.58, s * 0.12, s * 0.58);
-    } else if (dir === 2) { // DOWN
+    } else if (dir === 2) {
       g.fillRoundedRect(-s * 0.2, -s * 0.7, s * 0.4, s * 0.82, 5);
       g.fillTriangle(0, s * 1.02, -s * 0.58, s * 0.12, s * 0.58, s * 0.12);
-    } else { // LEFT
+    } else {
       g.fillRoundedRect(-s * 0.14, -s * 0.2, s * 0.82, s * 0.4, 5);
       g.fillTriangle(-s * 1.02, 0, -s * 0.12, -s * 0.58, -s * 0.12, s * 0.58);
     }
@@ -252,7 +243,6 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    // Restart
     const restartBtn = this.add.text(width * 0.25, height - 64, '↺ ЗАНОВО', {
       fontFamily: 'Arial',
       fontSize: '21px',
@@ -263,7 +253,6 @@ class GameScene extends Phaser.Scene {
 
     restartBtn.on('pointerdown', () => this.scene.restart());
 
-    // Menu
     const menuBtn = this.add.text(width * 0.75, height - 64, 'МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: '21px',
@@ -275,33 +264,67 @@ class GameScene extends Phaser.Scene {
     menuBtn.on('pointerdown', () => this.scene.start('Menu'));
   }
 
-  setupSounds() {
-    this.audioCtx = null;
+  // ========== AUDIO (надёжный) ==========
+
+  initAudio() {
+    // Один общий AudioContext на всю игру
+    if (!window.gameAudioCtx) {
+      try {
+        window.gameAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        window.gameAudioCtx = null;
+      }
+    }
+  }
+
+  unlockAudio() {
+    const ctx = window.gameAudioCtx;
+    if (!ctx) return;
+
+    // На мобильных контекст часто в состоянии suspended
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  }
+
+  playTone(freq, duration, type = 'sine', vol = 0.12) {
+    const ctx = window.gameAudioCtx;
+    if (!ctx) return;
+
+    // Всегда пытаемся resume перед воспроизведением
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => this._playToneNow(ctx, freq, duration, type, vol)).catch(() => {});
+    } else {
+      this._playToneNow(ctx, freq, duration, type, vol);
+    }
+  }
+
+  _playToneNow(ctx, freq, duration, type, vol) {
     try {
-      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.value = vol;
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      osc.start(now);
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc.stop(now + duration + 0.02);
     } catch (e) {}
   }
 
-  playTone(freq, duration, type = 'sine', vol = 0.11) {
-    if (!this.audioCtx) return;
-    const osc = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = vol;
-    osc.connect(gain);
-    gain.connect(this.audioCtx.destination);
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
-    osc.stop(this.audioCtx.currentTime + duration);
-  }
-
   playSuccessSound() {
-    this.playTone(523, 0.05);
-    this.time.delayedCall(35, () => this.playTone(784, 0.07));
+    this.playTone(523, 0.055);
+    this.time.delayedCall(40, () => this.playTone(784, 0.08));
   }
 
   playFailSound() {
-    this.playTone(155, 0.1, 'sawtooth', 0.05);
+    this.playTone(160, 0.1, 'sawtooth', 0.06);
   }
 }
