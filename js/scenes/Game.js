@@ -18,15 +18,12 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.add.rectangle(0, 0, width, height, 0x0a0a12).setOrigin(0);
 
-    // Soft grid glow
     const gridGlow = this.add.graphics();
     gridGlow.fillStyle(0x12122a, 0.6);
     gridGlow.fillRoundedRect(30, 180, width - 60, height - 320, 24);
 
-    // Header
     this.add.text(width / 2, 60, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black',
       fontSize: '32px',
@@ -39,7 +36,6 @@ class GameScene extends Phaser.Scene {
       color: '#a0a0c0'
     }).setOrigin(0.5);
 
-    // Calculate grid metrics
     const size = this.levelData.size;
     const maxGridW = width - 80;
     const maxGridH = height - 360;
@@ -49,16 +45,9 @@ class GameScene extends Phaser.Scene {
     this.offsetX = (width - gridW) / 2;
     this.offsetY = 200 + (maxGridH - gridH) / 2;
 
-    // Draw dots (grid points)
     this.drawGrid(size);
-
-    // Create arrows
     this.createArrows();
-
-    // Bottom UI
     this.createUI();
-
-    // Sound system
     this.setupSounds();
   }
 
@@ -68,10 +57,18 @@ class GameScene extends Phaser.Scene {
       for (let x = 0; x < size; x++) {
         const cx = this.offsetX + x * this.cellSize + this.cellSize / 2;
         const cy = this.offsetY + y * this.cellSize + this.cellSize / 2;
-        g.fillStyle(0x2a2a4a, 0.7);
-        g.fillCircle(cx, cy, 4);
+        g.fillStyle(0x2a2a4a, 0.6);
+        g.fillCircle(cx, cy, 3.5);
       }
     }
+  }
+
+  // Convert grid cell to pixel center
+  cellToPixel(x, y) {
+    return {
+      x: this.offsetX + x * this.cellSize + this.cellSize / 2,
+      y: this.offsetY + y * this.cellSize + this.cellSize / 2
+    };
   }
 
   createArrows() {
@@ -79,177 +76,250 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00f5d4, // cyan
-      0xff6b6b, // red
-      0xfeca57, // yellow
-      0x48dbfb, // blue
-      0xff9ff3, // pink
-      0x1dd1a1, // green
-      0xf368e0, // magenta
-      0xff9f43  // orange
+      0x00f5d4, 0xff6b6b, 0xfeca57, 0x48dbfb,
+      0xff9ff3, 0x1dd1a1, 0xf368e0, 0xff9f43,
+      0x54a0ff, 0x5f27cd, 0x01a3a4, 0xff9ff3
     ];
 
     this.levelData.arrows.forEach((a, i) => {
       const color = colors[i % colors.length];
-      const container = this.add.container(0, 0);
+      const g = this.add.graphics();
+      this.drawLongArrow(g, a.path, a.dir, color);
 
-      const graphics = this.add.graphics();
-      this.drawArrow(graphics, 0, 0, a.dir, color, this.cellSize * 0.38);
+      // Make the whole graphics interactive
+      g.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height), Phaser.Geom.Rectangle.Contains);
+      // Better: we will use a more precise hit later, for now broad + check in handler
 
-      container.add(graphics);
-      container.setSize(this.cellSize * 0.85, this.cellSize * 0.85);
-      container.setInteractive({ useHandCursor: true });
-
-      // Position
-      const px = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
-      const py = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
-      container.setPosition(px, py);
-
-      // Store data
-      container.arrowData = {
-        x: a.x,
-        y: a.y,
+      g.arrowData = {
+        path: a.path.map(p => ({ ...p })),
         dir: a.dir,
         color: color,
-        graphics: graphics,
-        removed: false
+        removed: false,
+        graphics: g
       };
 
-      container.on('pointerdown', () => this.onArrowClick(container));
+      g.on('pointerdown', (pointer) => {
+        // Only react if the click is near the arrow path
+        if (this.isPointNearPath(pointer.x, pointer.y, a.path)) {
+          this.onArrowClick(g);
+        }
+      });
 
-      this.arrows.push(container);
+      this.arrows.push(g);
     });
   }
 
-  drawArrow(g, x, y, dir, color, scale) {
-    g.clear();
-    g.fillStyle(color, 1);
-    g.lineStyle(3, 0xffffff, 0.25);
+  isPointNearPath(px, py, path) {
+    const threshold = this.cellSize * 0.45;
+    for (const cell of path) {
+      const p = this.cellToPixel(cell.x, cell.y);
+      const dx = px - p.x;
+      const dy = py - p.y;
+      if (dx * dx + dy * dy < threshold * threshold) return true;
+    }
+    // Also check segments between points
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = this.cellToPixel(path[i].x, path[i].y);
+      const b = this.cellToPixel(path[i + 1].x, path[i + 1].y);
+      if (this.distToSegment(px, py, a.x, a.y, b.x, b.y) < threshold) return true;
+    }
+    return false;
+  }
 
-    const s = scale;
-    // Shaft + head
+  distToSegment(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = lenSq !== 0 ? dot / lenSq : -1;
+    let xx, yy;
+    if (param < 0) { xx = x1; yy = y1; }
+    else if (param > 1) { xx = x2; yy = y2; }
+    else { xx = x1 + param * C; yy = y1 + param * D; }
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  drawLongArrow(g, path, dir, color) {
+    g.clear();
+    if (path.length === 0) return;
+
+    const thickness = Math.max(10, this.cellSize * 0.28);
+
+    // Draw the body as thick rounded line
+    g.lineStyle(thickness, color, 1);
+    g.beginPath();
+
+    const first = this.cellToPixel(path[0].x, path[0].y);
+    g.moveTo(first.x, first.y);
+
+    for (let i = 1; i < path.length; i++) {
+      const p = this.cellToPixel(path[i].x, path[i].y);
+      g.lineTo(p.x, p.y);
+    }
+    g.strokePath();
+
+    // Soft glow
+    g.lineStyle(thickness + 6, color, 0.18);
+    g.beginPath();
+    g.moveTo(first.x, first.y);
+    for (let i = 1; i < path.length; i++) {
+      const p = this.cellToPixel(path[i].x, path[i].y);
+      g.lineTo(p.x, p.y);
+    }
+    g.strokePath();
+
+    // Arrow head at the last point
+    const head = this.cellToPixel(path[path.length - 1].x, path[path.length - 1].y);
+    const headSize = thickness * 1.6;
+
+    g.fillStyle(color, 1);
     if (dir === 0) { // up
-      g.fillRoundedRect(x - s * 0.18, y - s * 0.1, s * 0.36, s * 0.7, 4);
-      g.fillTriangle(x, y - s * 0.85, x - s * 0.55, y - s * 0.15, x + s * 0.55, y - s * 0.15);
+      g.fillTriangle(
+        head.x, head.y - headSize,
+        head.x - headSize * 0.7, head.y + headSize * 0.3,
+        head.x + headSize * 0.7, head.y + headSize * 0.3
+      );
     } else if (dir === 1) { // right
-      g.fillRoundedRect(x - s * 0.6, y - s * 0.18, s * 0.7, s * 0.36, 4);
-      g.fillTriangle(x + s * 0.85, y, x + s * 0.15, y - s * 0.55, x + s * 0.15, y + s * 0.55);
+      g.fillTriangle(
+        head.x + headSize, head.y,
+        head.x - headSize * 0.3, head.y - headSize * 0.7,
+        head.x - headSize * 0.3, head.y + headSize * 0.7
+      );
     } else if (dir === 2) { // down
-      g.fillRoundedRect(x - s * 0.18, y - s * 0.6, s * 0.36, s * 0.7, 4);
-      g.fillTriangle(x, y + s * 0.85, x - s * 0.55, y + s * 0.15, x + s * 0.55, y + s * 0.15);
+      g.fillTriangle(
+        head.x, head.y + headSize,
+        head.x - headSize * 0.7, head.y - headSize * 0.3,
+        head.x + headSize * 0.7, head.y - headSize * 0.3
+      );
     } else { // left
-      g.fillRoundedRect(x - s * 0.1, y - s * 0.18, s * 0.7, s * 0.36, 4);
-      g.fillTriangle(x - s * 0.85, y, x - s * 0.15, y - s * 0.55, x - s * 0.15, y + s * 0.55);
+      g.fillTriangle(
+        head.x - headSize, head.y,
+        head.x + headSize * 0.3, head.y - headSize * 0.7,
+        head.x + headSize * 0.3, head.y + headSize * 0.7
+      );
     }
   }
 
-  onArrowClick(container) {
-    if (this.isAnimating || container.arrowData.removed) return;
+  onArrowClick(g) {
+    if (this.isAnimating || g.arrowData.removed) return;
 
-    const data = container.arrowData;
-    if (this.canEscape(data)) {
+    if (this.canEscape(g.arrowData)) {
       this.playSuccessSound();
-      this.animateEscape(container);
+      this.animateEscape(g);
     } else {
       this.playFailSound();
-      this.shakeArrow(container);
+      this.shakeArrow(g);
     }
+  }
+
+  // Collect all cells occupied by remaining arrows
+  getOccupiedCells() {
+    const occupied = new Set();
+    this.arrows.forEach(a => {
+      if (a.arrowData.removed) return;
+      a.arrowData.path.forEach(p => {
+        occupied.add(`${p.x},${p.y}`);
+      });
+    });
+    return occupied;
   }
 
   canEscape(data) {
-    const { x, y, dir } = data;
     const size = this.levelData.size;
+    const occupied = this.getOccupiedCells();
 
-    let cx = x;
-    let cy = y;
+    // Head position
+    const head = data.path[data.path.length - 1];
+    let cx = head.x;
+    let cy = head.y;
 
-    // Check path in direction until edge
+    // Move one step in the direction of the head and keep going until edge
     while (true) {
-      if (dir === 0) cy--;
-      else if (dir === 1) cx++;
-      else if (dir === 2) cy++;
-      else if (dir === 3) cx--;
+      if (data.dir === 0) cy--;
+      else if (data.dir === 1) cx++;
+      else if (data.dir === 2) cy++;
+      else if (data.dir === 3) cx--;
 
-      // Out of bounds = free path
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) {
-        return true;
+        return true; // reached edge freely
       }
 
-      // Is there an active arrow here?
-      const blocking = this.arrows.find(a =>
-        !a.arrowData.removed &&
-        a.arrowData.x === cx &&
-        a.arrowData.y === cy
-      );
-      if (blocking) return false;
+      if (occupied.has(`${cx},${cy}`)) {
+        return false; // blocked by another arrow
+      }
     }
   }
 
-  animateEscape(container) {
+  animateEscape(g) {
     this.isAnimating = true;
     this.moves++;
     this.movesText.setText(`Ходы: ${this.moves}`);
 
-    const data = container.arrowData;
+    const data = g.arrowData;
     data.removed = true;
     this.remaining--;
 
-    // Direction vector
     let dx = 0, dy = 0;
     if (data.dir === 0) dy = -1;
     else if (data.dir === 1) dx = 1;
     else if (data.dir === 2) dy = 1;
     else if (data.dir === 3) dx = -1;
 
-    // Fly off screen
-    const dist = 900;
+    const dist = 1100;
+
     this.tweens.add({
-      targets: container,
-      x: container.x + dx * dist,
-      y: container.y + dy * dist,
+      targets: g,
+      x: g.x + dx * dist,
+      y: g.y + dy * dist,
       alpha: 0,
-      scale: 0.6,
-      duration: 420,
+      duration: 480,
       ease: 'Cubic.easeIn',
       onComplete: () => {
-        container.destroy();
+        g.destroy();
         this.isAnimating = false;
 
-        // Particles
-        this.emitParticles(container.x - dx * dist, container.y - dy * dist, data.color);
+        // Particles at head position
+        const head = data.path[data.path.length - 1];
+        const p = this.cellToPixel(head.x, head.y);
+        this.emitParticles(p.x, p.y, data.color);
 
         if (this.remaining <= 0) {
-          this.time.delayedCall(300, () => this.levelComplete());
+          this.time.delayedCall(280, () => this.levelComplete());
         }
       }
     });
   }
 
-  shakeArrow(container) {
+  shakeArrow(g) {
     this.tweens.add({
-      targets: container,
-      x: container.x + 8,
+      targets: g,
+      x: g.x + 7,
       duration: 40,
       yoyo: true,
-      repeat: 3,
+      repeat: 4,
       ease: 'Sine.easeInOut'
     });
 
-    // Flash red
-    const g = container.arrowData.graphics;
-    const originalColor = container.arrowData.color;
-    this.drawArrow(g, 0, 0, container.arrowData.dir, 0xff3333, this.cellSize * 0.38);
-    this.time.delayedCall(200, () => {
-      this.drawArrow(g, 0, 0, container.arrowData.dir, originalColor, this.cellSize * 0.38);
+    // Flash red briefly
+    const original = g.arrowData.color;
+    this.drawLongArrow(g, g.arrowData.path, g.arrowData.dir, 0xff3333);
+    this.time.delayedCall(180, () => {
+      if (!g.arrowData.removed) {
+        this.drawLongArrow(g, g.arrowData.path, g.arrowData.dir, original);
+      }
     });
   }
 
   emitParticles(x, y, color) {
     const particles = this.add.particles(x, y, 'particle', {
-      speed: { min: 80, max: 220 },
-      scale: { start: 0.6, end: 0 },
-      lifespan: 500,
-      quantity: 12,
+      speed: { min: 90, max: 240 },
+      scale: { start: 0.55, end: 0 },
+      lifespan: 520,
+      quantity: 14,
       tint: color,
       blendMode: 'ADD'
     });
@@ -258,20 +328,17 @@ class GameScene extends Phaser.Scene {
 
   levelComplete() {
     window.gameData.moves = this.moves;
-    // Simple star rating
     const ideal = this.levelData.arrows.length;
     let stars = 3;
-    if (this.moves > ideal + 4) stars = 1;
-    else if (this.moves > ideal + 1) stars = 2;
+    if (this.moves > ideal + 5) stars = 1;
+    else if (this.moves > ideal + 2) stars = 2;
     window.gameData.stars = stars;
-
     this.scene.start('Win');
   }
 
   createUI() {
     const { width, height } = this.scale;
 
-    // Restart button
     const restartBtn = this.add.text(width * 0.25, height - 70, '↺ ЗАНОВО', {
       fontFamily: 'Arial',
       fontSize: '24px',
@@ -280,11 +347,8 @@ class GameScene extends Phaser.Scene {
       padding: { x: 20, y: 12 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    restartBtn.on('pointerdown', () => {
-      this.scene.restart();
-    });
+    restartBtn.on('pointerdown', () => this.scene.restart());
 
-    // Menu button
     const menuBtn = this.add.text(width * 0.75, height - 70, 'МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: '24px',
@@ -293,13 +357,10 @@ class GameScene extends Phaser.Scene {
       padding: { x: 20, y: 12 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    menuBtn.on('pointerdown', () => {
-      this.scene.start('Menu');
-    });
+    menuBtn.on('pointerdown', () => this.scene.start('Menu'));
   }
 
   setupSounds() {
-    // Simple Web Audio tones (no external files needed)
     this.audioCtx = null;
     try {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -321,11 +382,11 @@ class GameScene extends Phaser.Scene {
   }
 
   playSuccessSound() {
-    this.playTone(523, 0.08, 'sine', 0.12);
-    this.time.delayedCall(60, () => this.playTone(784, 0.12, 'sine', 0.1));
+    this.playTone(523, 0.07, 'sine', 0.11);
+    this.time.delayedCall(55, () => this.playTone(784, 0.11, 'sine', 0.09));
   }
 
   playFailSound() {
-    this.playTone(180, 0.15, 'sawtooth', 0.08);
+    this.playTone(170, 0.14, 'sawtooth', 0.07);
   }
 }
