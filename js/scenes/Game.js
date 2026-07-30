@@ -17,32 +17,37 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    // Background
+    this.add.rectangle(0, 0, width, height, 0x0c0c16).setOrigin(0);
 
+    // Soft panel with subtle border
     const panel = this.add.graphics();
-    panel.fillStyle(0x12121f, 0.85);
-    panel.fillRoundedRect(28, 170, width - 56, height - 300, 28);
+    panel.fillStyle(0x141422, 0.9);
+    panel.fillRoundedRect(24, 165, width - 48, height - 290, 26);
+    panel.lineStyle(1.5, 0x2a2a45, 0.6);
+    panel.strokeRoundedRect(24, 165, width - 48, height - 290, 26);
 
-    this.add.text(width / 2, 58, `УРОВЕНЬ ${this.levelIndex + 1}`, {
+    // Header
+    this.add.text(width / 2, 56, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '34px',
-      color: '#00f5d4'
+      fontSize: '32px',
+      color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.movesText = this.add.text(width / 2, 108, 'Ходы: 0', {
+    this.movesText = this.add.text(width / 2, 102, 'Ходы: 0', {
       fontFamily: 'Arial',
-      fontSize: '22px',
-      color: '#8a8aaa'
+      fontSize: '20px',
+      color: '#7a7a9a'
     }).setOrigin(0.5);
 
     const size = this.levelData.size;
-    const maxGridW = width - 100;
-    const maxGridH = height - 380;
+    const maxGridW = width - 90;
+    const maxGridH = height - 370;
     this.cellSize = Math.floor(Math.min(maxGridW / size, maxGridH / size));
     const gridW = this.cellSize * size;
     const gridH = this.cellSize * size;
     this.offsetX = (width - gridW) / 2;
-    this.offsetY = 190 + (maxGridH - gridH) / 2;
+    this.offsetY = 185 + (maxGridH - gridH) / 2;
 
     this.drawGrid(size);
     this.createArrows();
@@ -56,8 +61,8 @@ class GameScene extends Phaser.Scene {
       for (let x = 0; x < size; x++) {
         const cx = this.offsetX + x * this.cellSize + this.cellSize / 2;
         const cy = this.offsetY + y * this.cellSize + this.cellSize / 2;
-        g.fillStyle(0x2a2a42, 0.7);
-        g.fillCircle(cx, cy, 4);
+        g.fillStyle(0x25253a, 0.8);
+        g.fillCircle(cx, cy, 3.5);
       }
     }
   }
@@ -67,8 +72,14 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00f5d4, 0xff6b6b, 0xfeca57, 0x54a0ff,
-      0xff9ff3, 0x1dd1a1, 0xff9f43, 0x5f27cd
+      0x00e8c8, // teal
+      0xff6b6b, // coral
+      0xffd166, // warm yellow
+      0x4cc9f0, // sky blue
+      0xf72585, // pink
+      0x2ec4b6, // green-teal
+      0xff9f1c, // orange
+      0x7b2cbf  // purple
     ];
 
     this.levelData.arrows.forEach((a, i) => {
@@ -99,12 +110,11 @@ class GameScene extends Phaser.Scene {
       zone.on('pointerdown', () => {
         if (data.removed) return;
 
-        // Быстрый визуальный отклик без блокировки
         this.tweens.add({
           targets: g,
-          scaleX: 0.85,
-          scaleY: 0.85,
-          duration: 40,
+          scaleX: 0.86,
+          scaleY: 0.86,
+          duration: 35,
           yoyo: true
         });
 
@@ -117,31 +127,34 @@ class GameScene extends Phaser.Scene {
 
   drawArrow(g, dir, color) {
     g.clear();
-    const s = this.cellSize * 0.36;
+    const s = this.cellSize * 0.34;
 
-    g.fillStyle(color, 0.2);
-    this._shape(g, dir, s * 1.28);
+    // Soft outer glow
+    g.fillStyle(color, 0.18);
+    this._shape(g, dir, s * 1.32);
 
+    // Main body
     g.fillStyle(color, 1);
     this._shape(g, dir, s);
 
-    g.fillStyle(0xffffff, 0.2);
-    this._shape(g, dir, s * 0.5);
+    // Small highlight for volume
+    g.fillStyle(0xffffff, 0.18);
+    this._shape(g, dir, s * 0.48);
   }
 
   _shape(g, dir, s) {
-    if (dir === 0) {
-      g.fillRoundedRect(-s * 0.22, -s * 0.15, s * 0.44, s * 0.85, 5);
-      g.fillTriangle(0, -s * 1.05, -s * 0.62, -s * 0.15, s * 0.62, -s * 0.15);
-    } else if (dir === 1) {
-      g.fillRoundedRect(-s * 0.7, -s * 0.22, s * 0.85, s * 0.44, 5);
-      g.fillTriangle(s * 1.05, 0, s * 0.15, -s * 0.62, s * 0.15, s * 0.62);
-    } else if (dir === 2) {
-      g.fillRoundedRect(-s * 0.22, -s * 0.7, s * 0.44, s * 0.85, 5);
-      g.fillTriangle(0, s * 1.05, -s * 0.62, s * 0.15, s * 0.62, s * 0.15);
-    } else {
-      g.fillRoundedRect(-s * 0.15, -s * 0.22, s * 0.85, s * 0.44, 5);
-      g.fillTriangle(-s * 1.05, 0, -s * 0.15, -s * 0.62, -s * 0.15, s * 0.62);
+    if (dir === 0) { // UP
+      g.fillRoundedRect(-s * 0.2, -s * 0.12, s * 0.4, s * 0.82, 5);
+      g.fillTriangle(0, -s * 1.02, -s * 0.58, -s * 0.12, s * 0.58, -s * 0.12);
+    } else if (dir === 1) { // RIGHT
+      g.fillRoundedRect(-s * 0.68, -s * 0.2, s * 0.82, s * 0.4, 5);
+      g.fillTriangle(s * 1.02, 0, s * 0.12, -s * 0.58, s * 0.12, s * 0.58);
+    } else if (dir === 2) { // DOWN
+      g.fillRoundedRect(-s * 0.2, -s * 0.7, s * 0.4, s * 0.82, 5);
+      g.fillTriangle(0, s * 1.02, -s * 0.58, s * 0.12, s * 0.58, s * 0.12);
+    } else { // LEFT
+      g.fillRoundedRect(-s * 0.14, -s * 0.2, s * 0.82, s * 0.4, 5);
+      g.fillTriangle(-s * 1.02, 0, -s * 0.12, -s * 0.58, -s * 0.12, s * 0.58);
     }
   }
 
@@ -190,21 +203,20 @@ class GameScene extends Phaser.Scene {
 
     const g = data.graphics;
 
-    // Быстрая анимация улёта без блокировки ввода
     this.tweens.add({
       targets: g,
       x: g.x + dx * 900,
       y: g.y + dy * 900,
       alpha: 0,
       scale: 0.4,
-      duration: 280,
+      duration: 260,
       ease: 'Cubic.easeIn',
       onComplete: () => {
         g.destroy();
         data.zone.destroy();
 
         if (this.remaining <= 0) {
-          this.time.delayedCall(150, () => this.levelComplete());
+          this.time.delayedCall(140, () => this.levelComplete());
         }
       }
     });
@@ -221,8 +233,8 @@ class GameScene extends Phaser.Scene {
       repeat: 3
     });
 
-    this.drawArrow(g, data.dir, 0xff3333);
-    this.time.delayedCall(120, () => {
+    this.drawArrow(g, data.dir, 0xff4444);
+    this.time.delayedCall(110, () => {
       if (!data.removed) this.drawArrow(g, data.dir, data.color);
     });
   }
@@ -240,22 +252,24 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    const restartBtn = this.add.text(width * 0.25, height - 68, '↺ ЗАНОВО', {
+    // Restart
+    const restartBtn = this.add.text(width * 0.25, height - 64, '↺ ЗАНОВО', {
       fontFamily: 'Arial',
-      fontSize: '23px',
-      color: '#aaaacc',
-      backgroundColor: '#1a1a2e',
-      padding: { x: 18, y: 11 }
+      fontSize: '21px',
+      color: '#9a9ab8',
+      backgroundColor: '#1a1a2c',
+      padding: { x: 16, y: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     restartBtn.on('pointerdown', () => this.scene.restart());
 
-    const menuBtn = this.add.text(width * 0.75, height - 68, 'МЕНЮ', {
+    // Menu
+    const menuBtn = this.add.text(width * 0.75, height - 64, 'МЕНЮ', {
       fontFamily: 'Arial',
-      fontSize: '23px',
-      color: '#aaaacc',
-      backgroundColor: '#1a1a2e',
-      padding: { x: 18, y: 11 }
+      fontSize: '21px',
+      color: '#9a9ab8',
+      backgroundColor: '#1a1a2c',
+      padding: { x: 16, y: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     menuBtn.on('pointerdown', () => this.scene.start('Menu'));
@@ -268,7 +282,7 @@ class GameScene extends Phaser.Scene {
     } catch (e) {}
   }
 
-  playTone(freq, duration, type = 'sine', vol = 0.12) {
+  playTone(freq, duration, type = 'sine', vol = 0.11) {
     if (!this.audioCtx) return;
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
@@ -283,11 +297,11 @@ class GameScene extends Phaser.Scene {
   }
 
   playSuccessSound() {
-    this.playTone(523, 0.06);
-    this.time.delayedCall(40, () => this.playTone(784, 0.08));
+    this.playTone(523, 0.05);
+    this.time.delayedCall(35, () => this.playTone(784, 0.07));
   }
 
   playFailSound() {
-    this.playTone(160, 0.11, 'sawtooth', 0.06);
+    this.playTone(155, 0.1, 'sawtooth', 0.05);
   }
 }
