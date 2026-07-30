@@ -10,7 +10,6 @@ class GameScene extends Phaser.Scene {
     this.cellSize = 0;
     this.offsetX = 0;
     this.offsetY = 0;
-    this.isAnimating = false;
     this.moves = 0;
     this.remaining = 0;
   }
@@ -75,25 +74,18 @@ class GameScene extends Phaser.Scene {
     this.levelData.arrows.forEach((a, i) => {
       const color = colors[i % colors.length];
 
-      // Центр клетки
       const cx = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
       const cy = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
 
-      // 1. Рисуем стрелку (только визуал)
       const g = this.add.graphics();
       this.drawArrow(g, a.dir, color);
       g.setPosition(cx, cy);
 
-      // 2. Большая невидимая зона нажатия (почти вся клетка)
-      // Это самый надёжный способ на мобильных
       const zoneSize = this.cellSize * 0.95;
-
       const zone = this.add.zone(cx, cy, zoneSize, zoneSize);
       zone.setOrigin(0.5);
       zone.setInteractive();
-      zone.input.cursor = 'pointer';
 
-      // Данные стрелки
       const data = {
         x: a.x,
         y: a.y,
@@ -104,21 +96,19 @@ class GameScene extends Phaser.Scene {
         removed: false
       };
 
-      // Обработчик тапа
       zone.on('pointerdown', () => {
-        if (this.isAnimating || data.removed) return;
+        if (data.removed) return;
 
-        // Визуальный отклик
+        // Быстрый визуальный отклик без блокировки
         this.tweens.add({
           targets: g,
-          scaleX: 0.82,
-          scaleY: 0.82,
-          duration: 45,
-          yoyo: true,
-          onComplete: () => {
-            this.handleArrowTap(data);
-          }
+          scaleX: 0.85,
+          scaleY: 0.85,
+          duration: 40,
+          yoyo: true
         });
+
+        this.handleArrowTap(data);
       });
 
       this.arrows.push(data);
@@ -129,37 +119,34 @@ class GameScene extends Phaser.Scene {
     g.clear();
     const s = this.cellSize * 0.36;
 
-    // Glow
     g.fillStyle(color, 0.2);
     this._shape(g, dir, s * 1.28);
 
-    // Body
     g.fillStyle(color, 1);
     this._shape(g, dir, s);
 
-    // Highlight
     g.fillStyle(0xffffff, 0.2);
     this._shape(g, dir, s * 0.5);
   }
 
   _shape(g, dir, s) {
-    if (dir === 0) { // UP
+    if (dir === 0) {
       g.fillRoundedRect(-s * 0.22, -s * 0.15, s * 0.44, s * 0.85, 5);
       g.fillTriangle(0, -s * 1.05, -s * 0.62, -s * 0.15, s * 0.62, -s * 0.15);
-    } else if (dir === 1) { // RIGHT
+    } else if (dir === 1) {
       g.fillRoundedRect(-s * 0.7, -s * 0.22, s * 0.85, s * 0.44, 5);
       g.fillTriangle(s * 1.05, 0, s * 0.15, -s * 0.62, s * 0.15, s * 0.62);
-    } else if (dir === 2) { // DOWN
+    } else if (dir === 2) {
       g.fillRoundedRect(-s * 0.22, -s * 0.7, s * 0.44, s * 0.85, 5);
       g.fillTriangle(0, s * 1.05, -s * 0.62, s * 0.15, s * 0.62, s * 0.15);
-    } else { // LEFT
+    } else {
       g.fillRoundedRect(-s * 0.15, -s * 0.22, s * 0.85, s * 0.44, 5);
       g.fillTriangle(-s * 1.05, 0, -s * 0.15, -s * 0.62, -s * 0.15, s * 0.62);
     }
   }
 
   handleArrowTap(data) {
-    if (this.isAnimating || data.removed) return;
+    if (data.removed) return;
 
     if (this.canEscape(data)) {
       this.playSuccessSound();
@@ -189,12 +176,10 @@ class GameScene extends Phaser.Scene {
   }
 
   flyAway(data) {
-    this.isAnimating = true;
-    this.moves++;
-    this.movesText.setText(`Ходы: ${this.moves}`);
-
     data.removed = true;
     this.remaining--;
+    this.moves++;
+    this.movesText.setText(`Ходы: ${this.moves}`);
     data.zone.disableInteractive();
 
     let dx = 0, dy = 0;
@@ -205,23 +190,21 @@ class GameScene extends Phaser.Scene {
 
     const g = data.graphics;
 
+    // Быстрая анимация улёта без блокировки ввода
     this.tweens.add({
       targets: g,
-      x: g.x + dx * 1200,
-      y: g.y + dy * 1200,
+      x: g.x + dx * 900,
+      y: g.y + dy * 900,
       alpha: 0,
-      scale: 0.35,
-      duration: 400,
+      scale: 0.4,
+      duration: 280,
       ease: 'Cubic.easeIn',
       onComplete: () => {
         g.destroy();
         data.zone.destroy();
-        this.isAnimating = false;
-
-        this.emitParticles(g.x - dx * 1200, g.y - dy * 1200, data.color);
 
         if (this.remaining <= 0) {
-          this.time.delayedCall(220, () => this.levelComplete());
+          this.time.delayedCall(150, () => this.levelComplete());
         }
       }
     });
@@ -232,28 +215,16 @@ class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: g,
-      x: g.x + 7,
-      duration: 30,
+      x: g.x + 6,
+      duration: 25,
       yoyo: true,
-      repeat: 4
+      repeat: 3
     });
 
     this.drawArrow(g, data.dir, 0xff3333);
-    this.time.delayedCall(150, () => {
+    this.time.delayedCall(120, () => {
       if (!data.removed) this.drawArrow(g, data.dir, data.color);
     });
-  }
-
-  emitParticles(x, y, color) {
-    const p = this.add.particles(x, y, 'particle', {
-      speed: { min: 70, max: 200 },
-      scale: { start: 0.5, end: 0 },
-      lifespan: 450,
-      quantity: 11,
-      tint: color,
-      blendMode: 'ADD'
-    });
-    this.time.delayedCall(500, () => p.destroy());
   }
 
   levelComplete() {
@@ -312,11 +283,11 @@ class GameScene extends Phaser.Scene {
   }
 
   playSuccessSound() {
-    this.playTone(523, 0.07);
-    this.time.delayedCall(50, () => this.playTone(784, 0.1));
+    this.playTone(523, 0.06);
+    this.time.delayedCall(40, () => this.playTone(784, 0.08));
   }
 
   playFailSound() {
-    this.playTone(160, 0.13, 'sawtooth', 0.07);
+    this.playTone(160, 0.11, 'sawtooth', 0.06);
   }
 }
