@@ -72,14 +72,14 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00f5d4, // cyan
-      0xff6b6b, // coral
-      0xfeca57, // yellow
-      0x54a0ff, // blue
-      0xff9ff3, // pink
-      0x1dd1a1, // green
-      0xff9f43, // orange
-      0x5f27cd  // purple
+      0x00f5d4,
+      0xff6b6b,
+      0xfeca57,
+      0x54a0ff,
+      0xff9ff3,
+      0x1dd1a1,
+      0xff9f43,
+      0x5f27cd
     ];
 
     this.levelData.arrows.forEach((a, i) => {
@@ -88,18 +88,16 @@ class GameScene extends Phaser.Scene {
 
       const g = this.add.graphics();
       this.drawArrow(g, a.dir, color);
-
       container.add(g);
-      container.setSize(this.cellSize * 0.9, this.cellSize * 0.9);
-      container.setInteractive(
-        new Phaser.Geom.Rectangle(
-          -this.cellSize * 0.4,
-          -this.cellSize * 0.4,
-          this.cellSize * 0.8,
-          this.cellSize * 0.8
-        ),
-        Phaser.Geom.Rectangle.Contains
-      );
+
+      // === Надёжная большая зона нажатия ===
+      const hitSize = this.cellSize * 0.92;
+      container.setSize(hitSize, hitSize);
+      container.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true
+      });
 
       const px = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
       const py = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
@@ -114,18 +112,27 @@ class GameScene extends Phaser.Scene {
         removed: false
       };
 
-      container.on('pointerdown', () => this.onArrowClick(container));
+      // Только обычный тап (pointerdown)
+      container.on('pointerdown', () => {
+        // Лёгкая анимация нажатия
+        this.tweens.add({
+          targets: container,
+          scale: 0.88,
+          duration: 60,
+          yoyo: true,
+          onComplete: () => this.onArrowClick(container)
+        });
+      });
 
       this.arrows.push(container);
     });
   }
 
-  // Clean, readable arrow
   drawArrow(g, dir, color) {
     g.clear();
-    const s = this.cellSize * 0.36; // scale
+    const s = this.cellSize * 0.36;
 
-    // Soft outer glow
+    // Soft glow
     g.fillStyle(color, 0.22);
     this._drawArrowShape(g, dir, s * 1.25);
 
@@ -133,16 +140,14 @@ class GameScene extends Phaser.Scene {
     g.fillStyle(color, 1);
     this._drawArrowShape(g, dir, s);
 
-    // Small highlight
-    g.fillStyle(0xffffff, 0.25);
-    this._drawArrowShape(g, dir, s * 0.55);
+    // Highlight
+    g.fillStyle(0xffffff, 0.22);
+    this._drawArrowShape(g, dir, s * 0.52);
   }
 
   _drawArrowShape(g, dir, s) {
     if (dir === 0) { // UP
-      // shaft
       g.fillRoundedRect(-s * 0.22, -s * 0.15, s * 0.44, s * 0.85, 6);
-      // head
       g.fillTriangle(0, -s * 1.05, -s * 0.62, -s * 0.15, s * 0.62, -s * 0.15);
     } else if (dir === 1) { // RIGHT
       g.fillRoundedRect(-s * 0.7, -s * 0.22, s * 0.85, s * 0.44, 6);
@@ -179,10 +184,8 @@ class GameScene extends Phaser.Scene {
       else if (data.dir === 2) cy++;
       else if (data.dir === 3) cx--;
 
-      // Free if we reached the edge
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
 
-      // Blocked if another active arrow sits here
       const blocked = this.arrows.some(a =>
         !a.arrowData.removed &&
         a.arrowData.x === cx &&
@@ -212,7 +215,7 @@ class GameScene extends Phaser.Scene {
       x: container.x + dx * 1000,
       y: container.y + dy * 1000,
       alpha: 0,
-      scale: 0.5,
+      scale: 0.45,
       duration: 420,
       ease: 'Cubic.easeIn',
       onComplete: () => {
@@ -241,7 +244,6 @@ class GameScene extends Phaser.Scene {
       repeat: 4
     });
 
-    // Red flash
     const g = container.arrowData.graphics;
     this.drawArrow(g, container.arrowData.dir, 0xff3333);
     this.time.delayedCall(160, () => {
