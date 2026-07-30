@@ -18,15 +18,12 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Soft panel
     const panel = this.add.graphics();
     panel.fillStyle(0x12121f, 0.85);
     panel.fillRoundedRect(28, 170, width - 56, height - 300, 28);
 
-    // Header
     this.add.text(width / 2, 58, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: '34px',
@@ -39,7 +36,6 @@ class GameScene extends Phaser.Scene {
       color: '#8a8aaa'
     }).setOrigin(0.5);
 
-    // Grid metrics
     const size = this.levelData.size;
     const maxGridW = width - 100;
     const maxGridH = height - 380;
@@ -72,59 +68,59 @@ class GameScene extends Phaser.Scene {
     this.remaining = this.levelData.arrows.length;
 
     const colors = [
-      0x00f5d4,
-      0xff6b6b,
-      0xfeca57,
-      0x54a0ff,
-      0xff9ff3,
-      0x1dd1a1,
-      0xff9f43,
-      0x5f27cd
+      0x00f5d4, 0xff6b6b, 0xfeca57, 0x54a0ff,
+      0xff9ff3, 0x1dd1a1, 0xff9f43, 0x5f27cd
     ];
 
     this.levelData.arrows.forEach((a, i) => {
       const color = colors[i % colors.length];
-      const container = this.add.container(0, 0);
 
+      // Позиция центра клетки
+      const px = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
+      const py = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
+
+      // Рисуем стрелку
       const g = this.add.graphics();
       this.drawArrow(g, a.dir, color);
-      container.add(g);
+      g.setPosition(px, py);
 
-      // === Надёжная большая зона нажатия ===
-      const hitSize = this.cellSize * 0.92;
-      container.setSize(hitSize, hitSize);
-      container.setInteractive({
-        hitArea: new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize),
-        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      // === Точная зона нажатия (круг в центре стрелки) ===
+      // Делаем зону чуть больше самой стрелки, чтобы было удобно тапать
+      const hitRadius = this.cellSize * 0.48;
+
+      // Невидимый круг для попадания
+      const hitZone = this.add.circle(px, py, hitRadius, 0x000000, 0);
+      hitZone.setInteractive({
+        hitArea: new Phaser.Geom.Circle(0, 0, hitRadius),
+        hitAreaCallback: Phaser.Geom.Circle.Contains,
         useHandCursor: true
       });
 
-      const px = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
-      const py = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
-      container.setPosition(px, py);
-
-      container.arrowData = {
+      // Связываем данные
+      const arrowObj = {
         x: a.x,
         y: a.y,
         dir: a.dir,
         color: color,
         graphics: g,
+        hitZone: hitZone,
         removed: false
       };
 
-      // Только обычный тап (pointerdown)
-      container.on('pointerdown', () => {
+      hitZone.on('pointerdown', () => {
+        if (this.isAnimating || arrowObj.removed) return;
+
         // Лёгкая анимация нажатия
         this.tweens.add({
-          targets: container,
-          scale: 0.88,
-          duration: 60,
+          targets: g,
+          scale: 0.85,
+          duration: 50,
           yoyo: true,
-          onComplete: () => this.onArrowClick(container)
+          onComplete: () => this.onArrowClick(arrowObj)
         });
       });
 
-      this.arrows.push(container);
+      this.arrows.push(arrowObj);
     });
   }
 
@@ -161,15 +157,15 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  onArrowClick(container) {
-    if (this.isAnimating || container.arrowData.removed) return;
+  onArrowClick(arrowObj) {
+    if (this.isAnimating || arrowObj.removed) return;
 
-    if (this.canEscape(container.arrowData)) {
+    if (this.canEscape(arrowObj)) {
       this.playSuccessSound();
-      this.animateEscape(container);
+      this.animateEscape(arrowObj);
     } else {
       this.playFailSound();
-      this.shakeArrow(container);
+      this.shakeArrow(arrowObj);
     }
   }
 
@@ -187,46 +183,45 @@ class GameScene extends Phaser.Scene {
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
 
       const blocked = this.arrows.some(a =>
-        !a.arrowData.removed &&
-        a.arrowData.x === cx &&
-        a.arrowData.y === cy
+        !a.removed && a.x === cx && a.y === cy
       );
       if (blocked) return false;
     }
   }
 
-  animateEscape(container) {
+  animateEscape(arrowObj) {
     this.isAnimating = true;
     this.moves++;
     this.movesText.setText(`Ходы: ${this.moves}`);
 
-    const data = container.arrowData;
-    data.removed = true;
+    arrowObj.removed = true;
     this.remaining--;
 
+    // Отключаем зону нажатия
+    arrowObj.hitZone.disableInteractive();
+
     let dx = 0, dy = 0;
-    if (data.dir === 0) dy = -1;
-    else if (data.dir === 1) dx = 1;
-    else if (data.dir === 2) dy = 1;
-    else if (data.dir === 3) dx = -1;
+    if (arrowObj.dir === 0) dy = -1;
+    else if (arrowObj.dir === 1) dx = 1;
+    else if (arrowObj.dir === 2) dy = 1;
+    else if (arrowObj.dir === 3) dx = -1;
+
+    const g = arrowObj.graphics;
 
     this.tweens.add({
-      targets: container,
-      x: container.x + dx * 1000,
-      y: container.y + dy * 1000,
+      targets: g,
+      x: g.x + dx * 1100,
+      y: g.y + dy * 1100,
       alpha: 0,
-      scale: 0.45,
+      scale: 0.4,
       duration: 420,
       ease: 'Cubic.easeIn',
       onComplete: () => {
-        container.destroy();
+        g.destroy();
+        arrowObj.hitZone.destroy();
         this.isAnimating = false;
 
-        this.emitParticles(
-          container.x - dx * 1000,
-          container.y - dy * 1000,
-          data.color
-        );
+        this.emitParticles(g.x - dx * 1100, g.y - dy * 1100, arrowObj.color);
 
         if (this.remaining <= 0) {
           this.time.delayedCall(250, () => this.levelComplete());
@@ -235,20 +230,20 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  shakeArrow(container) {
+  shakeArrow(arrowObj) {
+    const g = arrowObj.graphics;
     this.tweens.add({
-      targets: container,
-      x: container.x + 9,
+      targets: g,
+      x: g.x + 8,
       duration: 35,
       yoyo: true,
       repeat: 4
     });
 
-    const g = container.arrowData.graphics;
-    this.drawArrow(g, container.arrowData.dir, 0xff3333);
+    this.drawArrow(g, arrowObj.dir, 0xff3333);
     this.time.delayedCall(160, () => {
-      if (!container.arrowData.removed) {
-        this.drawArrow(g, container.arrowData.dir, container.arrowData.color);
+      if (!arrowObj.removed) {
+        this.drawArrow(g, arrowObj.dir, arrowObj.color);
       }
     });
   }
