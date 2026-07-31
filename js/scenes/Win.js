@@ -18,18 +18,25 @@ class WinScene extends Phaser.Scene {
       } catch (e) {}
     }
 
+    // Достижения
+    if (window.trackLevelResult) {
+      try {
+        window.trackLevelResult(levelIndex, stars, mistakes, elapsed);
+      } catch (e) {}
+    }
+
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.06);
-    glow.fillCircle(width / 2, height * 0.26, 180);
+    glow.fillCircle(width / 2, height * 0.24, 180);
 
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'СУПЕР!'];
     const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
 
-    const title = this.add.text(width / 2, height * 0.16, phrase, {
+    const title = this.add.text(width / 2, height * 0.14, phrase, {
       fontFamily: 'Arial Black',
-      fontSize: '42px',
+      fontSize: '40px',
       color: '#00e8c8',
       align: 'center'
     }).setOrigin(0.5).setAlpha(0);
@@ -42,16 +49,16 @@ class WinScene extends Phaser.Scene {
       ease: 'Back.easeOut'
     });
 
-    this.add.text(width / 2, height * 0.26, `Уровень ${level} пройден`, {
+    this.add.text(width / 2, height * 0.23, `Уровень ${level} пройден`, {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
-    const starY = height * 0.38;
+    const starY = height * 0.33;
     for (let i = 0; i < 3; i++) {
-      const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
-        fontSize: '54px',
+      const star = this.add.text(width / 2 + (i - 1) * 64, starY, '★', {
+        fontSize: '50px',
         color: i < stars ? '#ffd166' : '#2a2a40'
       }).setOrigin(0.5).setScale(0.5).setAlpha(0);
 
@@ -66,25 +73,47 @@ class WinScene extends Phaser.Scene {
     }
 
     const timeStr = this.formatTime(elapsed);
-    this.add.text(width / 2, height * 0.5, `Ошибок: ${mistakes}   ·   Время: ${timeStr}`, {
+    this.add.text(width / 2, height * 0.44, `Ошибок: ${mistakes}   ·   Время: ${timeStr}`, {
       fontFamily: 'Arial',
-      fontSize: '18px',
+      fontSize: '17px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
+
+    // Новые достижения
+    const news = window.popNewAchievements ? window.popNewAchievements() : [];
+    if (news.length) {
+      const a = window.getAchievementById ? window.getAchievementById(news[0]) : null;
+      const label = a ? `${a.icon} ${a.title}` : 'Новое достижение!';
+      this.add.text(width / 2, height * 0.51, label, {
+        fontFamily: 'Arial',
+        fontSize: '18px',
+        color: '#ffd166'
+      }).setOrigin(0.5);
+
+      if (news.length > 1) {
+        this.add.text(width / 2, height * 0.55, `+ ещё ${news.length - 1}`, {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: '#6a6a82'
+        }).setOrigin(0.5);
+      }
+    }
 
     const isLast = levelIndex >= LEVELS.length - 1;
     const nextIndex = levelIndex + 1;
     const canNext = !isLast && window.isLevelPlayable && window.isLevelPlayable(nextIndex);
 
+    let btnY = height * 0.64;
+
     if (!isLast && canNext) {
-      this.createButton(width / 2, height * 0.64, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+      this.createButton(width / 2, btnY, 'ДАЛЬШЕ →', 0x00e8c8, () => {
         window.gameData.currentLevel++;
         this.scene.start('Game');
       });
     } else if (!isLast && !canNext) {
       const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(nextIndex) : 0;
       const have = window.getTotalStars ? window.getTotalStars() : 0;
-      this.add.text(width / 2, height * 0.64, `Нужно ★${need} (есть ${have})`, {
+      this.add.text(width / 2, btnY, `Нужно ★${need} (есть ${have})`, {
         fontFamily: 'Arial',
         fontSize: '18px',
         color: '#ff6b6b'
@@ -113,14 +142,14 @@ class WinScene extends Phaser.Scene {
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-120, -30, 240, 60, 30);
+    bg.fillRoundedRect(-120, -28, 240, 56, 28);
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: '24px',
+      fontSize: '22px',
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
     btn.add([bg, text]);
-    btn.setSize(240, 60);
+    btn.setSize(240, 56);
     btn.setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
       this.tweens.add({
