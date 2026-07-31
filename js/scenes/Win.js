@@ -5,10 +5,10 @@ class WinScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const stars = window.gameData.stars || 3;
+    const stars = window.gameData.stars || 1;
     const level = window.gameData.currentLevel + 1;
+    const mistakes = window.gameData.mistakes || 0;
 
-    // Сохраняем прогресс
     const nextLevel = window.gameData.currentLevel + 1;
     if (window.saveProgress) {
       try {
@@ -18,15 +18,16 @@ class WinScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Мягкое свечение без particles (particles зависали)
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.06);
     glow.fillCircle(width / 2, height * 0.28, 180);
 
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'ФАНТАСТИКА!', 'СУПЕР!', 'БЛЕСТЯЩЕ!'];
-    const phrase = phrases[Math.min(stars, phrases.length - 1)];
+    // phrase by stars: 3->best, 1->ok
+    const phraseIndex = stars >= 3 ? 0 : stars === 2 ? 1 : 3;
+    const phrase = phrases[phraseIndex];
 
-    const title = this.add.text(width / 2, height * 0.24, phrase, {
+    const title = this.add.text(width / 2, height * 0.22, phrase, {
       fontFamily: 'Arial Black',
       fontSize: '46px',
       color: '#00e8c8',
@@ -41,14 +42,14 @@ class WinScene extends Phaser.Scene {
       ease: 'Back.easeOut'
     });
 
-    this.add.text(width / 2, height * 0.34, `Уровень ${level} пройден`, {
+    this.add.text(width / 2, height * 0.32, `Уровень ${level} пройден`, {
       fontFamily: 'Arial',
       fontSize: '24px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
-    // Звёзды
-    const starY = height * 0.46;
+    // Stars
+    const starY = height * 0.44;
     for (let i = 0; i < 3; i++) {
       const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
         fontSize: '56px',
@@ -65,22 +66,34 @@ class WinScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(width / 2, height * 0.56, `Ходов: ${window.gameData.moves}`, {
+    this.add.text(width / 2, height * 0.56, `Ошибок: ${mistakes}`, {
       fontFamily: 'Arial',
       fontSize: '22px',
-      color: '#6a6a82'
+      color: mistakes === 0 ? '#2ec4b6' : '#ff6b6b'
+    }).setOrigin(0.5);
+
+    // Hint under mistakes
+    let hint = 'Идеально!';
+    if (mistakes === 0) hint = 'Без ошибок — 3 звезды';
+    else if (mistakes <= 3) hint = '1–3 ошибки — 2 звезды';
+    else hint = '4+ ошибок — 1 звезда';
+
+    this.add.text(width / 2, height * 0.61, hint, {
+      fontFamily: 'Arial',
+      fontSize: '16px',
+      color: '#5a5a72'
     }).setOrigin(0.5);
 
     const isLast = window.gameData.currentLevel >= LEVELS.length - 1;
 
     if (!isLast) {
-      this.createButton(width / 2, height * 0.7, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+      this.createButton(width / 2, height * 0.72, 'ДАЛЬШЕ →', 0x00e8c8, () => {
         window.gameData.currentLevel++;
         this.scene.start('Game');
       });
     }
 
-    this.createButton(width / 2, height * 0.82, isLast ? 'В МЕНЮ' : 'МЕНЮ', 0x222238, () => {
+    this.createButton(width / 2, height * 0.84, isLast ? 'В МЕНЮ' : 'МЕНЮ', 0x222238, () => {
       this.scene.start('Menu');
     });
 
