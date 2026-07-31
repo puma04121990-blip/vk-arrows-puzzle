@@ -114,18 +114,22 @@ class GameScene extends Phaser.Scene {
         if (this.timeLeft <= 0) {
           this.timeLeft = 0;
           this.timerText.setText('0');
-          this.onFail('ВРЕМЯ ВЫШЛО');
+          this.triggerFail('ВРЕМЯ ВЫШЛО');
         }
       }
     });
   }
 
-  onFail(title) {
-    if (this.failed) return;
+  /** Единая точка провала — без зависания */
+  triggerFail(title) {
+    if (this.failed || this.completed) return;
+
     this.failed = true;
     this.completed = true;
 
-    if (this.timerEvent) this.timerEvent.remove(false);
+    if (this.timerEvent) {
+      try { this.timerEvent.remove(false); } catch (e) {}
+    }
 
     this.playFailSound();
     this.showFailOverlay(title || 'ПРОВАЛ');
@@ -134,7 +138,6 @@ class GameScene extends Phaser.Scene {
   showFailOverlay(titleText) {
     const { width, height } = this.scale;
 
-    // Шире блок, чтобы длинный текст влезал
     const boxW = Math.min(width - 48, 400);
     const boxH = 260;
     const bx = width / 2 - boxW / 2;
@@ -142,6 +145,7 @@ class GameScene extends Phaser.Scene {
 
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72);
     dim.setDepth(100);
+    dim.setInteractive(); // блокирует клики по полю
 
     const box = this.add.graphics();
     box.fillStyle(0x1a1a28, 1);
@@ -150,7 +154,6 @@ class GameScene extends Phaser.Scene {
     box.strokeRoundedRect(bx, by, boxW, boxH, 24);
     box.setDepth(101);
 
-    // Заголовок с переносом, если длинный
     this.add.text(width / 2, height / 2 - 75, titleText, {
       fontFamily: 'Arial Black',
       fontSize: titleText.length > 14 ? '22px' : '26px',
@@ -274,20 +277,14 @@ class GameScene extends Phaser.Scene {
       this.playSuccessSound();
       this.flyAway(data);
     } else {
-      // Сразу блокируем дальнейшие ошибки на лимите
-      if (this.mistakes >= this.maxMistakes) return;
-
       this.mistakes++;
       this.updateMistakesUI();
       this.playFailSound();
       this.failFeedback(data);
 
       if (this.mistakes >= this.maxMistakes) {
-        // Сразу failed, чтобы нельзя было набрать 4/3
-        this.failed = true;
-        this.time.delayedCall(180, () => {
-          this.onFail('СЛИШКОМ МНОГО\nОШИБОК');
-        });
+        // Сразу показываем окно, без лишних флагов до вызова
+        this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
       }
     }
   }
@@ -333,7 +330,9 @@ class GameScene extends Phaser.Scene {
         try { g.destroy(); data.zone.destroy(); } catch (e) {}
         if (this.remaining <= 0 && !this.completed && !this.failed) {
           this.completed = true;
-          if (this.timerEvent) this.timerEvent.remove(false);
+          if (this.timerEvent) {
+            try { this.timerEvent.remove(false); } catch (e) {}
+          }
           this.time.delayedCall(100, () => this.levelComplete());
         }
       }
