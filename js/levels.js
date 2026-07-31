@@ -1,5 +1,5 @@
 // ============================================
-// Level generator with WALLS (стрелка не проходит)
+// Levels + WALLS that truly block arrow paths
 // ============================================
 
 function cellKey(x, y) {
@@ -16,13 +16,8 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
     else if (arrow.dir === 2) cy++;
     else cx--;
 
-    // Вышла за край поля — путь свободен
     if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
-
-    // Стена блокирует
     if (wallSet && wallSet.has(cellKey(cx, cy))) return false;
-
-    // Другая стрелка блокирует
     if (remaining.some(a => a.x === cx && a.y === cy)) return false;
   }
 }
@@ -47,12 +42,10 @@ function isSolvable(arrows, size, walls) {
 
 function smartDir(x, y, size) {
   const dist = [y, size - 1 - x, size - 1 - y, x];
-  if (Math.random() < 0.78) {
+  if (Math.random() < 0.75) {
     let best = 0;
-    for (let i = 1; i < 4; i++) {
-      if (dist[i] < dist[best]) best = i;
-    }
-    if (Math.random() < 0.25) {
+    for (let i = 1; i < 4; i++) if (dist[i] < dist[best]) best = i;
+    if (Math.random() < 0.3) {
       let second = best === 0 ? 1 : 0;
       for (let i = 0; i < 4; i++) {
         if (i !== best && dist[i] < dist[second]) second = i;
@@ -62,6 +55,22 @@ function smartDir(x, y, size) {
     return best;
   }
   return Math.floor(Math.random() * 4);
+}
+
+/** Клетки на пути стрелки до края (не включая саму стрелку) */
+function cellsOnPath(arrow, size) {
+  const cells = [];
+  let cx = arrow.x;
+  let cy = arrow.y;
+  while (true) {
+    if (arrow.dir === 0) cy--;
+    else if (arrow.dir === 1) cx++;
+    else if (arrow.dir === 2) cy++;
+    else cx--;
+    if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
+    cells.push({ x: cx, y: cy });
+  }
+  return cells;
 }
 
 function createGuaranteedSafe(size) {
@@ -77,8 +86,51 @@ function createGuaranteedSafe(size) {
   return { size, arrows, walls: [] };
 }
 
+/**
+ * Ставим стены ИМЕННО на путях стрелок,
+ * чтобы они реально мешали, но уровень оставался решаемым.
+ */
+function placeBlockingWalls(arrows, size, occupied, wallCount) {
+  const walls = [];
+  if (wallCount <= 0) return walls;
+
+  // Кандидаты: клетки на путях стрелок, не занятые стрелками
+  const candidates = [];
+  const seen = new Set();
+
+  arrows.forEach(a => {
+    cellsOnPath(a, size).forEach(c => {
+      const k = cellKey(c.x, c.y);
+      if (occupied.has(k) || seen.has(k)) return;
+      // Не ставим стену вплотную к краю слишком часто — пусть есть смысл
+      seen.add(k);
+      candidates.push(c);
+    });
+  });
+
+  // Перемешать
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = candidates[i];
+    candidates[i] = candidates[j];
+    candidates[j] = t;
+  }
+
+  for (let i = 0; i < candidates.length && walls.length < wallCount; i++) {
+    const c = candidates[i];
+    const trial = walls.concat([c]);
+    // Стена должна оставлять уровень решаемым
+    if (isSolvable(arrows, size, trial)) {
+      walls.push(c);
+      occupied.add(cellKey(c.x, c.y));
+    }
+  }
+
+  return walls;
+}
+
 function generateLevel(size, count, wallCount) {
-  const maxAttempts = 2500;
+  const maxAttempts = 3000;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const arrows = [];
@@ -86,33 +138,30 @@ function generateLevel(size, count, wallCount) {
 
     let placed = 0;
     let safety = 0;
-    while (placed < count && safety < 500) {
+    while (placed < count && safety < 600) {
       safety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
       const key = cellKey(x, y);
       if (occupied.has(key)) continue;
-
       arrows.push({ x, y, dir: smartDir(x, y, size) });
       occupied.add(key);
       placed++;
     }
 
-    // Стены на свободных клетках
-    const walls = [];
-    let wSafety = 0;
-    while (walls.length < wallCount && wSafety < 400) {
-      wSafety++;
-      const x = Math.floor(Math.random() * size);
-      const y = Math.floor(Math.random() * size);
-      const key = cellKey(x, y);
-      if (occupied.has(key)) continue;
-      // Не ставим стену на самом краю слишком часто — чуть разнообразия
-      walls.push({ x, y });
-      occupied.add(key);
+    if (placed < count) continue;
+
+    // Сначала проверяем решаемость без стен
+    if (!isSolvable(arrows, size, [])) continue;
+
+    const walls = placeBlockingWalls(arrows, size, occupied, wallCount);
+
+    // Если просили стены — стараемся получить хотя бы часть
+    if (wallCount > 0 && walls.length === 0 && attempt < maxAttempts - 50) {
+      continue; // попробуем другую раскладку
     }
 
-    if (placed === count && isSolvable(arrows, size, walls)) {
+    if (isSolvable(arrows, size, walls)) {
       return { size, arrows, walls };
     }
   }
@@ -138,14 +187,13 @@ function getArrowCount(levelIndex, size) {
   return Math.min(max, Math.max(min, count));
 }
 
-/** Стены появляются с 6 уровня, растут постепенно */
-function getWallCount(levelIndex, size, arrowCount) {
-  if (levelIndex < 5) return 0;           // 1–5 без стен
-  if (levelIndex < 10) return 1;          // 6–10
+function getWallCount(levelIndex) {
+  if (levelIndex < 5) return 0;
+  if (levelIndex < 10) return 1;
   if (levelIndex < 20) return 2;
   if (levelIndex < 30) return 3;
   if (levelIndex < 40) return 4;
-  return Math.min(6, Math.floor(size * 0.7));
+  return 5;
 }
 
 const LEVELS = [];
@@ -153,15 +201,15 @@ const LEVELS = [];
 for (let i = 0; i < 50; i++) {
   const size = getSizeForLevel(i);
   const count = getArrowCount(i, size);
-  const wallsN = getWallCount(i, size, count);
+  const wallsN = getWallCount(i);
   const level = generateLevel(size, count, wallsN);
 
-  if (!isSolvable(level.arrows, level.size, level.walls)) {
+  if (!isSolvable(level.arrows, level.size, level.walls || [])) {
     LEVELS.push(createGuaranteedSafe(size));
   } else {
     LEVELS.push(level);
   }
 }
 
-console.log('Generated 50 levels with walls');
-console.log('Walls per level:', LEVELS.map(l => (l.walls || []).length).join(', '));
+console.log('Levels with path-blocking walls');
+console.log('Walls:', LEVELS.map(l => (l.walls || []).length).join(','));
