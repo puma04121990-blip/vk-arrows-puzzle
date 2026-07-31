@@ -1,5 +1,6 @@
 // ============================================
-// Levels: walls always placed when required
+// Walls FIRST, then arrows with valid directions
+// Wall on path = blocked. Dir only if can reach edge.
 // ============================================
 
 function cellKey(x, y) {
@@ -33,7 +34,6 @@ function isSolvable(arrows, size, walls) {
       wallSet.add(cellKey(walls[i].x, walls[i].y));
     }
   }
-
   let guard = 0;
   while (remaining.length > 0 && guard++ < 200) {
     let found = false;
@@ -49,12 +49,40 @@ function isSolvable(arrows, size, walls) {
   return remaining.length === 0;
 }
 
-function smartDir(x, y, size) {
+/** Направления, при которых стрелка достигает края БЕЗ пересечения стен */
+function validDirs(x, y, size, wallSet) {
+  const dirs = [];
+  for (let d = 0; d < 4; d++) {
+    let cx = x;
+    let cy = y;
+    let ok = true;
+    let guard = 0;
+    while (guard++ < 64) {
+      if (d === 0) cy--;
+      else if (d === 1) cx++;
+      else if (d === 2) cy++;
+      else cx--;
+      if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
+      if (wallSet.has(cellKey(cx, cy))) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) dirs.push(d);
+  }
+  return dirs;
+}
+
+function pickDir(x, y, size, wallSet) {
+  const dirs = validDirs(x, y, size, wallSet);
+  if (dirs.length === 0) return -1;
+
+  // Предпочитаем «к краю»
   const dist = [y, size - 1 - x, size - 1 - y, x];
-  let best = 0;
-  for (let i = 1; i < 4; i++) if (dist[i] < dist[best]) best = i;
-  if (Math.random() < 0.65) return best;
-  return Math.floor(Math.random() * 4);
+  dirs.sort((a, b) => dist[a] - dist[b]);
+
+  if (Math.random() < 0.7) return dirs[0];
+  return dirs[Math.floor(Math.random() * dirs.length)];
 }
 
 function createGuaranteedSafe(size) {
@@ -63,133 +91,62 @@ function createGuaranteedSafe(size) {
     if (y % 2 === 0) arrows.push({ x: 0, y: y, dir: 3 });
     else arrows.push({ x: size - 1, y: y, dir: 1 });
   }
-  // Одна стена в центре для демонстрации на запасных уровнях
-  const mid = Math.floor(size / 2);
-  const walls = size >= 5 ? [{ x: mid, y: mid }] : [];
-  // Проверим — если ломает, без стен
-  if (walls.length && !isSolvable(arrows, size, walls)) {
-    return { size: size, arrows: arrows, walls: [] };
-  }
-  return { size: size, arrows: arrows, walls: walls };
-}
-
-function cellsOnPath(arrow, size) {
-  const cells = [];
-  let cx = arrow.x;
-  let cy = arrow.y;
-  let guard = 0;
-  while (guard++ < 32) {
-    if (arrow.dir === 0) cy--;
-    else if (arrow.dir === 1) cx++;
-    else if (arrow.dir === 2) cy++;
-    else cx--;
-    if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
-    cells.push({ x: cx, y: cy });
-  }
-  return cells;
-}
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const t = arr[i];
-    arr[i] = arr[j];
-    arr[j] = t;
-  }
-  return arr;
-}
-
-/**
- * Ставит стены на путях стрелок.
- * Минимум minWalls (если wallCount > 0).
- */
-function buildWalls(arrows, size, occupied, wallCount) {
-  if (wallCount <= 0) return [];
-
-  const candidates = [];
-  const seen = new Set();
-
-  for (let a = 0; a < arrows.length; a++) {
-    const path = cellsOnPath(arrows[a], size);
-    // Предпочитаем клетки ближе к стрелке (сильнее мешают)
-    for (let p = 0; p < path.length; p++) {
-      const c = path[p];
-      const k = cellKey(c.x, c.y);
-      if (!occupied.has(k) && !seen.has(k)) {
-        seen.add(k);
-        candidates.push({ x: c.x, y: c.y, priority: p });
-      }
-    }
-  }
-
-  // Сначала клетки ближе к стрелкам
-  candidates.sort((a, b) => a.priority - b.priority);
-  // Небольшая перемешка среди близких
-  shuffle(candidates);
-
-  const walls = [];
-  const minNeed = Math.max(1, Math.ceil(wallCount * 0.5));
-
-  for (let i = 0; i < candidates.length && walls.length < wallCount; i++) {
-    const c = { x: candidates[i].x, y: candidates[i].y };
-    const trial = walls.concat([c]);
-    if (isSolvable(arrows, size, trial)) {
-      walls.push(c);
-      occupied.add(cellKey(c.x, c.y));
-    }
-  }
-
-  return walls;
+  return { size: size, arrows: arrows, walls: [] };
 }
 
 function generateLevel(size, count, wallCount) {
-  const maxAttempts = 500;
-  let best = null;
-  let bestWalls = -1;
+  const maxAttempts = 600;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const arrows = [];
     const occupied = new Set();
+    const walls = [];
+    const wallSet = new Set();
 
+    // 1) Сначала стены (не на самом краю поля — чтобы оставались выходы)
+    let wSafety = 0;
+    while (walls.length < wallCount && wSafety < 200) {
+      wSafety++;
+      const x = Math.floor(Math.random() * size);
+      const y = Math.floor(Math.random() * size);
+      // Чуть реже на самом краю
+      if (wallCount > 0 && Math.random() < 0.3) {
+        if (x === 0 || y === 0 || x === size - 1 || y === size - 1) continue;
+      }
+      const k = cellKey(x, y);
+      if (occupied.has(k)) continue;
+      walls.push({ x: x, y: y });
+      wallSet.add(k);
+      occupied.add(k);
+    }
+
+    // 2) Стрелки на свободных клетках с валидным направлением
+    const arrows = [];
     let placed = 0;
     let safety = 0;
-    while (placed < count && safety < 400) {
+    while (placed < count && safety < 500) {
       safety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
-      const key = cellKey(x, y);
-      if (occupied.has(key)) continue;
-      arrows.push({ x: x, y: y, dir: smartDir(x, y, size) });
-      occupied.add(key);
+      const k = cellKey(x, y);
+      if (occupied.has(k)) continue;
+
+      const dir = pickDir(x, y, size, wallSet);
+      if (dir < 0) continue; // все направления упираются в стену
+
+      arrows.push({ x: x, y: y, dir: dir });
+      occupied.add(k);
       placed++;
     }
 
     if (placed < count) continue;
-    if (!isSolvable(arrows, size, [])) continue;
+    if (wallCount > 0 && walls.length < wallCount) continue;
 
-    const walls = buildWalls(arrows, size, occupied, wallCount);
-
-    if (!isSolvable(arrows, size, walls)) continue;
-
-    // Идеал: набрали нужное число стен
-    if (walls.length >= wallCount || (wallCount === 0 && walls.length === 0)) {
-      return { size: size, arrows: arrows, walls: walls };
-    }
-
-    // Запоминаем лучший вариант с максимальным числом стен
-    if (walls.length > bestWalls) {
-      bestWalls = walls.length;
-      best = { size: size, arrows: arrows, walls: walls };
-    }
-
-    // Если уже есть хотя бы 1 стена при требовании — можно брать после половины попыток
-    if (wallCount > 0 && walls.length >= 1 && attempt > maxAttempts * 0.5) {
+    if (isSolvable(arrows, size, walls)) {
       return { size: size, arrows: arrows, walls: walls };
     }
   }
 
-  if (best && best.walls.length > 0) return best;
-  if (best) return best;
+  // Fallback: без стен, гарантированно решаемый
   return createGuaranteedSafe(size);
 }
 
@@ -212,12 +169,12 @@ function getArrowCount(levelIndex, size) {
 }
 
 function getWallCount(levelIndex) {
-  if (levelIndex < 5) return 0;   // 1–5
-  if (levelIndex < 10) return 1;  // 6–10
-  if (levelIndex < 20) return 2;  // 11–20
-  if (levelIndex < 30) return 3;  // 21–30
-  if (levelIndex < 40) return 4;  // 31–40
-  return 5;                      // 41–50
+  if (levelIndex < 5) return 0;
+  if (levelIndex < 10) return 1;
+  if (levelIndex < 20) return 2;
+  if (levelIndex < 30) return 3;
+  if (levelIndex < 40) return 4;
+  return 5;
 }
 
 const LEVELS = [];
