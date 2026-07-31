@@ -10,11 +10,11 @@ class MenuScene extends Phaser.Scene {
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * 0.22, 180);
+    glow.fillCircle(width / 2, height * 0.18, 160);
 
-    this.add.text(width / 2, height * 0.14, 'ARROW PULSE', {
+    this.add.text(width / 2, height * 0.11, 'ARROW PULSE', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '46px',
+      fontSize: '42px',
       color: '#00e8c8',
       align: 'center',
       stroke: '#0b0b14',
@@ -27,30 +27,29 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * 0.21, greeting, {
+    this.add.text(width / 2, height * 0.175, greeting, {
       fontFamily: 'Arial',
-      fontSize: '20px',
+      fontSize: '18px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    const rulesY = height * 0.28;
+    const rulesY = height * 0.23;
     this.add.text(width / 2, rulesY, 'КАК ИГРАТЬ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '18px',
+      fontSize: '16px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
     const rules = [
-      '• Тапай по стрелке, чтобы убрать её',
-      '• Стрелка улетает, если путь свободен',
-      '• Убери все стрелки с поля',
-      '• Без ошибок — 3 звезды'
+      '• Тапай по стрелке, путь должен быть свободен',
+      '• Стены и замки мешают — ищи ключ 🔑',
+      '• Без ошибок — 3 звезды, лимит 3 ошибки'
     ];
 
     rules.forEach((line, i) => {
-      this.add.text(width / 2, rulesY + 30 + i * 24, line, {
+      this.add.text(width / 2, rulesY + 26 + i * 22, line, {
         fontFamily: 'Arial',
-        fontSize: '16px',
+        fontSize: '15px',
         color: '#9a9ab4'
       }).setOrigin(0.5);
     });
@@ -58,37 +57,41 @@ class MenuScene extends Phaser.Scene {
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
-    let y = height * 0.52;
+    let y = height * 0.42;
 
     if (hasProgress) {
       this.add.text(width / 2, y, `Прогресс: уровень ${maxLevel + 1}`, {
         fontFamily: 'Arial',
-        fontSize: '17px',
+        fontSize: '16px',
         color: '#6a6a82'
       }).setOrigin(0.5);
-      y += 50;
+      y += 42;
 
       this.createButton(width / 2, y, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
         this.scene.start('Game');
       });
-      y += 88;
+      y += 78;
     } else {
       this.createButton(width / 2, y, 'ИГРАТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = 0;
         this.scene.start('Game');
       });
-      y += 88;
+      y += 78;
     }
 
-    // Карта уровней
     this.createButton(width / 2, y, 'УРОВНИ', 0x222238, () => {
       this.scene.start('LevelsMap');
     }, true);
+    y += 78;
 
-    this.add.text(width / 2, height * 0.92, `${LEVELS.length} уровней`, {
+    this.createButton(width / 2, y, 'ДОСТИЖЕНИЯ', 0x222238, () => {
+      this.scene.start('Achievements');
+    }, true);
+
+    this.add.text(width / 2, height * 0.93, `${LEVELS.length} уровней`, {
       fontFamily: 'Arial',
-      fontSize: '16px',
+      fontSize: '15px',
       color: '#505068'
     }).setOrigin(0.5);
 
@@ -100,16 +103,16 @@ class MenuScene extends Phaser.Scene {
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-140, -34, 280, 68, 34);
+    bg.fillRoundedRect(-140, -30, 280, 60, 30);
 
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: secondary ? '24px' : '30px',
+      fontSize: secondary ? '22px' : '28px',
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
     btn.add([bg, text]);
-    btn.setSize(280, 68);
+    btn.setSize(280, 60);
     btn.setInteractive({ useHandCursor: true });
 
     btn.on('pointerdown', () => {
