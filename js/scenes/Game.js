@@ -12,6 +12,7 @@ class GameScene extends Phaser.Scene {
     this.offsetY = 0;
     this.moves = 0;
     this.mistakes = 0;
+    this.maxMistakes = 3; // лимит ошибок
     this.remaining = 0;
     this.completed = false;
     this.failed = false;
@@ -20,14 +21,11 @@ class GameScene extends Phaser.Scene {
     this.elapsed = 0;
   }
 
-  /** Секунды на уровень: зависит от размера и числа стрелок */
   calcTimeLimit() {
     const size = this.levelData.size;
     const count = this.levelData.arrows.length;
-    // База + за стрелку + за размер поля + чуть больше на поздних уровнях
     let sec = 25 + count * 4 + size * 3 + Math.floor(this.levelIndex * 0.4);
-    sec = Math.max(30, Math.min(sec, 180)); // от 30 до 180 сек
-    return sec;
+    return Math.max(30, Math.min(sec, 180));
   }
 
   create() {
@@ -51,8 +49,7 @@ class GameScene extends Phaser.Scene {
     line.lineStyle(2, 0x00e8c8, 0.35);
     line.lineBetween(width / 2 - 50, 66, width / 2 + 50, 66);
 
-    // Ошибки слева, таймер справа
-    this.movesText = this.add.text(width * 0.28, 100, 'Ошибки: 0', {
+    this.movesText = this.add.text(width * 0.28, 100, `Ошибки: 0/${this.maxMistakes}`, {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#6e6e8a'
@@ -90,6 +87,17 @@ class GameScene extends Phaser.Scene {
     return m > 0 ? `${m}:${r.toString().padStart(2, '0')}` : `${r}`;
   }
 
+  updateMistakesUI() {
+    this.movesText.setText(`Ошибки: ${this.mistakes}/${this.maxMistakes}`);
+    if (this.mistakes >= this.maxMistakes - 1) {
+      this.movesText.setColor('#ff6b6b');
+    } else if (this.mistakes >= 1) {
+      this.movesText.setColor('#ffd166');
+    } else {
+      this.movesText.setColor('#6e6e8a');
+    }
+  }
+
   startTimer() {
     this.timerEvent = this.time.addEvent({
       delay: 100,
@@ -100,26 +108,22 @@ class GameScene extends Phaser.Scene {
         this.timeLeft -= 0.1;
         this.elapsed = this.timeLimit - this.timeLeft;
 
-        if (this.timeLeft <= 10) {
-          this.timerText.setColor('#ff6b6b');
-        } else if (this.timeLeft <= 20) {
-          this.timerText.setColor('#ffd166');
-        } else {
-          this.timerText.setColor('#00e8c8');
-        }
+        if (this.timeLeft <= 10) this.timerText.setColor('#ff6b6b');
+        else if (this.timeLeft <= 20) this.timerText.setColor('#ffd166');
+        else this.timerText.setColor('#00e8c8');
 
         this.timerText.setText(this.formatTime(this.timeLeft));
 
         if (this.timeLeft <= 0) {
           this.timeLeft = 0;
           this.timerText.setText('0');
-          this.onTimeOut();
+          this.onFail('ВРЕМЯ ВЫШЛО');
         }
       }
     });
   }
 
-  onTimeOut() {
+  onFail(title) {
     if (this.completed || this.failed) return;
     this.failed = true;
     this.completed = true;
@@ -127,10 +131,10 @@ class GameScene extends Phaser.Scene {
     if (this.timerEvent) this.timerEvent.remove(false);
 
     this.playFailSound();
-    this.showTimeOutOverlay();
+    this.showFailOverlay(title || 'ПРОВАЛ');
   }
 
-  showTimeOutOverlay() {
+  showFailOverlay(titleText) {
     const { width, height } = this.scale;
 
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72);
@@ -143,13 +147,13 @@ class GameScene extends Phaser.Scene {
     box.strokeRoundedRect(width / 2 - 160, height / 2 - 120, 320, 240, 24);
     box.setDepth(101);
 
-    const title = this.add.text(width / 2, height / 2 - 70, 'ВРЕМЯ ВЫШЛО', {
+    this.add.text(width / 2, height / 2 - 70, titleText, {
       fontFamily: 'Arial Black',
-      fontSize: '28px',
+      fontSize: '26px',
       color: '#ff6b6b'
     }).setOrigin(0.5).setDepth(102);
 
-    const sub = this.add.text(width / 2, height / 2 - 25, 'Попробуй ещё раз', {
+    this.add.text(width / 2, height / 2 - 25, 'Попробуй ещё раз', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#9a9ab4'
@@ -265,9 +269,15 @@ class GameScene extends Phaser.Scene {
       this.flyAway(data);
     } else {
       this.mistakes++;
-      this.movesText.setText(`Ошибки: ${this.mistakes}`);
+      this.updateMistakesUI();
       this.playFailSound();
       this.failFeedback(data);
+
+      if (this.mistakes >= this.maxMistakes) {
+        this.time.delayedCall(200, () => {
+          this.onFail('СЛИШКОМ МНОГО ОШИБОК');
+        });
+      }
     }
   }
 
@@ -334,16 +344,11 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // При прохождении ошибок может быть 0, 1 или 2 (3 = провал)
   calcStars() {
-    // База по ошибкам
-    let stars = 3;
-    if (this.mistakes === 0) stars = 3;
-    else if (this.mistakes <= 3) stars = 2;
-    else stars = 1;
-
-    // Штраф, если почти не уложился во время (< 15% осталось) — только если уже 3★
-    // Бонус не даём, таймер только ограничивает
-    return stars;
+    if (this.mistakes === 0) return 3;
+    if (this.mistakes === 1) return 2;
+    return 1; // 2 ошибки
   }
 
   levelComplete() {
