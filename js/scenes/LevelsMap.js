@@ -28,14 +28,14 @@ class LevelsMapScene extends Phaser.Scene {
 
     const cols = 5;
     const cellW = 110;
-    const cellH = 108;
+    const cellH = 112;
+    const btnHalfH = 40; // половина высоты кнопки уровня
     const startX = (width - cols * cellW) / 2 + cellW / 2;
     let y = 120;
 
     stages.forEach((stage) => {
       const unlocked = window.isStageUnlocked(stage);
 
-      // Заголовок этапа
       const titleColor = unlocked ? '#00e8c8' : '#6a6a82';
       let title = stage.name;
       if (!unlocked) title += `  ·  нужно ★${stage.needStars}`;
@@ -47,19 +47,22 @@ class LevelsMapScene extends Phaser.Scene {
         color: titleColor
       }).setOrigin(0.5);
       this.mapContainer.add(header);
-      y += 36;
+      y += 28;
 
       if (!unlocked) {
-        const hint = this.add.text(width / 2, y, `Собери ещё ★${Math.max(0, stage.needStars - totalStars)}`, {
+        const needMore = Math.max(0, stage.needStars - totalStars);
+        const hint = this.add.text(width / 2, y, `Собери ещё ★${needMore}`, {
           fontFamily: 'Arial',
           fontSize: '14px',
           color: '#ff6b6b'
         }).setOrigin(0.5);
         this.mapContainer.add(hint);
-        y += 28;
+        y += 26;
       }
 
-      // Кнопки уровней этапа
+      // Отступ, чтобы верх кнопок не наезжал на текст
+      y += btnHalfH + 8;
+
       for (let i = stage.from; i <= stage.to && i < total; i++) {
         const local = i - stage.from;
         const col = local % cols;
@@ -75,7 +78,8 @@ class LevelsMapScene extends Phaser.Scene {
       }
 
       const rows = Math.ceil((stage.to - stage.from + 1) / cols);
-      y += rows * cellH + 24;
+      // низ последнего ряда + отступ до следующего этапа
+      y += (rows - 1) * cellH + btnHalfH + 36;
     });
 
     const back = this.add.text(width / 2, height - 48, '← МЕНЮ', {
@@ -88,7 +92,7 @@ class LevelsMapScene extends Phaser.Scene {
 
     back.on('pointerdown', () => this.scene.start('Menu'));
 
-    this.setupScroll(y, height);
+    this.setupScroll(y + 20, height);
   }
 
   createLevelButton(x, y, index, playable, progressed, stageUnlocked, stars) {
