@@ -1,55 +1,82 @@
 // ============================================
-// Progress save/load
-// VK Storage inside VK, localStorage outside
+// Progress: maxLevel + stars per level
 // ============================================
 
 window.gameProgress = {
-  maxLevel: 0,   // максимальный открытый уровень (0-based)
+  maxLevel: 0,
+  stars: {}, // { "0": 3, "1": 2, ... }
   loaded: false
 };
 
-const STORAGE_KEY = 'arrow_pulse_progress';
+const STORAGE_KEY = 'arrow_pulse_progress_v2';
 
 function isVK() {
   return typeof vkBridge !== 'undefined';
 }
 
-// Сохранить прогресс
-window.saveProgress = function (maxLevel) {
-  if (typeof maxLevel === 'number' && maxLevel > window.gameProgress.maxLevel) {
-    window.gameProgress.maxLevel = maxLevel;
-  }
-
+function persist() {
   const data = JSON.stringify({
-    maxLevel: window.gameProgress.maxLevel
+    maxLevel: window.gameProgress.maxLevel,
+    stars: window.gameProgress.stars || {}
   });
 
-  // localStorage всегда (на случай теста)
   try {
     localStorage.setItem(STORAGE_KEY, data);
   } catch (e) {}
 
-  // VK Storage
   if (isVK()) {
     vkBridge.send('VKWebAppStorageSet', {
       key: STORAGE_KEY,
       value: data
     }).catch(() => {});
   }
+}
+
+// Открыть уровень + сохранить лучшие звёзды
+window.saveProgress = function (maxLevel, levelIndex, stars) {
+  if (typeof maxLevel === 'number' && maxLevel > window.gameProgress.maxLevel) {
+    window.gameProgress.maxLevel = maxLevel;
+  }
+
+  if (typeof levelIndex === 'number' && typeof stars === 'number') {
+    if (!window.gameProgress.stars) window.gameProgress.stars = {};
+    const key = String(levelIndex);
+    const prev = window.gameProgress.stars[key] || 0;
+    if (stars > prev) {
+      window.gameProgress.stars[key] = stars;
+    }
+  }
+
+  persist();
 };
 
-// Загрузить прогресс (возвращает Promise)
+window.getLevelStars = function (levelIndex) {
+  if (!window.gameProgress.stars) return 0;
+  return window.gameProgress.stars[String(levelIndex)] || 0;
+};
+
 window.loadProgress = function () {
   return new Promise((resolve) => {
-    // Сначала пробуем localStorage (быстро)
+    const apply = (parsed) => {
+      if (!parsed) return;
+      if (typeof parsed.maxLevel === 'number') {
+        window.gameProgress.maxLevel = Math.max(
+          window.gameProgress.maxLevel,
+          parsed.maxLevel
+        );
+      }
+      if (parsed.stars && typeof parsed.stars === 'object') {
+        window.gameProgress.stars = Object.assign(
+          {},
+          window.gameProgress.stars || {},
+          parsed.stars
+        );
+      }
+    };
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed.maxLevel === 'number') {
-          window.gameProgress.maxLevel = parsed.maxLevel;
-        }
-      }
+      if (raw) apply(JSON.parse(raw));
     } catch (e) {}
 
     if (!isVK()) {
@@ -58,23 +85,12 @@ window.loadProgress = function () {
       return;
     }
 
-    // Потом VK Storage (приоритетнее)
-    vkBridge.send('VKWebAppStorageGet', {
-      keys: [STORAGE_KEY]
-    })
+    vkBridge.send('VKWebAppStorageGet', { keys: [STORAGE_KEY] })
       .then((result) => {
         const keys = result.keys || [];
         const item = keys.find(k => k.key === STORAGE_KEY);
         if (item && item.value) {
-          try {
-            const parsed = JSON.parse(item.value);
-            if (typeof parsed.maxLevel === 'number') {
-              window.gameProgress.maxLevel = Math.max(
-                window.gameProgress.maxLevel,
-                parsed.maxLevel
-              );
-            }
-          } catch (e) {}
+          try { apply(JSON.parse(item.value)); } catch (e) {}
         }
         window.gameProgress.loaded = true;
         resolve(window.gameProgress);
