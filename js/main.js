@@ -1,5 +1,5 @@
 // ============================================
-// VK Bridge init (обязательно для каталога VK)
+// VK Bridge init
 // ============================================
 
 window.vkUser = null;
@@ -7,38 +7,36 @@ window.vkUser = null;
 function initVK() {
   if (typeof vkBridge === 'undefined') {
     console.log('VK Bridge not found — running outside VK');
+    // Вне VK сразу грузим прогресс из localStorage
+    if (window.loadProgress) window.loadProgress();
     return;
   }
 
-  // Обязательная инициализация
   vkBridge.send('VKWebAppInit')
     .then(() => {
-      console.log('VKWebAppInit OK');
-
-      // Настройка статус-бара под тёмную тему игры
       return vkBridge.send('VKWebAppSetViewSettings', {
         status_bar_style: 'light',
         action_bar_color: '#0b0b14',
         navigation_bar_color: '#0b0b14'
       });
     })
-    .then(() => {
-      // Получаем данные пользователя (для приветствия в меню)
-      return vkBridge.send('VKWebAppGetUserInfo');
-    })
+    .then(() => vkBridge.send('VKWebAppGetUserInfo'))
     .then((user) => {
       window.vkUser = user;
-      console.log('VK user:', user.first_name);
     })
     .catch((err) => {
       console.warn('VK Bridge error:', err);
+    })
+    .finally(() => {
+      // После инициализации VK загружаем прогресс
+      if (window.loadProgress) window.loadProgress();
     });
 }
 
 initVK();
 
 // ============================================
-// Phaser config
+// Phaser
 // ============================================
 
 const config = {
