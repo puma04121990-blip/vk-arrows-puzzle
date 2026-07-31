@@ -10,12 +10,11 @@ class MenuScene extends Phaser.Scene {
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * 0.26, 200);
+    glow.fillCircle(width / 2, height * 0.22, 180);
 
-    // Title
-    this.add.text(width / 2, height * 0.16, 'ARROW PULSE', {
+    this.add.text(width / 2, height * 0.14, 'ARROW PULSE', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '48px',
+      fontSize: '46px',
       color: '#00e8c8',
       align: 'center',
       stroke: '#0b0b14',
@@ -23,23 +22,21 @@ class MenuScene extends Phaser.Scene {
       shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 16, fill: true }
     }).setOrigin(0.5);
 
-    // Greeting
     let greeting = 'Головоломка со стрелками';
     if (window.vkUser && window.vkUser.first_name) {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * 0.24, greeting, {
+    this.add.text(width / 2, height * 0.21, greeting, {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    // Rules
-    const rulesY = height * 0.32;
+    const rulesY = height * 0.28;
     this.add.text(width / 2, rulesY, 'КАК ИГРАТЬ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '20px',
+      fontSize: '18px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
@@ -47,55 +44,51 @@ class MenuScene extends Phaser.Scene {
       '• Тапай по стрелке, чтобы убрать её',
       '• Стрелка улетает, если путь свободен',
       '• Убери все стрелки с поля',
-      '• Чем меньше ходов — тем выше оценка'
+      '• Без ошибок — 3 звезды'
     ];
 
     rules.forEach((line, i) => {
-      this.add.text(width / 2, rulesY + 34 + i * 26, line, {
+      this.add.text(width / 2, rulesY + 30 + i * 24, line, {
         fontFamily: 'Arial',
-        fontSize: '17px',
+        fontSize: '16px',
         color: '#9a9ab4'
       }).setOrigin(0.5);
     });
 
-    // Progress info
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
+    let y = height * 0.52;
+
     if (hasProgress) {
-      this.add.text(width / 2, height * 0.58, `Прогресс: уровень ${maxLevel + 1}`, {
+      this.add.text(width / 2, y, `Прогресс: уровень ${maxLevel + 1}`, {
         fontFamily: 'Arial',
-        fontSize: '18px',
+        fontSize: '17px',
         color: '#6a6a82'
       }).setOrigin(0.5);
-    }
+      y += 50;
 
-    // Buttons
-    const btnY = hasProgress ? height * 0.66 : height * 0.68;
-
-    // Основная кнопка
-    if (hasProgress) {
-      // Продолжить
-      this.createButton(width / 2, btnY, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
+      this.createButton(width / 2, y, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
         this.scene.start('Game');
       });
-
-      // Сначала
-      this.createButton(width / 2, btnY + 90, 'СНАЧАЛА', 0x222238, () => {
-        window.gameData.currentLevel = 0;
-        this.scene.start('Game');
-      }, true);
+      y += 88;
     } else {
-      this.createButton(width / 2, btnY, 'ИГРАТЬ', 0x00e8c8, () => {
+      this.createButton(width / 2, y, 'ИГРАТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = 0;
         this.scene.start('Game');
       });
+      y += 88;
     }
 
-    this.add.text(width / 2, height * 0.9, `${LEVELS.length} уровней`, {
+    // Карта уровней
+    this.createButton(width / 2, y, 'УРОВНИ', 0x222238, () => {
+      this.scene.start('LevelsMap');
+    }, true);
+
+    this.add.text(width / 2, height * 0.92, `${LEVELS.length} уровней`, {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#505068'
     }).setOrigin(0.5);
 
@@ -107,16 +100,16 @@ class MenuScene extends Phaser.Scene {
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-140, -36, 280, 72, 36);
+    bg.fillRoundedRect(-140, -34, 280, 68, 34);
 
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: secondary ? '26px' : '32px',
+      fontSize: secondary ? '24px' : '30px',
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
     btn.add([bg, text]);
-    btn.setSize(280, 72);
+    btn.setSize(280, 68);
     btn.setInteractive({ useHandCursor: true });
 
     btn.on('pointerdown', () => {
@@ -134,7 +127,7 @@ class MenuScene extends Phaser.Scene {
 
   createDecorArrows() {
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0, 0xf72585];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       const x = Phaser.Math.Between(30, 690);
       const y = Phaser.Math.Between(30, 1250);
       const color = Phaser.Utils.Array.GetRandom(colors);
