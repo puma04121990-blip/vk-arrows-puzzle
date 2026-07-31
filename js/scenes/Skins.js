@@ -16,7 +16,7 @@ class SkinsScene extends Phaser.Scene {
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, 86, 'Внешний вид стрелок', {
+    this.add.text(width / 2, 86, 'Тапни, чтобы выбрать', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#8a8aa8'
@@ -24,24 +24,29 @@ class SkinsScene extends Phaser.Scene {
 
     this.listContainer = this.add.container(0, 0);
     this.selectedId = selected;
+    this.rows = [];
 
     let y = 140;
     skins.forEach((skin) => {
       this.createSkinRow(width / 2, y, skin, skin.id === this.selectedId);
+      this.rows.push({ y: y, skinId: skin.id });
       y += 108;
     });
 
-    const back = this.add.text(width / 2, height - 48, '← МЕНЮ', {
+    // Кнопка назад — вне контейнера, всегда кликабельна
+    const backBg = this.add.graphics();
+    backBg.fillStyle(0x181828, 1);
+    backBg.fillRoundedRect(width / 2 - 90, height - 70, 180, 48, 12);
+
+    const back = this.add.text(width / 2, height - 46, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: '22px',
-      color: '#9a9ab8',
-      backgroundColor: '#181828',
-      padding: { x: 22, y: 12 }
+      color: '#9a9ab8'
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     back.on('pointerdown', () => this.scene.start('Menu'));
 
-    this.setupScroll(y + 20, height);
+    this.setupScrollAndTap(y + 20, height);
   }
 
   createSkinRow(x, y, skin, isSelected) {
@@ -52,7 +57,6 @@ class SkinsScene extends Phaser.Scene {
     g.strokeRoundedRect(x - 320, y - 42, 640, 88, 16);
     this.listContainer.add(g);
 
-    // Preview arrows
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
     for (let i = 0; i < 4; i++) {
       const pg = this.add.graphics();
@@ -85,29 +89,66 @@ class SkinsScene extends Phaser.Scene {
       }).setOrigin(0.5);
       this.listContainer.add(mark);
     }
-
-    const zone = this.add.zone(x, y, 640, 88).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    this.listContainer.add(zone);
-    zone.on('pointerdown', () => {
-      if (window.setSelectedSkin) window.setSelectedSkin(skin.id);
-      this.scene.restart();
-    });
   }
 
-  setupScroll(contentH, height) {
-    const maxScroll = Math.max(0, contentH - (height - 90));
-    this.scrollY = 0;
-    let dragging = false;
-    let lastY = 0;
+  selectSkin(skinId) {
+    if (!skinId) return;
+    if (window.setSelectedSkin) {
+      window.setSelectedSkin(skinId);
+    } else {
+      if (!window.gameProgress) window.gameProgress = {};
+      window.gameProgress.skin = skinId;
+      if (window.persistProgress) window.persistProgress();
+    }
+    this.scene.restart();
+  }
 
-    this.input.on('pointerdown', (p) => { dragging = true; lastY = p.y; });
-    this.input.on('pointerup', () => { dragging = false; });
+  setupScrollAndTap(contentH, height) {
+    const maxScroll = Math.max(0, contentH - (height - 100));
+    this.scrollY = 0;
+
+    let startY = 0;
+    let startScroll = 0;
+    let dragging = false;
+    let moved = false;
+    const TAP_THRESHOLD = 12;
+
+    this.input.on('pointerdown', (p) => {
+      // Не перехватываем кнопку меню (низ экрана)
+      if (p.y > height - 80) return;
+      dragging = true;
+      moved = false;
+      startY = p.y;
+      startScroll = this.scrollY;
+    });
+
     this.input.on('pointermove', (p) => {
-      if (!dragging || maxScroll <= 0) return;
-      const dy = p.y - lastY;
-      lastY = p.y;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
+      if (!dragging) return;
+      const dy = p.y - startY;
+      if (Math.abs(dy) > TAP_THRESHOLD) moved = true;
+      if (maxScroll <= 0) return;
+      this.scrollY = Phaser.Math.Clamp(startScroll + dy, -maxScroll, 0);
       this.listContainer.y = this.scrollY;
+    });
+
+    this.input.on('pointerup', (p) => {
+      if (!dragging) return;
+      dragging = false;
+
+      // Скролл — не выбираем
+      if (moved) return;
+      if (p.y > height - 80) return;
+
+      // Координата в пространстве списка
+      const listY = p.y - this.scrollY;
+
+      for (let i = 0; i < this.rows.length; i++) {
+        const row = this.rows[i];
+        if (Math.abs(listY - row.y) <= 44) {
+          this.selectSkin(row.skinId);
+          return;
+        }
+      }
     });
   }
 }
