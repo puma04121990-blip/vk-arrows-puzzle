@@ -1,5 +1,5 @@
 // ============================================
-// Levels + WALLS that truly block arrow paths
+// Fast level generator + blocking walls
 // ============================================
 
 function cellKey(x, y) {
@@ -9,8 +9,8 @@ function cellKey(x, y) {
 function canEscapeSim(arrow, remaining, size, wallSet) {
   let cx = arrow.x;
   let cy = arrow.y;
-
-  while (true) {
+  let guard = 0;
+  while (guard++ < 64) {
     if (arrow.dir === 0) cy--;
     else if (arrow.dir === 1) cx++;
     else if (arrow.dir === 2) cy++;
@@ -18,15 +18,24 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
 
     if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
     if (wallSet && wallSet.has(cellKey(cx, cy))) return false;
-    if (remaining.some(a => a.x === cx && a.y === cy)) return false;
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].x === cx && remaining[i].y === cy) return false;
+    }
   }
+  return false;
 }
 
 function isSolvable(arrows, size, walls) {
   const remaining = arrows.map(a => ({ x: a.x, y: a.y, dir: a.dir }));
-  const wallSet = new Set((walls || []).map(w => cellKey(w.x, w.y)));
+  const wallSet = new Set();
+  if (walls) {
+    for (let i = 0; i < walls.length; i++) {
+      wallSet.add(cellKey(walls[i].x, walls[i].y));
+    }
+  }
 
-  while (remaining.length > 0) {
+  let guard = 0;
+  while (remaining.length > 0 && guard++ < 200) {
     let found = false;
     for (let i = 0; i < remaining.length; i++) {
       if (canEscapeSim(remaining[i], remaining, size, wallSet)) {
@@ -37,32 +46,32 @@ function isSolvable(arrows, size, walls) {
     }
     if (!found) return false;
   }
-  return true;
+  return remaining.length === 0;
 }
 
 function smartDir(x, y, size) {
   const dist = [y, size - 1 - x, size - 1 - y, x];
-  if (Math.random() < 0.75) {
-    let best = 0;
-    for (let i = 1; i < 4; i++) if (dist[i] < dist[best]) best = i;
-    if (Math.random() < 0.3) {
-      let second = best === 0 ? 1 : 0;
-      for (let i = 0; i < 4; i++) {
-        if (i !== best && dist[i] < dist[second]) second = i;
-      }
-      return second;
-    }
-    return best;
-  }
+  let best = 0;
+  for (let i = 1; i < 4; i++) if (dist[i] < dist[best]) best = i;
+  if (Math.random() < 0.7) return best;
   return Math.floor(Math.random() * 4);
 }
 
-/** Клетки на пути стрелки до края (не включая саму стрелку) */
+function createGuaranteedSafe(size) {
+  const arrows = [];
+  for (let y = 0; y < size; y++) {
+    if (y % 2 === 0) arrows.push({ x: 0, y: y, dir: 3 });
+    else arrows.push({ x: size - 1, y: y, dir: 1 });
+  }
+  return { size: size, arrows: arrows, walls: [] };
+}
+
 function cellsOnPath(arrow, size) {
   const cells = [];
   let cx = arrow.x;
   let cy = arrow.y;
-  while (true) {
+  let guard = 0;
+  while (guard++ < 32) {
     if (arrow.dir === 0) cy--;
     else if (arrow.dir === 1) cx++;
     else if (arrow.dir === 2) cy++;
@@ -73,64 +82,8 @@ function cellsOnPath(arrow, size) {
   return cells;
 }
 
-function createGuaranteedSafe(size) {
-  const arrows = [];
-  for (let y = 0; y < size; y++) {
-    if (y % 2 === 0) arrows.push({ x: 0, y, dir: 3 });
-    if (y % 2 === 1) arrows.push({ x: size - 1, y, dir: 1 });
-  }
-  for (let x = 1; x < size - 1; x++) {
-    if (x % 2 === 0) arrows.push({ x, y: 0, dir: 0 });
-    if (x % 2 === 1) arrows.push({ x, y: size - 1, dir: 2 });
-  }
-  return { size, arrows, walls: [] };
-}
-
-/**
- * Ставим стены ИМЕННО на путях стрелок,
- * чтобы они реально мешали, но уровень оставался решаемым.
- */
-function placeBlockingWalls(arrows, size, occupied, wallCount) {
-  const walls = [];
-  if (wallCount <= 0) return walls;
-
-  // Кандидаты: клетки на путях стрелок, не занятые стрелками
-  const candidates = [];
-  const seen = new Set();
-
-  arrows.forEach(a => {
-    cellsOnPath(a, size).forEach(c => {
-      const k = cellKey(c.x, c.y);
-      if (occupied.has(k) || seen.has(k)) return;
-      // Не ставим стену вплотную к краю слишком часто — пусть есть смысл
-      seen.add(k);
-      candidates.push(c);
-    });
-  });
-
-  // Перемешать
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const t = candidates[i];
-    candidates[i] = candidates[j];
-    candidates[j] = t;
-  }
-
-  for (let i = 0; i < candidates.length && walls.length < wallCount; i++) {
-    const c = candidates[i];
-    const trial = walls.concat([c]);
-    // Стена должна оставлять уровень решаемым
-    if (isSolvable(arrows, size, trial)) {
-      walls.push(c);
-      occupied.add(cellKey(c.x, c.y));
-    }
-  }
-
-  return walls;
-}
-
 function generateLevel(size, count, wallCount) {
-  const maxAttempts = 3000;
+  const maxAttempts = 400;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const arrows = [];
@@ -138,31 +91,57 @@ function generateLevel(size, count, wallCount) {
 
     let placed = 0;
     let safety = 0;
-    while (placed < count && safety < 600) {
+    while (placed < count && safety < 300) {
       safety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
       const key = cellKey(x, y);
       if (occupied.has(key)) continue;
-      arrows.push({ x, y, dir: smartDir(x, y, size) });
+      arrows.push({ x: x, y: y, dir: smartDir(x, y, size) });
       occupied.add(key);
       placed++;
     }
 
     if (placed < count) continue;
-
-    // Сначала проверяем решаемость без стен
     if (!isSolvable(arrows, size, [])) continue;
 
-    const walls = placeBlockingWalls(arrows, size, occupied, wallCount);
+    // Стены: быстро, по путям, с одной проверкой в конце
+    const walls = [];
+    if (wallCount > 0) {
+      const candidates = [];
+      const seen = new Set();
+      for (let a = 0; a < arrows.length; a++) {
+        const path = cellsOnPath(arrows[a], size);
+        for (let p = 0; p < path.length; p++) {
+          const c = path[p];
+          const k = cellKey(c.x, c.y);
+          if (!occupied.has(k) && !seen.has(k)) {
+            seen.add(k);
+            candidates.push(c);
+          }
+        }
+      }
 
-    // Если просили стены — стараемся получить хотя бы часть
-    if (wallCount > 0 && walls.length === 0 && attempt < maxAttempts - 50) {
-      continue; // попробуем другую раскладку
+      // shuffle partial
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = candidates[i];
+        candidates[i] = candidates[j];
+        candidates[j] = tmp;
+      }
+
+      for (let i = 0; i < candidates.length && walls.length < wallCount; i++) {
+        const c = candidates[i];
+        const trial = walls.concat([c]);
+        if (isSolvable(arrows, size, trial)) {
+          walls.push(c);
+          occupied.add(cellKey(c.x, c.y));
+        }
+      }
     }
 
     if (isSolvable(arrows, size, walls)) {
-      return { size, arrows, walls };
+      return { size: size, arrows: arrows, walls: walls };
     }
   }
 
@@ -179,11 +158,11 @@ function getSizeForLevel(levelIndex) {
 }
 
 function getArrowCount(levelIndex, size) {
-  const base = Math.floor(size * size * 0.28);
-  const extra = Math.floor(levelIndex * 0.35);
+  const base = Math.floor(size * size * 0.26);
+  const extra = Math.floor(levelIndex * 0.3);
   const count = base + extra;
-  const min = Math.max(5, Math.floor(size * 1.2));
-  const max = Math.floor(size * size * 0.5);
+  const min = Math.max(4, Math.floor(size * 1.1));
+  const max = Math.floor(size * size * 0.45);
   return Math.min(max, Math.max(min, count));
 }
 
@@ -202,14 +181,5 @@ for (let i = 0; i < 50; i++) {
   const size = getSizeForLevel(i);
   const count = getArrowCount(i, size);
   const wallsN = getWallCount(i);
-  const level = generateLevel(size, count, wallsN);
-
-  if (!isSolvable(level.arrows, level.size, level.walls || [])) {
-    LEVELS.push(createGuaranteedSafe(size));
-  } else {
-    LEVELS.push(level);
-  }
+  LEVELS.push(generateLevel(size, count, wallsN));
 }
-
-console.log('Levels with path-blocking walls');
-console.log('Walls:', LEVELS.map(l => (l.walls || []).length).join(','));
