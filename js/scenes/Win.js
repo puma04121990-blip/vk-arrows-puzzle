@@ -8,41 +8,38 @@ class WinScene extends Phaser.Scene {
     const stars = window.gameData.stars || 3;
     const level = window.gameData.currentLevel + 1;
 
-    // Сохраняем прогресс: открываем следующий уровень
+    // Сохраняем прогресс
     const nextLevel = window.gameData.currentLevel + 1;
     if (window.saveProgress) {
-      window.saveProgress(nextLevel);
+      try {
+        window.saveProgress(nextLevel);
+      } catch (e) {}
     }
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
+    // Мягкое свечение без particles (particles зависали)
     const glow = this.add.graphics();
-    glow.fillStyle(0x00e8c8, 0.05);
-    glow.fillCircle(width / 2, height * 0.3, 200);
-
-    this.add.particles(width / 2, -10, 'particle', {
-      speed: { min: 80, max: 240 },
-      angle: { min: 55, max: 125 },
-      scale: { start: 0.45, end: 0 },
-      lifespan: 2200,
-      quantity: 2,
-      frequency: 50,
-      tint: [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0, 0xf72585],
-      blendMode: 'ADD'
-    });
+    glow.fillStyle(0x00e8c8, 0.06);
+    glow.fillCircle(width / 2, height * 0.28, 180);
 
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'ФАНТАСТИКА!', 'СУПЕР!', 'БЛЕСТЯЩЕ!'];
     const phrase = phrases[Math.min(stars, phrases.length - 1)];
 
-    this.add.text(width / 2, height * 0.24, phrase, {
+    const title = this.add.text(width / 2, height * 0.24, phrase, {
       fontFamily: 'Arial Black',
-      fontSize: '48px',
+      fontSize: '46px',
       color: '#00e8c8',
-      align: 'center',
-      stroke: '#0b0b14',
-      strokeThickness: 5,
-      shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 20, fill: true }
-    }).setOrigin(0.5);
+      align: 'center'
+    }).setOrigin(0.5).setAlpha(0);
+
+    this.tweens.add({
+      targets: title,
+      alpha: 1,
+      scale: { from: 0.85, to: 1 },
+      duration: 280,
+      ease: 'Back.easeOut'
+    });
 
     this.add.text(width / 2, height * 0.34, `Уровень ${level} пройден`, {
       fontFamily: 'Arial',
@@ -50,23 +47,22 @@ class WinScene extends Phaser.Scene {
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
+    // Звёзды
     const starY = height * 0.46;
     for (let i = 0; i < 3; i++) {
       const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
-        fontSize: '58px',
+        fontSize: '56px',
         color: i < stars ? '#ffd166' : '#2a2a40'
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setScale(0.5).setAlpha(0);
 
-      if (i < stars) {
-        this.tweens.add({
-          targets: star,
-          scale: 1.25,
-          duration: 180,
-          yoyo: true,
-          delay: i * 100,
-          ease: 'Back.easeOut'
-        });
-      }
+      this.tweens.add({
+        targets: star,
+        alpha: 1,
+        scale: 1,
+        duration: 200,
+        delay: 120 + i * 90,
+        ease: 'Back.easeOut'
+      });
     }
 
     this.add.text(width / 2, height * 0.56, `Ходов: ${window.gameData.moves}`, {
