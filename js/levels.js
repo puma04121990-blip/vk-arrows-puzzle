@@ -1,6 +1,6 @@
 // ============================================
-// Walls FIRST, then arrows with valid directions
-// Wall on path = blocked. Dir only if can reach edge.
+// Levels: walls + LOCK/KEY arrows
+// Locked arrow can't be removed until its key is gone
 // ============================================
 
 function cellKey(x, y) {
@@ -26,8 +26,22 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
   return false;
 }
 
+function canRemoveSim(arrow, remaining, size, wallSet) {
+  // Замок: ключ ещё на поле
+  if (arrow.lockId != null) {
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].keyId === arrow.lockId) return false;
+    }
+  }
+  return canEscapeSim(arrow, remaining, size, wallSet);
+}
+
 function isSolvable(arrows, size, walls) {
-  const remaining = arrows.map(a => ({ x: a.x, y: a.y, dir: a.dir }));
+  const remaining = arrows.map(a => ({
+    x: a.x, y: a.y, dir: a.dir,
+    lockId: a.lockId != null ? a.lockId : null,
+    keyId: a.keyId != null ? a.keyId : null
+  }));
   const wallSet = new Set();
   if (walls) {
     for (let i = 0; i < walls.length; i++) {
@@ -38,7 +52,7 @@ function isSolvable(arrows, size, walls) {
   while (remaining.length > 0 && guard++ < 200) {
     let found = false;
     for (let i = 0; i < remaining.length; i++) {
-      if (canEscapeSim(remaining[i], remaining, size, wallSet)) {
+      if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
         remaining.splice(i, 1);
         found = true;
         break;
@@ -49,24 +63,17 @@ function isSolvable(arrows, size, walls) {
   return remaining.length === 0;
 }
 
-/** Направления, при которых стрелка достигает края БЕЗ пересечения стен */
 function validDirs(x, y, size, wallSet) {
   const dirs = [];
   for (let d = 0; d < 4; d++) {
-    let cx = x;
-    let cy = y;
-    let ok = true;
-    let guard = 0;
+    let cx = x, cy = y, ok = true, guard = 0;
     while (guard++ < 64) {
       if (d === 0) cy--;
       else if (d === 1) cx++;
       else if (d === 2) cy++;
       else cx--;
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
-      if (wallSet.has(cellKey(cx, cy))) {
-        ok = false;
-        break;
-      }
+      if (wallSet.has(cellKey(cx, cy))) { ok = false; break; }
     }
     if (ok) dirs.push(d);
   }
@@ -76,11 +83,8 @@ function validDirs(x, y, size, wallSet) {
 function pickDir(x, y, size, wallSet) {
   const dirs = validDirs(x, y, size, wallSet);
   if (dirs.length === 0) return -1;
-
-  // Предпочитаем «к краю»
   const dist = [y, size - 1 - x, size - 1 - y, x];
   dirs.sort((a, b) => dist[a] - dist[b]);
-
   if (Math.random() < 0.7) return dirs[0];
   return dirs[Math.floor(Math.random() * dirs.length)];
 }
@@ -94,24 +98,49 @@ function createGuaranteedSafe(size) {
   return { size: size, arrows: arrows, walls: [] };
 }
 
-function generateLevel(size, count, wallCount) {
-  const maxAttempts = 600;
+function assignLocks(arrows, pairCount) {
+  if (pairCount <= 0 || arrows.length < 2) return;
+
+  // Копия индексов, перемешать
+  const idx = [];
+  for (let i = 0; i < arrows.length; i++) idx.push(i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+
+  let pairs = 0;
+  let p = 0;
+  while (pairs < pairCount && p + 1 < idx.length) {
+    const iKey = idx[p];
+    const iLock = idx[p + 1];
+    p += 2;
+
+    // Не вешаем замок на уже занятые
+    if (arrows[iKey].keyId != null || arrows[iKey].lockId != null) continue;
+    if (arrows[iLock].keyId != null || arrows[iLock].lockId != null) continue;
+
+    const id = pairs + 1;
+    arrows[iKey].keyId = id;
+    arrows[iLock].lockId = id;
+    pairs++;
+  }
+}
+
+function generateLevel(size, count, wallCount, lockPairs) {
+  const maxAttempts = 500;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
     const walls = [];
     const wallSet = new Set();
 
-    // 1) Сначала стены (не на самом краю поля — чтобы оставались выходы)
     let wSafety = 0;
     while (walls.length < wallCount && wSafety < 200) {
       wSafety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
-      // Чуть реже на самом краю
-      if (wallCount > 0 && Math.random() < 0.3) {
-        if (x === 0 || y === 0 || x === size - 1 || y === size - 1) continue;
-      }
+      if (Math.random() < 0.3 && (x === 0 || y === 0 || x === size - 1 || y === size - 1)) continue;
       const k = cellKey(x, y);
       if (occupied.has(k)) continue;
       walls.push({ x: x, y: y });
@@ -119,7 +148,6 @@ function generateLevel(size, count, wallCount) {
       occupied.add(k);
     }
 
-    // 2) Стрелки на свободных клетках с валидным направлением
     const arrows = [];
     let placed = 0;
     let safety = 0;
@@ -129,10 +157,8 @@ function generateLevel(size, count, wallCount) {
       const y = Math.floor(Math.random() * size);
       const k = cellKey(x, y);
       if (occupied.has(k)) continue;
-
       const dir = pickDir(x, y, size, wallSet);
-      if (dir < 0) continue; // все направления упираются в стену
-
+      if (dir < 0) continue;
       arrows.push({ x: x, y: y, dir: dir });
       occupied.add(k);
       placed++;
@@ -141,12 +167,14 @@ function generateLevel(size, count, wallCount) {
     if (placed < count) continue;
     if (wallCount > 0 && walls.length < wallCount) continue;
 
+    // Замки
+    assignLocks(arrows, lockPairs);
+
     if (isSolvable(arrows, size, walls)) {
       return { size: size, arrows: arrows, walls: walls };
     }
   }
 
-  // Fallback: без стен, гарантированно решаемый
   return createGuaranteedSafe(size);
 }
 
@@ -177,11 +205,19 @@ function getWallCount(levelIndex) {
   return 5;
 }
 
+function getLockPairs(levelIndex) {
+  if (levelIndex < 7) return 0;   // 1–7 без замков
+  if (levelIndex < 15) return 1;  // 8–15
+  if (levelIndex < 30) return 2;  // 16–30
+  return 3;                      // 31–50
+}
+
 const LEVELS = [];
 
 for (let i = 0; i < 50; i++) {
   const size = getSizeForLevel(i);
   const count = getArrowCount(i, size);
   const wallsN = getWallCount(i);
-  LEVELS.push(generateLevel(size, count, wallsN));
+  const locksN = getLockPairs(i);
+  LEVELS.push(generateLevel(size, count, wallsN, locksN));
 }
