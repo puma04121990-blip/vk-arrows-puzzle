@@ -7,6 +7,7 @@ class GameScene extends Phaser.Scene {
     this.levelIndex = window.gameData.currentLevel || 0;
     this.levelData = LEVELS[this.levelIndex] || LEVELS[0];
     this.arrows = [];
+    this.wallSet = new Set();
     this.cellSize = 0;
     this.offsetX = 0;
     this.offsetY = 0;
@@ -30,6 +31,12 @@ class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+
+    // Набор стен для быстрой проверки
+    this.wallSet = new Set();
+    (this.levelData.walls || []).forEach(w => {
+      this.wallSet.add(w.x + ',' + w.y);
+    });
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
@@ -74,6 +81,7 @@ class GameScene extends Phaser.Scene {
     this.offsetY = 175 + (maxGridH - gridH) / 2;
 
     this.drawGrid(size);
+    this.drawWalls();
     this.createArrows();
     this.createUI();
     this.initAudio();
@@ -120,7 +128,6 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Единая точка провала — без зависания */
   triggerFail(title) {
     if (this.failed || this.completed) return;
 
@@ -145,7 +152,7 @@ class GameScene extends Phaser.Scene {
 
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72);
     dim.setDepth(100);
-    dim.setInteractive(); // блокирует клики по полю
+    dim.setInteractive();
 
     const box = this.add.graphics();
     box.fillStyle(0x1a1a28, 1);
@@ -191,12 +198,45 @@ class GameScene extends Phaser.Scene {
     const g = this.add.graphics();
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
+        if (this.wallSet.has(x + ',' + y)) continue;
         const cx = this.offsetX + x * this.cellSize + this.cellSize / 2;
         const cy = this.offsetY + y * this.cellSize + this.cellSize / 2;
         g.fillStyle(0x2a2a40, 0.85);
         g.fillCircle(cx, cy, 3.2);
       }
     }
+  }
+
+  /** Визуал стен — тёмные блоки */
+  drawWalls() {
+    const walls = this.levelData.walls || [];
+    if (!walls.length) return;
+
+    const g = this.add.graphics();
+    const pad = Math.max(4, this.cellSize * 0.12);
+    const s = this.cellSize - pad * 2;
+
+    walls.forEach(w => {
+      const x = this.offsetX + w.x * this.cellSize + pad;
+      const y = this.offsetY + w.y * this.cellSize + pad;
+
+      // Тень
+      g.fillStyle(0x000000, 0.35);
+      g.fillRoundedRect(x + 2, y + 2, s, s, 8);
+
+      // Корпус стены
+      g.fillStyle(0x3a3a52, 1);
+      g.fillRoundedRect(x, y, s, s, 8);
+
+      // Рамка
+      g.lineStyle(2, 0x5a5a78, 1);
+      g.strokeRoundedRect(x, y, s, s, 8);
+
+      // Внутренняя «кирпичная» линия
+      g.lineStyle(1, 0x2a2a40, 0.8);
+      g.lineBetween(x + 4, y + s / 2, x + s - 4, y + s / 2);
+      g.lineBetween(x + s / 2, y + 4, x + s / 2, y + s - 4);
+    });
   }
 
   createArrows() {
@@ -283,7 +323,6 @@ class GameScene extends Phaser.Scene {
       this.failFeedback(data);
 
       if (this.mistakes >= this.maxMistakes) {
-        // Сразу показываем окно, без лишних флагов до вызова
         this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
       }
     }
@@ -292,12 +331,20 @@ class GameScene extends Phaser.Scene {
   canEscape(data) {
     const size = this.levelData.size;
     let cx = data.x, cy = data.y;
+
     while (true) {
       if (data.dir === 0) cy--;
       else if (data.dir === 1) cx++;
       else if (data.dir === 2) cy++;
       else cx--;
+
+      // За краем поля — свободна
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
+
+      // Стена — путь закрыт
+      if (this.wallSet.has(cx + ',' + cy)) return false;
+
+      // Другая стрелка — путь закрыт
       if (this.arrows.some(a => !a.removed && a.x === cx && a.y === cy)) return false;
     }
   }
