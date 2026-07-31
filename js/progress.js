@@ -1,22 +1,23 @@
 // ============================================
-// Progress + Stages (10 levels each)
-// Next stage needs +25 total stars
+// Progress + Stages + Achievement stats
 // ============================================
 
 window.gameProgress = {
   maxLevel: 0,
   stars: {},
+  stats: {
+    totalMistakes: 0,
+    levelsCleared: 0,
+    perfectStreak: 0,
+    bestStreak: 0,
+    unlocked: {},
+    newlyUnlocked: []
+  },
   loaded: false
 };
 
-const STORAGE_KEY = 'arrow_pulse_progress_v2';
+const STORAGE_KEY = 'arrow_pulse_progress_v3';
 
-// Этапы: по 10 уровней
-// Этап 1 (ур. 1–10)  — всегда открыт
-// Этап 2 (ур. 11–20) — нужно 25 ★
-// Этап 3 (ур. 21–30) — нужно 50 ★
-// Этап 4 (ур. 31–40) — нужно 75 ★
-// Этап 5 (ур. 41–50) — нужно 100 ★
 window.STAGES = [
   { id: 1, name: 'Этап 1', from: 0,  to: 9,  needStars: 0 },
   { id: 2, name: 'Этап 2', from: 10, to: 19, needStars: 25 },
@@ -29,16 +30,17 @@ function isVK() {
   return typeof vkBridge !== 'undefined';
 }
 
-function persist() {
+window.persistProgress = function () {
   const data = JSON.stringify({
     maxLevel: window.gameProgress.maxLevel,
-    stars: window.gameProgress.stars || {}
+    stars: window.gameProgress.stars || {},
+    stats: window.gameProgress.stats || {}
   });
   try { localStorage.setItem(STORAGE_KEY, data); } catch (e) {}
   if (isVK()) {
     vkBridge.send('VKWebAppStorageSet', { key: STORAGE_KEY, value: data }).catch(() => {});
   }
-}
+};
 
 window.saveProgress = function (maxLevel, levelIndex, stars) {
   if (typeof maxLevel === 'number' && maxLevel > window.gameProgress.maxLevel) {
@@ -50,7 +52,7 @@ window.saveProgress = function (maxLevel, levelIndex, stars) {
     const prev = window.gameProgress.stars[key] || 0;
     if (stars > prev) window.gameProgress.stars[key] = stars;
   }
-  persist();
+  window.persistProgress();
 };
 
 window.getLevelStars = function (levelIndex) {
@@ -81,7 +83,6 @@ window.isStageUnlocked = function (stage) {
 window.isLevelPlayable = function (levelIndex) {
   const maxOpened = (window.gameProgress && window.gameProgress.maxLevel) || 0;
   if (levelIndex > maxOpened) return false;
-
   const stage = window.getStageForLevel(levelIndex);
   return window.isStageUnlocked(stage);
 };
@@ -101,11 +102,24 @@ window.loadProgress = function () {
       if (parsed.stars && typeof parsed.stars === 'object') {
         window.gameProgress.stars = Object.assign({}, window.gameProgress.stars || {}, parsed.stars);
       }
+      if (parsed.stats && typeof parsed.stats === 'object') {
+        window.gameProgress.stats = Object.assign({}, window.gameProgress.stats || {}, parsed.stats);
+        if (!window.gameProgress.stats.unlocked) window.gameProgress.stats.unlocked = {};
+        if (!window.gameProgress.stats.newlyUnlocked) window.gameProgress.stats.newlyUnlocked = [];
+      }
     };
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) apply(JSON.parse(raw));
+    } catch (e) {}
+
+    // migrate old key if needed
+    try {
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        const old = localStorage.getItem('arrow_pulse_progress_v2');
+        if (old) apply(JSON.parse(old));
+      }
     } catch (e) {}
 
     if (!isVK()) {
