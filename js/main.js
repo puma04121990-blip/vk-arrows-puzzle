@@ -54,7 +54,7 @@ const config = {
     height: 1280
   },
   input: { activePointers: 3 },
-  scene: [BootScene, MenuScene, LevelsMapScene, AchievementsScene, GameScene, WinScene],
+  scene: [BootScene, MenuScene, LevelsMapScene, AchievementsScene, SkinsScene, GameScene, WinScene],
   audio: { disableWebAudio: false },
   banner: false
 };
