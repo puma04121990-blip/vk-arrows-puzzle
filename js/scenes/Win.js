@@ -10,7 +10,6 @@ class WinScene extends Phaser.Scene {
     const mistakes = window.gameData.mistakes || 0;
     const levelIndex = window.gameData.currentLevel;
 
-    // Сохраняем: открыть следующий + лучшие звёзды за этот уровень
     const nextLevel = levelIndex + 1;
     if (window.saveProgress) {
       try {
@@ -27,7 +26,7 @@ class WinScene extends Phaser.Scene {
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'СУПЕР!'];
     const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
 
-    const title = this.add.text(width / 2, height * 0.2, phrase, {
+    const title = this.add.text(width / 2, height * 0.18, phrase, {
       fontFamily: 'Arial Black',
       fontSize: '44px',
       color: '#00e8c8',
@@ -42,13 +41,13 @@ class WinScene extends Phaser.Scene {
       ease: 'Back.easeOut'
     });
 
-    this.add.text(width / 2, height * 0.3, `Уровень ${level} пройден`, {
+    this.add.text(width / 2, height * 0.28, `Уровень ${level} пройден`, {
       fontFamily: 'Arial',
       fontSize: '22px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
-    const starY = height * 0.42;
+    const starY = height * 0.4;
     for (let i = 0; i < 3; i++) {
       const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
         fontSize: '56px',
@@ -65,26 +64,36 @@ class WinScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(width / 2, height * 0.54, `Ошибок: ${mistakes}`, {
+    this.add.text(width / 2, height * 0.52, `Ошибок: ${mistakes}`, {
       fontFamily: 'Arial',
       fontSize: '20px',
       color: mistakes === 0 ? '#2ec4b6' : '#ff6b6b'
     }).setOrigin(0.5);
 
     const isLast = levelIndex >= LEVELS.length - 1;
+    const nextIndex = levelIndex + 1;
+    const canNext = !isLast && window.isLevelPlayable && window.isLevelPlayable(nextIndex);
 
-    if (!isLast) {
-      this.createButton(width / 2, height * 0.66, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+    if (!isLast && canNext) {
+      this.createButton(width / 2, height * 0.64, 'ДАЛЬШЕ →', 0x00e8c8, () => {
         window.gameData.currentLevel++;
         this.scene.start('Game');
       });
+    } else if (!isLast && !canNext) {
+      const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(nextIndex) : 0;
+      const have = window.getTotalStars ? window.getTotalStars() : 0;
+      this.add.text(width / 2, height * 0.64, `Нужно ★${need} (есть ${have})`, {
+        fontFamily: 'Arial',
+        fontSize: '18px',
+        color: '#ff6b6b'
+      }).setOrigin(0.5);
     }
 
-    this.createButton(width / 2, height * 0.78, 'УРОВНИ', 0x2a2a45, () => {
+    this.createButton(width / 2, height * 0.76, 'УРОВНИ', 0x2a2a45, () => {
       this.scene.start('LevelsMap');
     });
 
-    this.createButton(width / 2, height * 0.9, 'МЕНЮ', 0x222238, () => {
+    this.createButton(width / 2, height * 0.88, 'МЕНЮ', 0x222238, () => {
       this.scene.start('Menu');
     });
 
