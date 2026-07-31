@@ -8,14 +8,18 @@ class WinScene extends Phaser.Scene {
     const stars = window.gameData.stars || 3;
     const level = window.gameData.currentLevel + 1;
 
+    // Сохраняем прогресс: открываем следующий уровень
+    const nextLevel = window.gameData.currentLevel + 1;
+    if (window.saveProgress) {
+      window.saveProgress(nextLevel);
+    }
+
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Soft glow
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.05);
     glow.fillCircle(width / 2, height * 0.3, 200);
 
-    // Particles
     this.add.particles(width / 2, -10, 'particle', {
       speed: { min: 80, max: 240 },
       angle: { min: 55, max: 125 },
@@ -46,7 +50,6 @@ class WinScene extends Phaser.Scene {
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
-    // Stars
     const starY = height * 0.46;
     for (let i = 0; i < 3; i++) {
       const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
