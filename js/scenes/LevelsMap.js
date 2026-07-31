@@ -8,52 +8,77 @@ class LevelsMapScene extends Phaser.Scene {
     const total = LEVELS.length;
     const maxOpened = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const totalStars = window.getTotalStars ? window.getTotalStars() : 0;
+    const stages = window.STAGES || [];
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    this.add.text(width / 2, 48, 'УРОВНИ', {
+    this.add.text(width / 2, 42, 'УРОВНИ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '34px',
+      fontSize: '32px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, 88, `★ ${totalStars} / ${total * 3}`, {
+    this.add.text(width / 2, 78, `★ ${totalStars} / ${total * 3}`, {
       fontFamily: 'Arial',
-      fontSize: '20px',
+      fontSize: '18px',
       color: '#ffd166'
     }).setOrigin(0.5);
 
-    // Подсказка про пороги
-    this.add.text(width / 2, 118, 'Каждые 10 ур. нужен порог ★', {
-      fontFamily: 'Arial',
-      fontSize: '15px',
-      color: '#5a5a72'
-    }).setOrigin(0.5);
+    this.mapContainer = this.add.container(0, 0);
 
     const cols = 5;
     const cellW = 110;
-    const cellH = 125;
+    const cellH = 108;
     const startX = (width - cols * cellW) / 2 + cellW / 2;
-    const startY = 160;
+    let y = 120;
 
-    this.mapContainer = this.add.container(0, 0);
+    stages.forEach((stage) => {
+      const unlocked = window.isStageUnlocked(stage);
 
-    for (let i = 0; i < total; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = startX + col * cellW;
-      const y = startY + row * cellH;
+      // Заголовок этапа
+      const titleColor = unlocked ? '#00e8c8' : '#6a6a82';
+      let title = stage.name;
+      if (!unlocked) title += `  ·  нужно ★${stage.needStars}`;
+      else if (stage.needStars > 0) title += `  ·  ★${stage.needStars}+`;
 
-      const progressed = i <= maxOpened;
-      const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(i) : 0;
-      const starLocked = need > 0 && totalStars < need;
-      const playable = progressed && !starLocked;
-      const stars = window.getLevelStars ? window.getLevelStars(i) : 0;
+      const header = this.add.text(width / 2, y, title, {
+        fontFamily: 'Arial Black, Arial',
+        fontSize: '18px',
+        color: titleColor
+      }).setOrigin(0.5);
+      this.mapContainer.add(header);
+      y += 36;
 
-      this.createLevelButton(x, y, i, playable, progressed, starLocked, need, stars, totalStars);
-    }
+      if (!unlocked) {
+        const hint = this.add.text(width / 2, y, `Собери ещё ★${Math.max(0, stage.needStars - totalStars)}`, {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: '#ff6b6b'
+        }).setOrigin(0.5);
+        this.mapContainer.add(hint);
+        y += 28;
+      }
 
-    const back = this.add.text(width / 2, height - 50, '← МЕНЮ', {
+      // Кнопки уровней этапа
+      for (let i = stage.from; i <= stage.to && i < total; i++) {
+        const local = i - stage.from;
+        const col = local % cols;
+        const row = Math.floor(local / cols);
+        const x = startX + col * cellW;
+        const cy = y + row * cellH;
+
+        const progressed = i <= maxOpened;
+        const playable = progressed && unlocked;
+        const stars = window.getLevelStars ? window.getLevelStars(i) : 0;
+
+        this.createLevelButton(x, cy, i, playable, progressed, unlocked, stars);
+      }
+
+      const rows = Math.ceil((stage.to - stage.from + 1) / cols);
+      y += rows * cellH + 24;
+    });
+
+    const back = this.add.text(width / 2, height - 48, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: '22px',
       color: '#9a9ab8',
@@ -63,67 +88,57 @@ class LevelsMapScene extends Phaser.Scene {
 
     back.on('pointerdown', () => this.scene.start('Menu'));
 
-    this.setupScroll(total, cols, cellH, startY, height);
+    this.setupScroll(y, height);
   }
 
-  createLevelButton(x, y, index, playable, progressed, starLocked, need, stars, totalStars) {
+  createLevelButton(x, y, index, playable, progressed, stageUnlocked, stars) {
     const g = this.add.graphics();
 
-    if (!progressed) {
+    if (!stageUnlocked || !progressed) {
       g.fillStyle(0x1a1a28, 1);
-      g.fillRoundedRect(x - 42, y - 42, 84, 90, 16);
+      g.fillRoundedRect(x - 40, y - 36, 80, 78, 14);
       g.lineStyle(2, 0x2a2a40, 1);
-      g.strokeRoundedRect(x - 42, y - 42, 84, 90, 16);
-    } else if (starLocked) {
-      g.fillStyle(0x2a1a1a, 1);
-      g.fillRoundedRect(x - 42, y - 42, 84, 90, 16);
-      g.lineStyle(2, 0xff6b6b, 0.7);
-      g.strokeRoundedRect(x - 42, y - 42, 84, 90, 16);
+      g.strokeRoundedRect(x - 40, y - 36, 80, 78, 14);
     } else if (stars > 0) {
       g.fillStyle(0x14352f, 1);
-      g.fillRoundedRect(x - 42, y - 42, 84, 90, 16);
-      g.lineStyle(2, 0x00e8c8, 0.8);
-      g.strokeRoundedRect(x - 42, y - 42, 84, 90, 16);
+      g.fillRoundedRect(x - 40, y - 36, 80, 78, 14);
+      g.lineStyle(2, 0x00e8c8, 0.85);
+      g.strokeRoundedRect(x - 40, y - 36, 80, 78, 14);
     } else {
       g.fillStyle(0x1e1e32, 1);
-      g.fillRoundedRect(x - 42, y - 42, 84, 90, 16);
+      g.fillRoundedRect(x - 40, y - 36, 80, 78, 14);
       g.lineStyle(2, 0x3a3a58, 1);
-      g.strokeRoundedRect(x - 42, y - 42, 84, 90, 16);
+      g.strokeRoundedRect(x - 40, y - 36, 80, 78, 14);
     }
 
     this.mapContainer.add(g);
 
-    const numColor = playable ? '#e8e8ff' : '#4a4a60';
-    const num = this.add.text(x, y - 14, String(index + 1), {
+    const num = this.add.text(x, y - 10, String(index + 1), {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '26px',
-      color: numColor
+      fontSize: '24px',
+      color: playable ? '#e8e8ff' : '#4a4a60'
     }).setOrigin(0.5);
     this.mapContainer.add(num);
 
-    if (!progressed) {
-      const lock = this.add.text(x, y + 22, '🔒', { fontSize: '15px' }).setOrigin(0.5).setAlpha(0.5);
+    if (!stageUnlocked) {
+      const lock = this.add.text(x, y + 20, '🔒', { fontSize: '14px' }).setOrigin(0.5).setAlpha(0.55);
       this.mapContainer.add(lock);
-    } else if (starLocked) {
-      const needText = this.add.text(x, y + 20, `★${need}`, {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#ff6b6b'
-      }).setOrigin(0.5);
-      this.mapContainer.add(needText);
+    } else if (!progressed) {
+      const lock = this.add.text(x, y + 20, '🔒', { fontSize: '14px' }).setOrigin(0.5).setAlpha(0.45);
+      this.mapContainer.add(lock);
     } else {
       let starStr = '';
       for (let s = 0; s < 3; s++) starStr += s < stars ? '★' : '☆';
-      const starText = this.add.text(x, y + 22, starStr, {
+      const starText = this.add.text(x, y + 20, starStr, {
         fontFamily: 'Arial',
-        fontSize: '15px',
+        fontSize: '14px',
         color: stars > 0 ? '#ffd166' : '#3a3a50'
       }).setOrigin(0.5);
       this.mapContainer.add(starText);
     }
 
     if (playable) {
-      const zone = this.add.zone(x, y, 84, 90).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const zone = this.add.zone(x, y, 80, 78).setOrigin(0.5).setInteractive({ useHandCursor: true });
       this.mapContainer.add(zone);
       zone.on('pointerdown', () => {
         window.gameData.currentLevel = index;
@@ -132,22 +147,14 @@ class LevelsMapScene extends Phaser.Scene {
     }
   }
 
-  setupScroll(total, cols, cellH, startY, height) {
-    const rows = Math.ceil(total / cols);
-    const contentH = startY + rows * cellH + 40;
-    const maxScroll = Math.max(0, contentH - (height - 100));
-
+  setupScroll(contentH, height) {
+    const maxScroll = Math.max(0, contentH - (height - 90));
     this.scrollY = 0;
     let dragging = false;
     let lastY = 0;
 
-    this.input.on('pointerdown', (p) => {
-      dragging = true;
-      lastY = p.y;
-    });
-
+    this.input.on('pointerdown', (p) => { dragging = true; lastY = p.y; });
     this.input.on('pointerup', () => { dragging = false; });
-
     this.input.on('pointermove', (p) => {
       if (!dragging || maxScroll <= 0) return;
       const dy = p.y - lastY;
