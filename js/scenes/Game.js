@@ -10,7 +10,8 @@ class GameScene extends Phaser.Scene {
     this.cellSize = 0;
     this.offsetX = 0;
     this.offsetY = 0;
-    this.moves = 0;
+    this.moves = 0;      // успешные снятия стрелок
+    this.mistakes = 0;   // тапы по заблокированным
     this.remaining = 0;
     this.completed = false;
   }
@@ -36,7 +37,7 @@ class GameScene extends Phaser.Scene {
     line.lineStyle(2, 0x00e8c8, 0.35);
     line.lineBetween(width / 2 - 50, 78, width / 2 + 50, 78);
 
-    this.movesText = this.add.text(width / 2, 100, 'Ходы: 0', {
+    this.movesText = this.add.text(width / 2, 100, 'Ошибки: 0', {
       fontFamily: 'Arial',
       fontSize: '19px',
       color: '#6e6e8a'
@@ -154,6 +155,9 @@ class GameScene extends Phaser.Scene {
       this.playSuccessSound();
       this.flyAway(data);
     } else {
+      // Ошибка: тап по заблокированной стрелке
+      this.mistakes++;
+      this.movesText.setText(`Ошибки: ${this.mistakes}`);
       this.playFailSound();
       this.failFeedback(data);
     }
@@ -180,7 +184,6 @@ class GameScene extends Phaser.Scene {
     data.removed = true;
     this.remaining--;
     this.moves++;
-    this.movesText.setText(`Ходы: ${this.moves}`);
     data.zone.disableInteractive();
 
     let dx = 0, dy = 0;
@@ -229,15 +232,24 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Система звёзд:
+   * 3★ — 0 ошибок
+   * 2★ — 1–3 ошибки
+   * 1★ — 4+ ошибок
+   */
+  calcStars() {
+    if (this.mistakes === 0) return 3;
+    if (this.mistakes <= 3) return 2;
+    return 1;
+  }
+
   levelComplete() {
     if (this.scene.isActive('Win')) return;
 
     window.gameData.moves = this.moves;
-    const ideal = this.levelData.arrows.length;
-    let stars = 3;
-    if (this.moves > ideal + 4) stars = 1;
-    else if (this.moves > ideal + 1) stars = 2;
-    window.gameData.stars = stars;
+    window.gameData.mistakes = this.mistakes;
+    window.gameData.stars = this.calcStars();
 
     this.scene.start('Win');
   }
