@@ -4,37 +4,34 @@ class GameScene extends Phaser.Scene {
   }
 
   init() {
-    this.levelIndex = window.gameData.currentLevel;
-    this.levelData = LEVELS[this.levelIndex];
+    this.levelIndex = window.gameData.currentLevel || 0;
+    this.levelData = LEVELS[this.levelIndex] || LEVELS[0];
     this.arrows = [];
     this.cellSize = 0;
     this.offsetX = 0;
     this.offsetY = 0;
     this.moves = 0;
     this.remaining = 0;
+    this.completed = false;
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Soft radial-ish vignette via panel
     const panel = this.add.graphics();
     panel.fillStyle(0x12121e, 0.95);
     panel.fillRoundedRect(20, 155, width - 40, height - 275, 28);
     panel.lineStyle(2, 0x2e2e48, 0.7);
     panel.strokeRoundedRect(20, 155, width - 40, height - 275, 28);
 
-    // Header
     this.add.text(width / 2, 52, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: '30px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    // Thin accent line under title
     const line = this.add.graphics();
     line.lineStyle(2, 0x00e8c8, 0.35);
     line.lineBetween(width / 2 - 50, 78, width / 2 + 50, 78);
@@ -102,7 +99,7 @@ class GameScene extends Phaser.Scene {
       };
 
       zone.on('pointerdown', () => {
-        if (data.removed) return;
+        if (data.removed || this.completed) return;
         this.unlockAudio();
 
         this.tweens.add({
@@ -124,15 +121,12 @@ class GameScene extends Phaser.Scene {
     g.clear();
     const s = this.cellSize * 0.33;
 
-    // Outer soft glow
     g.fillStyle(color, 0.16);
     this._shape(g, dir, s * 1.35);
 
-    // Main body
     g.fillStyle(color, 1);
     this._shape(g, dir, s);
 
-    // Inner highlight
     g.fillStyle(0xffffff, 0.2);
     this._shape(g, dir, s * 0.45);
   }
@@ -154,7 +148,7 @@ class GameScene extends Phaser.Scene {
   }
 
   handleArrowTap(data) {
-    if (data.removed) return;
+    if (data.removed || this.completed) return;
 
     if (this.canEscape(data)) {
       this.playSuccessSound();
@@ -181,6 +175,8 @@ class GameScene extends Phaser.Scene {
   }
 
   flyAway(data) {
+    if (data.removed) return;
+
     data.removed = true;
     this.remaining--;
     this.moves++;
@@ -204,10 +200,14 @@ class GameScene extends Phaser.Scene {
       duration: 250,
       ease: 'Cubic.easeIn',
       onComplete: () => {
-        g.destroy();
-        data.zone.destroy();
-        if (this.remaining <= 0) {
-          this.time.delayedCall(120, () => this.levelComplete());
+        try {
+          g.destroy();
+          data.zone.destroy();
+        } catch (e) {}
+
+        if (this.remaining <= 0 && !this.completed) {
+          this.completed = true;
+          this.time.delayedCall(100, () => this.levelComplete());
         }
       }
     });
@@ -230,12 +230,15 @@ class GameScene extends Phaser.Scene {
   }
 
   levelComplete() {
+    if (this.scene.isActive('Win')) return;
+
     window.gameData.moves = this.moves;
     const ideal = this.levelData.arrows.length;
     let stars = 3;
     if (this.moves > ideal + 4) stars = 1;
     else if (this.moves > ideal + 1) stars = 2;
     window.gameData.stars = stars;
+
     this.scene.start('Win');
   }
 
@@ -259,7 +262,6 @@ class GameScene extends Phaser.Scene {
     makeBtn(width * 0.75, 'МЕНЮ', () => this.scene.start('Menu'));
   }
 
-  // ===== AUDIO =====
   initAudio() {
     if (!window.gameAudioCtx) {
       try {
