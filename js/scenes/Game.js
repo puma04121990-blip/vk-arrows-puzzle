@@ -33,8 +33,9 @@ class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.wallSet = new Set();
-    const walls = this.levelData.walls || [];
-    walls.forEach(w => this.wallSet.add(String(w.x) + ',' + String(w.y)));
+    (this.levelData.walls || []).forEach(w => {
+      this.wallSet.add(String(w.x) + ',' + String(w.y));
+    });
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
@@ -205,16 +206,12 @@ class GameScene extends Phaser.Scene {
     walls.forEach(w => {
       const x = this.offsetX + w.x * this.cellSize + pad;
       const y = this.offsetY + w.y * this.cellSize + pad;
-
       g.fillStyle(0x000000, 0.35);
       g.fillRoundedRect(x + 2, y + 2, s, s, 8);
-
       g.fillStyle(0x3a3a52, 1);
       g.fillRoundedRect(x, y, s, s, 8);
-
       g.lineStyle(2, 0x7a7a9a, 1);
       g.strokeRoundedRect(x, y, s, s, 8);
-
       g.lineStyle(1, 0x2a2a40, 0.9);
       g.lineBetween(x + 4, y + s / 2, x + s - 4, y + s / 2);
       g.lineBetween(x + s / 2, y + 4, x + s / 2, y + s - 4);
@@ -239,12 +236,32 @@ class GameScene extends Phaser.Scene {
       this.drawArrow(g, a.dir, color);
       g.setPosition(cx, cy);
 
+      // Бейдж замка / ключа
+      let badge = null;
+      if (a.lockId != null) {
+        badge = this.add.text(cx + this.cellSize * 0.28, cy - this.cellSize * 0.28, '🔒', {
+          fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px'
+        }).setOrigin(0.5);
+      } else if (a.keyId != null) {
+        badge = this.add.text(cx + this.cellSize * 0.28, cy - this.cellSize * 0.28, '🔑', {
+          fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px'
+        }).setOrigin(0.5);
+      }
+
       const zone = this.add.zone(cx, cy, this.cellSize * 0.95, this.cellSize * 0.95);
       zone.setOrigin(0.5).setInteractive();
 
       const data = {
-        x: a.x, y: a.y, dir: a.dir, color,
-        graphics: g, zone, removed: false
+        x: a.x,
+        y: a.y,
+        dir: a.dir,
+        color: color,
+        graphics: g,
+        zone: zone,
+        badge: badge,
+        removed: false,
+        lockId: a.lockId != null ? a.lockId : null,
+        keyId: a.keyId != null ? a.keyId : null
       };
 
       zone.on('pointerdown', () => {
@@ -287,8 +304,39 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Ключ для этого замка ещё на поле? */
+  isLocked(data) {
+    if (data.lockId == null) return false;
+    for (let i = 0; i < this.arrows.length; i++) {
+      const a = this.arrows[i];
+      if (!a.removed && a.keyId === data.lockId) return true;
+    }
+    return false;
+  }
+
   handleArrowTap(data) {
     if (data.removed || this.completed || this.failed) return;
+
+    // Сначала проверка замка
+    if (this.isLocked(data)) {
+      this.mistakes++;
+      this.updateMistakesUI();
+      this.playFailSound();
+      this.failFeedback(data);
+      // Лёгкая тряска бейджа
+      if (data.badge) {
+        this.tweens.add({
+          targets: data.badge,
+          scale: 1.3,
+          duration: 80,
+          yoyo: true
+        });
+      }
+      if (this.mistakes >= this.maxMistakes) {
+        this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
+      }
+      return;
+    }
 
     if (this.canEscape(data)) {
       this.playSuccessSound();
@@ -304,7 +352,6 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Стена и стрелка одинаково блокируют путь */
   canEscape(data) {
     const size = this.levelData.size;
     let cx = data.x;
@@ -316,14 +363,10 @@ class GameScene extends Phaser.Scene {
       else if (data.dir === 2) cy += 1;
       else cx -= 1;
 
-      // За полем — успех
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
 
-      // Стена — блок
-      const key = cx + ',' + cy;
-      if (this.wallSet.has(key)) return false;
+      if (this.wallSet.has(cx + ',' + cy)) return false;
 
-      // Стрелка — блок
       for (let i = 0; i < this.arrows.length; i++) {
         const a = this.arrows[i];
         if (!a.removed && a.x === cx && a.y === cy) return false;
@@ -339,24 +382,48 @@ class GameScene extends Phaser.Scene {
     this.moves++;
     data.zone.disableInteractive();
 
+    // Если это ключ — снимаем 🔒 с парного замка
+    if (data.keyId != null) {
+      this.arrows.forEach(a => {
+        if (!a.removed && a.lockId === data.keyId && a.badge) {
+          this.tweens.add({
+            targets: a.badge,
+            alpha: 0,
+            scale: 1.5,
+            duration: 200,
+            onComplete: () => {
+              try { a.badge.destroy(); } catch (e) {}
+              a.badge = null;
+            }
+          });
+        }
+      });
+    }
+
     let dx = 0, dy = 0;
     if (data.dir === 0) dy = -1;
     else if (data.dir === 1) dx = 1;
     else if (data.dir === 2) dy = 1;
     else dx = -1;
 
-    const g = data.graphics;
+    const targets = [data.graphics];
+    if (data.badge) targets.push(data.badge);
 
     this.tweens.add({
-      targets: g,
-      x: g.x + dx * 900,
-      y: g.y + dy * 900,
+      targets: targets,
+      x: (t) => (t.x || 0) + dx * 900,
+      y: (t) => (t.y || 0) + dy * 900,
       alpha: 0,
       scale: 0.4,
       duration: 250,
       ease: 'Cubic.easeIn',
       onComplete: () => {
-        try { g.destroy(); data.zone.destroy(); } catch (e) {}
+        try {
+          data.graphics.destroy();
+          data.zone.destroy();
+          if (data.badge) data.badge.destroy();
+        } catch (e) {}
+
         if (this.remaining <= 0 && !this.completed && !this.failed) {
           this.completed = true;
           if (this.timerEvent) {
