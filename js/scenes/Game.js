@@ -12,7 +12,7 @@ class GameScene extends Phaser.Scene {
     this.offsetY = 0;
     this.moves = 0;
     this.mistakes = 0;
-    this.maxMistakes = 3; // лимит ошибок
+    this.maxMistakes = 3;
     this.remaining = 0;
     this.completed = false;
     this.failed = false;
@@ -88,14 +88,11 @@ class GameScene extends Phaser.Scene {
   }
 
   updateMistakesUI() {
-    this.movesText.setText(`Ошибки: ${this.mistakes}/${this.maxMistakes}`);
-    if (this.mistakes >= this.maxMistakes - 1) {
-      this.movesText.setColor('#ff6b6b');
-    } else if (this.mistakes >= 1) {
-      this.movesText.setColor('#ffd166');
-    } else {
-      this.movesText.setColor('#6e6e8a');
-    }
+    const shown = Math.min(this.mistakes, this.maxMistakes);
+    this.movesText.setText(`Ошибки: ${shown}/${this.maxMistakes}`);
+    if (shown >= this.maxMistakes - 1) this.movesText.setColor('#ff6b6b');
+    else if (shown >= 1) this.movesText.setColor('#ffd166');
+    else this.movesText.setColor('#6e6e8a');
   }
 
   startTimer() {
@@ -124,7 +121,7 @@ class GameScene extends Phaser.Scene {
   }
 
   onFail(title) {
-    if (this.completed || this.failed) return;
+    if (this.failed) return;
     this.failed = true;
     this.completed = true;
 
@@ -137,29 +134,38 @@ class GameScene extends Phaser.Scene {
   showFailOverlay(titleText) {
     const { width, height } = this.scale;
 
+    // Шире блок, чтобы длинный текст влезал
+    const boxW = Math.min(width - 48, 400);
+    const boxH = 260;
+    const bx = width / 2 - boxW / 2;
+    const by = height / 2 - boxH / 2;
+
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72);
     dim.setDepth(100);
 
     const box = this.add.graphics();
     box.fillStyle(0x1a1a28, 1);
-    box.fillRoundedRect(width / 2 - 160, height / 2 - 120, 320, 240, 24);
+    box.fillRoundedRect(bx, by, boxW, boxH, 24);
     box.lineStyle(2, 0xff6b6b, 0.8);
-    box.strokeRoundedRect(width / 2 - 160, height / 2 - 120, 320, 240, 24);
+    box.strokeRoundedRect(bx, by, boxW, boxH, 24);
     box.setDepth(101);
 
-    this.add.text(width / 2, height / 2 - 70, titleText, {
+    // Заголовок с переносом, если длинный
+    this.add.text(width / 2, height / 2 - 75, titleText, {
       fontFamily: 'Arial Black',
-      fontSize: '26px',
-      color: '#ff6b6b'
+      fontSize: titleText.length > 14 ? '22px' : '26px',
+      color: '#ff6b6b',
+      align: 'center',
+      wordWrap: { width: boxW - 40 }
     }).setOrigin(0.5).setDepth(102);
 
-    this.add.text(width / 2, height / 2 - 25, 'Попробуй ещё раз', {
+    this.add.text(width / 2, height / 2 - 20, 'Попробуй ещё раз', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#9a9ab4'
     }).setOrigin(0.5).setDepth(102);
 
-    const again = this.add.text(width / 2, height / 2 + 40, '↺ ЗАНОВО', {
+    const again = this.add.text(width / 2, height / 2 + 45, '↺ ЗАНОВО', {
       fontFamily: 'Arial Black',
       fontSize: '22px',
       color: '#0b0b14',
@@ -169,7 +175,7 @@ class GameScene extends Phaser.Scene {
 
     again.on('pointerdown', () => this.scene.restart());
 
-    const menu = this.add.text(width / 2, height / 2 + 95, 'МЕНЮ', {
+    const menu = this.add.text(width / 2, height / 2 + 100, 'МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#9a9ab8'
@@ -268,14 +274,19 @@ class GameScene extends Phaser.Scene {
       this.playSuccessSound();
       this.flyAway(data);
     } else {
+      // Сразу блокируем дальнейшие ошибки на лимите
+      if (this.mistakes >= this.maxMistakes) return;
+
       this.mistakes++;
       this.updateMistakesUI();
       this.playFailSound();
       this.failFeedback(data);
 
       if (this.mistakes >= this.maxMistakes) {
-        this.time.delayedCall(200, () => {
-          this.onFail('СЛИШКОМ МНОГО ОШИБОК');
+        // Сразу failed, чтобы нельзя было набрать 4/3
+        this.failed = true;
+        this.time.delayedCall(180, () => {
+          this.onFail('СЛИШКОМ МНОГО\nОШИБОК');
         });
       }
     }
@@ -344,11 +355,10 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // При прохождении ошибок может быть 0, 1 или 2 (3 = провал)
   calcStars() {
     if (this.mistakes === 0) return 3;
     if (this.mistakes === 1) return 2;
-    return 1; // 2 ошибки
+    return 1;
   }
 
   levelComplete() {
