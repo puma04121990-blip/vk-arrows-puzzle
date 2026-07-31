@@ -8,11 +8,13 @@ class WinScene extends Phaser.Scene {
     const stars = window.gameData.stars || 1;
     const level = window.gameData.currentLevel + 1;
     const mistakes = window.gameData.mistakes || 0;
+    const levelIndex = window.gameData.currentLevel;
 
-    const nextLevel = window.gameData.currentLevel + 1;
+    // Сохраняем: открыть следующий + лучшие звёзды за этот уровень
+    const nextLevel = levelIndex + 1;
     if (window.saveProgress) {
       try {
-        window.saveProgress(nextLevel);
+        window.saveProgress(nextLevel, levelIndex, stars);
       } catch (e) {}
     }
 
@@ -22,14 +24,12 @@ class WinScene extends Phaser.Scene {
     glow.fillStyle(0x00e8c8, 0.06);
     glow.fillCircle(width / 2, height * 0.28, 180);
 
-    const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'ФАНТАСТИКА!', 'СУПЕР!', 'БЛЕСТЯЩЕ!'];
-    // phrase by stars: 3->best, 1->ok
-    const phraseIndex = stars >= 3 ? 0 : stars === 2 ? 1 : 3;
-    const phrase = phrases[phraseIndex];
+    const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'СУПЕР!'];
+    const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
 
-    const title = this.add.text(width / 2, height * 0.22, phrase, {
+    const title = this.add.text(width / 2, height * 0.2, phrase, {
       fontFamily: 'Arial Black',
-      fontSize: '46px',
+      fontSize: '44px',
       color: '#00e8c8',
       align: 'center'
     }).setOrigin(0.5).setAlpha(0);
@@ -42,14 +42,13 @@ class WinScene extends Phaser.Scene {
       ease: 'Back.easeOut'
     });
 
-    this.add.text(width / 2, height * 0.32, `Уровень ${level} пройден`, {
+    this.add.text(width / 2, height * 0.3, `Уровень ${level} пройден`, {
       fontFamily: 'Arial',
-      fontSize: '24px',
+      fontSize: '22px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
-    // Stars
-    const starY = height * 0.44;
+    const starY = height * 0.42;
     for (let i = 0; i < 3; i++) {
       const star = this.add.text(width / 2 + (i - 1) * 68, starY, '★', {
         fontSize: '56px',
@@ -66,34 +65,26 @@ class WinScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(width / 2, height * 0.56, `Ошибок: ${mistakes}`, {
+    this.add.text(width / 2, height * 0.54, `Ошибок: ${mistakes}`, {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: '20px',
       color: mistakes === 0 ? '#2ec4b6' : '#ff6b6b'
     }).setOrigin(0.5);
 
-    // Hint under mistakes
-    let hint = 'Идеально!';
-    if (mistakes === 0) hint = 'Без ошибок — 3 звезды';
-    else if (mistakes <= 3) hint = '1–3 ошибки — 2 звезды';
-    else hint = '4+ ошибок — 1 звезда';
-
-    this.add.text(width / 2, height * 0.61, hint, {
-      fontFamily: 'Arial',
-      fontSize: '16px',
-      color: '#5a5a72'
-    }).setOrigin(0.5);
-
-    const isLast = window.gameData.currentLevel >= LEVELS.length - 1;
+    const isLast = levelIndex >= LEVELS.length - 1;
 
     if (!isLast) {
-      this.createButton(width / 2, height * 0.72, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+      this.createButton(width / 2, height * 0.66, 'ДАЛЬШЕ →', 0x00e8c8, () => {
         window.gameData.currentLevel++;
         this.scene.start('Game');
       });
     }
 
-    this.createButton(width / 2, height * 0.84, isLast ? 'В МЕНЮ' : 'МЕНЮ', 0x222238, () => {
+    this.createButton(width / 2, height * 0.78, 'УРОВНИ', 0x2a2a45, () => {
+      this.scene.start('LevelsMap');
+    });
+
+    this.createButton(width / 2, height * 0.9, 'МЕНЮ', 0x222238, () => {
       this.scene.start('Menu');
     });
 
@@ -105,16 +96,16 @@ class WinScene extends Phaser.Scene {
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-120, -32, 240, 64, 32);
+    bg.fillRoundedRect(-120, -30, 240, 60, 30);
 
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: '26px',
+      fontSize: '24px',
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
     btn.add([bg, text]);
-    btn.setSize(240, 64);
+    btn.setSize(240, 60);
     btn.setInteractive({ useHandCursor: true });
 
     btn.on('pointerdown', () => {
@@ -135,8 +126,7 @@ class WinScene extends Phaser.Scene {
     if (!ctx) return;
 
     const play = () => {
-      const notes = [523, 659, 784, 1046];
-      notes.forEach((freq, i) => {
+      [523, 659, 784, 1046].forEach((freq, i) => {
         try {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -154,10 +144,7 @@ class WinScene extends Phaser.Scene {
       });
     };
 
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(play).catch(() => {});
-    } else {
-      play();
-    }
+    if (ctx.state === 'suspended') ctx.resume().then(play).catch(() => {});
+    else play();
   }
 }
