@@ -1,14 +1,23 @@
 // ============================================
-// Progress: maxLevel + stars per level
+// Progress: maxLevel + stars + star gates
 // ============================================
 
 window.gameProgress = {
   maxLevel: 0,
-  stars: {}, // { "0": 3, "1": 2, ... }
+  stars: {},
   loaded: false
 };
 
 const STORAGE_KEY = 'arrow_pulse_progress_v2';
+
+// Пороги звёзд для каждых 10 уровней
+// Чтобы открыть уровень 11+ нужно N звёзд, 21+ и т.д.
+window.STAR_GATES = [
+  { level: 10, need: 18 },  // уровень 11 (index 10) → 18★
+  { level: 20, need: 40 },  // уровень 21 → 40★
+  { level: 30, need: 65 },  // уровень 31 → 65★
+  { level: 40, need: 95 }   // уровень 41 → 95★
+];
 
 function isVK() {
   return typeof vkBridge !== 'undefined';
@@ -32,7 +41,6 @@ function persist() {
   }
 }
 
-// Открыть уровень + сохранить лучшие звёзды
 window.saveProgress = function (maxLevel, levelIndex, stars) {
   if (typeof maxLevel === 'number' && maxLevel > window.gameProgress.maxLevel) {
     window.gameProgress.maxLevel = maxLevel;
@@ -53,6 +61,36 @@ window.saveProgress = function (maxLevel, levelIndex, stars) {
 window.getLevelStars = function (levelIndex) {
   if (!window.gameProgress.stars) return 0;
   return window.gameProgress.stars[String(levelIndex)] || 0;
+};
+
+window.getTotalStars = function () {
+  const s = window.gameProgress.stars || {};
+  let sum = 0;
+  for (const k in s) sum += s[k] || 0;
+  return sum;
+};
+
+/** Сколько звёзд нужно, чтобы открыть этот levelIndex (0-based). 0 = не нужен порог */
+window.getStarsNeededForLevel = function (levelIndex) {
+  let need = 0;
+  const gates = window.STAR_GATES || [];
+  for (let i = 0; i < gates.length; i++) {
+    if (levelIndex >= gates[i].level) {
+      need = gates[i].need;
+    }
+  }
+  return need;
+};
+
+/** Можно ли играть уровень: открыт по прогрессу + хватает звёзд */
+window.isLevelPlayable = function (levelIndex) {
+  const maxOpened = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+  if (levelIndex > maxOpened) return false;
+
+  const need = window.getStarsNeededForLevel(levelIndex);
+  if (need <= 0) return true;
+
+  return window.getTotalStars() >= need;
 };
 
 window.loadProgress = function () {
