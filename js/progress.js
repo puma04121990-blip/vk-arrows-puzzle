@@ -1,10 +1,11 @@
 // ============================================
-// Progress + Stages + Achievement stats
+// Progress + Stages + Stats + Skin
 // ============================================
 
 window.gameProgress = {
   maxLevel: 0,
   stars: {},
+  skin: 'neon',
   stats: {
     totalMistakes: 0,
     levelsCleared: 0,
@@ -34,6 +35,7 @@ window.persistProgress = function () {
   const data = JSON.stringify({
     maxLevel: window.gameProgress.maxLevel,
     stars: window.gameProgress.stars || {},
+    skin: window.gameProgress.skin || 'neon',
     stats: window.gameProgress.stats || {}
   });
   try { localStorage.setItem(STORAGE_KEY, data); } catch (e) {}
@@ -102,6 +104,7 @@ window.loadProgress = function () {
       if (parsed.stars && typeof parsed.stars === 'object') {
         window.gameProgress.stars = Object.assign({}, window.gameProgress.stars || {}, parsed.stars);
       }
+      if (parsed.skin) window.gameProgress.skin = parsed.skin;
       if (parsed.stats && typeof parsed.stats === 'object') {
         window.gameProgress.stats = Object.assign({}, window.gameProgress.stats || {}, parsed.stats);
         if (!window.gameProgress.stats.unlocked) window.gameProgress.stats.unlocked = {};
@@ -114,7 +117,6 @@ window.loadProgress = function () {
       if (raw) apply(JSON.parse(raw));
     } catch (e) {}
 
-    // migrate old key if needed
     try {
       if (!localStorage.getItem(STORAGE_KEY)) {
         const old = localStorage.getItem('arrow_pulse_progress_v2');
