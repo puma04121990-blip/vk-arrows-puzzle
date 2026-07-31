@@ -1,8 +1,12 @@
 // ============================================
-// Strong Solvable Level Generator
+// Level generator with WALLS (стрелка не проходит)
 // ============================================
 
-function canEscapeSim(arrow, remaining, size) {
+function cellKey(x, y) {
+  return x + ',' + y;
+}
+
+function canEscapeSim(arrow, remaining, size, wallSet) {
   let cx = arrow.x;
   let cy = arrow.y;
 
@@ -12,18 +16,25 @@ function canEscapeSim(arrow, remaining, size) {
     else if (arrow.dir === 2) cy++;
     else cx--;
 
+    // Вышла за край поля — путь свободен
     if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
+
+    // Стена блокирует
+    if (wallSet && wallSet.has(cellKey(cx, cy))) return false;
+
+    // Другая стрелка блокирует
     if (remaining.some(a => a.x === cx && a.y === cy)) return false;
   }
 }
 
-function isSolvable(arrows, size) {
+function isSolvable(arrows, size, walls) {
   const remaining = arrows.map(a => ({ x: a.x, y: a.y, dir: a.dir }));
+  const wallSet = new Set((walls || []).map(w => cellKey(w.x, w.y)));
 
   while (remaining.length > 0) {
     let found = false;
     for (let i = 0; i < remaining.length; i++) {
-      if (canEscapeSim(remaining[i], remaining, size)) {
+      if (canEscapeSim(remaining[i], remaining, size, wallSet)) {
         remaining.splice(i, 1);
         found = true;
         break;
@@ -35,21 +46,12 @@ function isSolvable(arrows, size) {
 }
 
 function smartDir(x, y, size) {
-  const dist = [
-    y,                // up
-    size - 1 - x,     // right
-    size - 1 - y,     // down
-    x                 // left
-  ];
-
-  // Чем выше уровень — тем меньше «умных» направлений (сложнее)
-  const smartChance = 0.78;
-  if (Math.random() < smartChance) {
+  const dist = [y, size - 1 - x, size - 1 - y, x];
+  if (Math.random() < 0.78) {
     let best = 0;
     for (let i = 1; i < 4; i++) {
       if (dist[i] < dist[best]) best = i;
     }
-    // Иногда берём второе лучшее направление
     if (Math.random() < 0.25) {
       let second = best === 0 ? 1 : 0;
       for (let i = 0; i < 4; i++) {
@@ -62,37 +64,6 @@ function smartDir(x, y, size) {
   return Math.floor(Math.random() * 4);
 }
 
-function generateLevel(size, count) {
-  const maxAttempts = 3000;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const arrows = [];
-    const occupied = new Set();
-
-    let placed = 0;
-    let safety = 0;
-    while (placed < count && safety < 400) {
-      safety++;
-      const x = Math.floor(Math.random() * size);
-      const y = Math.floor(Math.random() * size);
-      const key = x + ',' + y;
-      if (occupied.has(key)) continue;
-
-      const dir = smartDir(x, y, size);
-      arrows.push({ x, y, dir });
-      occupied.add(key);
-      placed++;
-    }
-
-    if (placed === count && isSolvable(arrows, size)) {
-      return { size, arrows };
-    }
-  }
-
-  // Fallback
-  return createGuaranteedSafe(size);
-}
-
 function createGuaranteedSafe(size) {
   const arrows = [];
   for (let y = 0; y < size; y++) {
@@ -103,39 +74,78 @@ function createGuaranteedSafe(size) {
     if (x % 2 === 0) arrows.push({ x, y: 0, dir: 0 });
     if (x % 2 === 1) arrows.push({ x, y: size - 1, dir: 2 });
   }
-  return { size, arrows };
+  return { size, arrows, walls: [] };
 }
 
-// ============================================
-// 50 LEVELS — progressive difficulty
-// Grid size grows every 5 levels
-// ============================================
+function generateLevel(size, count, wallCount) {
+  const maxAttempts = 2500;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const arrows = [];
+    const occupied = new Set();
+
+    let placed = 0;
+    let safety = 0;
+    while (placed < count && safety < 500) {
+      safety++;
+      const x = Math.floor(Math.random() * size);
+      const y = Math.floor(Math.random() * size);
+      const key = cellKey(x, y);
+      if (occupied.has(key)) continue;
+
+      arrows.push({ x, y, dir: smartDir(x, y, size) });
+      occupied.add(key);
+      placed++;
+    }
+
+    // Стены на свободных клетках
+    const walls = [];
+    let wSafety = 0;
+    while (walls.length < wallCount && wSafety < 400) {
+      wSafety++;
+      const x = Math.floor(Math.random() * size);
+      const y = Math.floor(Math.random() * size);
+      const key = cellKey(x, y);
+      if (occupied.has(key)) continue;
+      // Не ставим стену на самом краю слишком часто — чуть разнообразия
+      walls.push({ x, y });
+      occupied.add(key);
+    }
+
+    if (placed === count && isSolvable(arrows, size, walls)) {
+      return { size, arrows, walls };
+    }
+  }
+
+  return createGuaranteedSafe(size);
+}
 
 function getSizeForLevel(levelIndex) {
-  // levelIndex starts from 0
-  if (levelIndex < 5)  return 4;  // 1-5
-  if (levelIndex < 10) return 5;  // 6-10
-  if (levelIndex < 15) return 5;  // 11-15
-  if (levelIndex < 20) return 6;  // 16-20
-  if (levelIndex < 25) return 6;  // 21-25
-  if (levelIndex < 30) return 7;  // 26-30
-  if (levelIndex < 35) return 7;  // 31-35
-  if (levelIndex < 40) return 8;  // 36-40
-  if (levelIndex < 45) return 8;  // 41-45
-  return 9;                       // 46-50
+  if (levelIndex < 5) return 4;
+  if (levelIndex < 15) return 5;
+  if (levelIndex < 25) return 6;
+  if (levelIndex < 35) return 7;
+  if (levelIndex < 45) return 8;
+  return 9;
 }
 
 function getArrowCount(levelIndex, size) {
-  // Базовое количество + рост с уровнем
   const base = Math.floor(size * size * 0.28);
   const extra = Math.floor(levelIndex * 0.35);
   const count = base + extra;
-
-  // Ограничения
   const min = Math.max(5, Math.floor(size * 1.2));
-  const max = Math.floor(size * size * 0.55);
-
+  const max = Math.floor(size * size * 0.5);
   return Math.min(max, Math.max(min, count));
+}
+
+/** Стены появляются с 6 уровня, растут постепенно */
+function getWallCount(levelIndex, size, arrowCount) {
+  if (levelIndex < 5) return 0;           // 1–5 без стен
+  if (levelIndex < 10) return 1;          // 6–10
+  if (levelIndex < 20) return 2;
+  if (levelIndex < 30) return 3;
+  if (levelIndex < 40) return 4;
+  return Math.min(6, Math.floor(size * 0.7));
 }
 
 const LEVELS = [];
@@ -143,15 +153,15 @@ const LEVELS = [];
 for (let i = 0; i < 50; i++) {
   const size = getSizeForLevel(i);
   const count = getArrowCount(i, size);
-  const level = generateLevel(size, count);
+  const wallsN = getWallCount(i, size, count);
+  const level = generateLevel(size, count, wallsN);
 
-  // Финальная проверка
-  if (!isSolvable(level.arrows, level.size)) {
+  if (!isSolvable(level.arrows, level.size, level.walls)) {
     LEVELS.push(createGuaranteedSafe(size));
   } else {
     LEVELS.push(level);
   }
 }
 
-console.log('Generated 50 progressive levels');
-console.log('Sizes:', LEVELS.map(l => l.size).join(', '));
+console.log('Generated 50 levels with walls');
+console.log('Walls per level:', LEVELS.map(l => (l.walls || []).length).join(', '));
