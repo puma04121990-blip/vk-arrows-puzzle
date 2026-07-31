@@ -32,11 +32,9 @@ class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Набор стен для быстрой проверки
     this.wallSet = new Set();
-    (this.levelData.walls || []).forEach(w => {
-      this.wallSet.add(w.x + ',' + w.y);
-    });
+    const walls = this.levelData.walls || [];
+    walls.forEach(w => this.wallSet.add(String(w.x) + ',' + String(w.y)));
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
@@ -109,16 +107,12 @@ class GameScene extends Phaser.Scene {
       loop: true,
       callback: () => {
         if (this.completed || this.failed) return;
-
         this.timeLeft -= 0.1;
         this.elapsed = this.timeLimit - this.timeLeft;
-
         if (this.timeLeft <= 10) this.timerText.setColor('#ff6b6b');
         else if (this.timeLeft <= 20) this.timerText.setColor('#ffd166');
         else this.timerText.setColor('#00e8c8');
-
         this.timerText.setText(this.formatTime(this.timeLeft));
-
         if (this.timeLeft <= 0) {
           this.timeLeft = 0;
           this.timerText.setText('0');
@@ -130,29 +124,24 @@ class GameScene extends Phaser.Scene {
 
   triggerFail(title) {
     if (this.failed || this.completed) return;
-
     this.failed = true;
     this.completed = true;
-
     if (this.timerEvent) {
       try { this.timerEvent.remove(false); } catch (e) {}
     }
-
     this.playFailSound();
     this.showFailOverlay(title || 'ПРОВАЛ');
   }
 
   showFailOverlay(titleText) {
     const { width, height } = this.scale;
-
     const boxW = Math.min(width - 48, 400);
     const boxH = 260;
     const bx = width / 2 - boxW / 2;
     const by = height / 2 - boxH / 2;
 
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72);
-    dim.setDepth(100);
-    dim.setInteractive();
+    dim.setDepth(100).setInteractive();
 
     const box = this.add.graphics();
     box.fillStyle(0x1a1a28, 1);
@@ -182,7 +171,6 @@ class GameScene extends Phaser.Scene {
       backgroundColor: '#00e8c8',
       padding: { x: 24, y: 12 }
     }).setOrigin(0.5).setDepth(102).setInteractive({ useHandCursor: true });
-
     again.on('pointerdown', () => this.scene.restart());
 
     const menu = this.add.text(width / 2, height / 2 + 100, 'МЕНЮ', {
@@ -190,7 +178,6 @@ class GameScene extends Phaser.Scene {
       fontSize: '18px',
       color: '#9a9ab8'
     }).setOrigin(0.5).setDepth(102).setInteractive({ useHandCursor: true });
-
     menu.on('pointerdown', () => this.scene.start('Menu'));
   }
 
@@ -207,7 +194,6 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Визуал стен — тёмные блоки */
   drawWalls() {
     const walls = this.levelData.walls || [];
     if (!walls.length) return;
@@ -220,20 +206,16 @@ class GameScene extends Phaser.Scene {
       const x = this.offsetX + w.x * this.cellSize + pad;
       const y = this.offsetY + w.y * this.cellSize + pad;
 
-      // Тень
       g.fillStyle(0x000000, 0.35);
       g.fillRoundedRect(x + 2, y + 2, s, s, 8);
 
-      // Корпус стены
       g.fillStyle(0x3a3a52, 1);
       g.fillRoundedRect(x, y, s, s, 8);
 
-      // Рамка
-      g.lineStyle(2, 0x5a5a78, 1);
+      g.lineStyle(2, 0x7a7a9a, 1);
       g.strokeRoundedRect(x, y, s, s, 8);
 
-      // Внутренняя «кирпичная» линия
-      g.lineStyle(1, 0x2a2a40, 0.8);
+      g.lineStyle(1, 0x2a2a40, 0.9);
       g.lineBetween(x + 4, y + s / 2, x + s - 4, y + s / 2);
       g.lineBetween(x + s / 2, y + 4, x + s / 2, y + s - 4);
     });
@@ -258,8 +240,7 @@ class GameScene extends Phaser.Scene {
       g.setPosition(cx, cy);
 
       const zone = this.add.zone(cx, cy, this.cellSize * 0.95, this.cellSize * 0.95);
-      zone.setOrigin(0.5);
-      zone.setInteractive();
+      zone.setOrigin(0.5).setInteractive();
 
       const data = {
         x: a.x, y: a.y, dir: a.dir, color,
@@ -270,11 +251,7 @@ class GameScene extends Phaser.Scene {
         if (data.removed || this.completed || this.failed) return;
         this.unlockAudio();
         this.tweens.add({
-          targets: g,
-          scaleX: 0.88,
-          scaleY: 0.88,
-          duration: 30,
-          yoyo: true
+          targets: g, scaleX: 0.88, scaleY: 0.88, duration: 30, yoyo: true
         });
         this.handleArrowTap(data);
       });
@@ -321,31 +298,36 @@ class GameScene extends Phaser.Scene {
       this.updateMistakesUI();
       this.playFailSound();
       this.failFeedback(data);
-
       if (this.mistakes >= this.maxMistakes) {
         this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
       }
     }
   }
 
+  /** Стена и стрелка одинаково блокируют путь */
   canEscape(data) {
     const size = this.levelData.size;
-    let cx = data.x, cy = data.y;
+    let cx = data.x;
+    let cy = data.y;
 
     while (true) {
-      if (data.dir === 0) cy--;
-      else if (data.dir === 1) cx++;
-      else if (data.dir === 2) cy++;
-      else cx--;
+      if (data.dir === 0) cy -= 1;
+      else if (data.dir === 1) cx += 1;
+      else if (data.dir === 2) cy += 1;
+      else cx -= 1;
 
-      // За краем поля — свободна
+      // За полем — успех
       if (cx < 0 || cx >= size || cy < 0 || cy >= size) return true;
 
-      // Стена — путь закрыт
-      if (this.wallSet.has(cx + ',' + cy)) return false;
+      // Стена — блок
+      const key = cx + ',' + cy;
+      if (this.wallSet.has(key)) return false;
 
-      // Другая стрелка — путь закрыт
-      if (this.arrows.some(a => !a.removed && a.x === cx && a.y === cy)) return false;
+      // Стрелка — блок
+      for (let i = 0; i < this.arrows.length; i++) {
+        const a = this.arrows[i];
+        if (!a.removed && a.x === cx && a.y === cy) return false;
+      }
     }
   }
 
@@ -389,11 +371,7 @@ class GameScene extends Phaser.Scene {
   failFeedback(data) {
     const g = data.graphics;
     this.tweens.add({
-      targets: g,
-      x: g.x + 5,
-      duration: 22,
-      yoyo: true,
-      repeat: 3
+      targets: g, x: g.x + 5, duration: 22, yoyo: true, repeat: 3
     });
     this.drawArrow(g, data.dir, 0xff4444);
     this.time.delayedCall(100, () => {
@@ -409,20 +387,17 @@ class GameScene extends Phaser.Scene {
 
   levelComplete() {
     if (this.scene.isActive('Win') || this.failed) return;
-
     window.gameData.moves = this.moves;
     window.gameData.mistakes = this.mistakes;
     window.gameData.stars = this.calcStars();
     window.gameData.timeLeft = Math.max(0, this.timeLeft);
     window.gameData.timeLimit = this.timeLimit;
     window.gameData.elapsed = Math.max(0, this.elapsed);
-
     this.scene.start('Win');
   }
 
   createUI() {
     const { width, height } = this.scale;
-
     const makeBtn = (x, label, cb) => {
       const t = this.add.text(x, height - 58, label, {
         fontFamily: 'Arial',
@@ -434,7 +409,6 @@ class GameScene extends Phaser.Scene {
       t.on('pointerdown', cb);
       return t;
     };
-
     makeBtn(width * 0.25, '↺ ЗАНОВО', () => this.scene.restart());
     makeBtn(width * 0.75, 'МЕНЮ', () => this.scene.start('Menu'));
   }
