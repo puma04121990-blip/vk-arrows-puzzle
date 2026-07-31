@@ -6,16 +6,14 @@ class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Soft glow
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * 0.28, 200);
+    glow.fillCircle(width / 2, height * 0.26, 200);
 
     // Title
-    this.add.text(width / 2, height * 0.18, 'ARROW PULSE', {
+    this.add.text(width / 2, height * 0.16, 'ARROW PULSE', {
       fontFamily: 'Arial Black, Arial',
       fontSize: '48px',
       color: '#00e8c8',
@@ -25,21 +23,20 @@ class MenuScene extends Phaser.Scene {
       shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 16, fill: true }
     }).setOrigin(0.5);
 
-    // Greeting (VK user if available)
+    // Greeting
     let greeting = 'Головоломка со стрелками';
     if (window.vkUser && window.vkUser.first_name) {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * 0.27, greeting, {
+    this.add.text(width / 2, height * 0.24, greeting, {
       fontFamily: 'Arial',
       fontSize: '22px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    // ===== How to play (важно для модерации VK) =====
-    const rulesY = height * 0.36;
-
+    // Rules
+    const rulesY = height * 0.32;
     this.add.text(width / 2, rulesY, 'КАК ИГРАТЬ', {
       fontFamily: 'Arial Black, Arial',
       fontSize: '20px',
@@ -54,29 +51,72 @@ class MenuScene extends Phaser.Scene {
     ];
 
     rules.forEach((line, i) => {
-      this.add.text(width / 2, rulesY + 36 + i * 28, line, {
+      this.add.text(width / 2, rulesY + 34 + i * 26, line, {
         fontFamily: 'Arial',
-        fontSize: '18px',
+        fontSize: '17px',
         color: '#9a9ab4'
       }).setOrigin(0.5);
     });
 
-    // Play button
-    const btnY = height * 0.68;
-    const btn = this.add.container(width / 2, btnY);
+    // Progress info
+    const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+    const hasProgress = maxLevel > 0;
 
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(0x00e8c8, 1);
-    btnBg.fillRoundedRect(-140, -38, 280, 76, 38);
+    if (hasProgress) {
+      this.add.text(width / 2, height * 0.58, `Прогресс: уровень ${maxLevel + 1}`, {
+        fontFamily: 'Arial',
+        fontSize: '18px',
+        color: '#6a6a82'
+      }).setOrigin(0.5);
+    }
 
-    const btnText = this.add.text(0, 0, 'ИГРАТЬ', {
-      fontFamily: 'Arial Black',
-      fontSize: '34px',
-      color: '#0b0b14'
+    // Buttons
+    const btnY = hasProgress ? height * 0.66 : height * 0.68;
+
+    // Основная кнопка
+    if (hasProgress) {
+      // Продолжить
+      this.createButton(width / 2, btnY, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
+        window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
+        this.scene.start('Game');
+      });
+
+      // Сначала
+      this.createButton(width / 2, btnY + 90, 'СНАЧАЛА', 0x222238, () => {
+        window.gameData.currentLevel = 0;
+        this.scene.start('Game');
+      }, true);
+    } else {
+      this.createButton(width / 2, btnY, 'ИГРАТЬ', 0x00e8c8, () => {
+        window.gameData.currentLevel = 0;
+        this.scene.start('Game');
+      });
+    }
+
+    this.add.text(width / 2, height * 0.9, `${LEVELS.length} уровней`, {
+      fontFamily: 'Arial',
+      fontSize: '17px',
+      color: '#505068'
     }).setOrigin(0.5);
 
-    btn.add([btnBg, btnText]);
-    btn.setSize(280, 76);
+    this.createDecorArrows();
+  }
+
+  createButton(x, y, label, color, callback, secondary = false) {
+    const btn = this.add.container(x, y);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(color, 1);
+    bg.fillRoundedRect(-140, -36, 280, 72, 36);
+
+    const text = this.add.text(0, 0, label, {
+      fontFamily: 'Arial Black',
+      fontSize: secondary ? '26px' : '32px',
+      color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
+    }).setOrigin(0.5);
+
+    btn.add([bg, text]);
+    btn.setSize(280, 72);
     btn.setInteractive({ useHandCursor: true });
 
     btn.on('pointerdown', () => {
@@ -85,22 +125,11 @@ class MenuScene extends Phaser.Scene {
         scale: 0.94,
         duration: 70,
         yoyo: true,
-        onComplete: () => {
-          window.gameData.currentLevel = 0;
-          this.scene.start('Game');
-        }
+        onComplete: callback
       });
     });
 
-    // Levels info
-    this.add.text(width / 2, height * 0.8, `${LEVELS.length} уровней`, {
-      fontFamily: 'Arial',
-      fontSize: '18px',
-      color: '#555570'
-    }).setOrigin(0.5);
-
-    // Small decorative arrows (не мешают)
-    this.createDecorArrows();
+    return btn;
   }
 
   createDecorArrows() {
