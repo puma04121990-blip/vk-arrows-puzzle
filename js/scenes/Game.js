@@ -41,7 +41,6 @@ class GameScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Адаптив: ПК (широкий) / телефон (высокий)
     const wide = width >= height;
     const topPad = wide ? 56 : 140;
     const bottomPad = wide ? 64 : 100;
@@ -264,6 +263,7 @@ class GameScene extends Phaser.Scene {
       g.setPosition(cx, cy);
 
       let badge = null;
+      let rotBadge = null;
       if (a.lockId != null || a.keyId != null) {
         const icon = a.lockId != null ? '🔒' : '🔑';
         let bx = cx + this.cellSize * 0.28;
@@ -274,13 +274,25 @@ class GameScene extends Phaser.Scene {
           fontSize: badgeSize + 'px'
         }).setOrigin(0.5).setDepth(10);
       }
+      if (a.rotates) {
+        let rx = cx - this.cellSize * 0.28;
+        let ry = cy - this.cellSize * 0.32;
+        rx = Math.max(gridLeft, Math.min(gridRight, rx));
+        ry = Math.max(gridTop, Math.min(gridBottom, ry));
+        rotBadge = this.add.text(rx, ry, '↻', {
+          fontSize: Math.max(12, Math.floor(this.cellSize * 0.2)) + 'px',
+          color: '#ffe066'
+        }).setOrigin(0.5).setDepth(10);
+      }
 
       const zone = this.add.zone(cx, cy, this.cellSize * 0.95, this.cellSize * 0.95);
       zone.setOrigin(0.5).setInteractive();
 
       const data = {
         x: a.x, y: a.y, dir: a.dir, color: color,
-        graphics: g, zone: zone, badge: badge, removed: false,
+        graphics: g, zone: zone, badge: badge, rotBadge: rotBadge, removed: false,
+        rotates: !!a.rotates,
+        rotated: false,
         lockId: a.lockId != null ? a.lockId : null,
         keyId: a.keyId != null ? a.keyId : null,
         lockColor: a.lockColor != null ? a.lockColor : null
@@ -349,6 +361,30 @@ class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: data.badge, scale: 1.3, duration: 80, yoyo: true });
       }
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
+      return;
+    }
+
+    // Двухходовая: первый тап — поворот на 90°
+    if (data.rotates && !data.rotated) {
+      data.rotated = true;
+      data.dir = (data.dir + 1) % 4;
+      this.drawArrow(data.graphics, data.dir, data.color);
+      this.tweens.add({
+        targets: data.graphics,
+        angle: data.graphics.angle + 90,
+        duration: 120,
+        onComplete: () => { data.graphics.angle = 0; this.drawArrow(data.graphics, data.dir, data.color); }
+      });
+      if (data.rotBadge) {
+        this.tweens.add({
+          targets: data.rotBadge,
+          alpha: 0.35,
+          scale: 0.85,
+          duration: 120
+        });
+      }
+      this.playTone(400, 0.05, 'sine', 0.08);
+      this.time.delayedCall(40, () => this.playTone(520, 0.05, 'sine', 0.08));
       return;
     }
 
@@ -433,6 +469,7 @@ class GameScene extends Phaser.Scene {
           g.destroy();
           data.zone.destroy();
           if (data.badge) data.badge.destroy();
+          if (data.rotBadge) data.rotBadge.destroy();
         } catch (e) {}
 
         if (this.remaining <= 0 && !this.completed && !this.failed) {
@@ -450,6 +487,15 @@ class GameScene extends Phaser.Scene {
         targets: data.badge,
         x: data.badge.x + dx * 900,
         y: data.badge.y + dy * 900,
+        alpha: 0,
+        duration: 250
+      });
+    }
+    if (data.rotBadge) {
+      this.tweens.add({
+        targets: data.rotBadge,
+        x: data.rotBadge.x + dx * 900,
+        y: data.rotBadge.y + dy * 900,
         alpha: 0,
         duration: 250
       });
