@@ -12,9 +12,9 @@ class MenuScene extends Phaser.Scene {
     glow.fillStyle(0x00e8c8, 0.045);
     glow.fillCircle(width / 2, height * 0.18, 150);
 
-    this.add.text(width / 2, height * 0.12, 'ARROW PULSE', {
+    this.add.text(width / 2, height * 0.12, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '40px',
+      fontSize: '36px',
       color: '#00e8c8',
       align: 'center',
       stroke: '#0b0b14',
@@ -64,7 +64,7 @@ class MenuScene extends Phaser.Scene {
     }, true);
     y += 72;
 
-    this.createButton(width / 2, y, 'СКИНЫ', 0x222238, () => {
+    this.createButton(width / 2, y, 'СТИЛИ', 0x222238, () => {
       this.scene.start('Skins');
     }, true);
     y += 72;
