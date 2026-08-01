@@ -9,13 +9,13 @@ class LegalScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    this.add.text(width / 2, wide ? 24 : 36, 'ПРАВОВАЯ ИНФОРМАЦИЯ', {
+    this.add.text(width / 2, wide ? 28 : 40, 'ПРАВОВАЯ ИНФОРМАЦИЯ', {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '22px' : '26px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, wide ? 50 : 68, '«Пульс стрелок» · Возраст 0+', {
+    this.add.text(width / 2, wide ? 54 : 72, '«Пульс стрелок» · Возраст 0+', {
       fontFamily: 'Arial',
       fontSize: '14px',
       color: '#6a6a82'
@@ -31,32 +31,27 @@ class LegalScene extends Phaser.Scene {
         title: 'Политика конфиденциальности',
         desc: 'Какие данные используются',
         url: 'privacy.html'
-      },
-      {
-        title: 'Правила VK',
-        desc: 'Правила платформы ВКонтакте',
-        url: 'https://vk.com/terms'
       }
     ];
 
     const cardW = Math.min(width - 48, 520);
-    const cardH = wide ? 64 : 72;
-    let y = wide ? 88 : 110;
+    const cardH = wide ? 70 : 78;
+    let y = wide ? 100 : 120;
 
     items.forEach((item) => {
       const bg = this.add.rectangle(width / 2, y, cardW, cardH, 0x161622)
         .setStrokeStyle(2, 0x2a2a40)
         .setInteractive({ useHandCursor: true });
 
-      this.add.text(width / 2 - cardW / 2 + 18, y - 11, item.title, {
+      this.add.text(width / 2 - cardW / 2 + 18, y - 12, item.title, {
         fontFamily: 'Arial Black, Arial',
-        fontSize: wide ? '15px' : '16px',
+        fontSize: wide ? '16px' : '17px',
         color: '#e0e0f0'
       }).setOrigin(0, 0.5);
 
-      this.add.text(width / 2 - cardW / 2 + 18, y + 13, item.desc, {
+      this.add.text(width / 2 - cardW / 2 + 18, y + 14, item.desc, {
         fontFamily: 'Arial',
-        fontSize: '12px',
+        fontSize: '13px',
         color: '#6a6a82'
       }).setOrigin(0, 0.5);
 
@@ -69,7 +64,7 @@ class LegalScene extends Phaser.Scene {
       bg.on('pointerout', () => bg.setFillStyle(0x161622));
       bg.on('pointerup', () => this.openDoc(item.url));
 
-      y += cardH + 10;
+      y += cardH + 14;
     });
 
     const note = [
@@ -78,7 +73,7 @@ class LegalScene extends Phaser.Scene {
       'Начиная игру, вы принимаете соглашение и политику.'
     ].join('\n');
 
-    this.add.text(width / 2, y + 8, note, {
+    this.add.text(width / 2, y + 16, note, {
       fontFamily: 'Arial',
       fontSize: '12px',
       color: '#505068',
