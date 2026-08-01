@@ -51,12 +51,23 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 720,
-    height: 1280
+    height: 1280,
+    // На больших мониторах не растягиваем бесконечно — удобный размер
+    max: {
+      width: 540,
+      height: 960
+    }
   },
-  input: { activePointers: 3 },
+  input: {
+    activePointers: 3,
+    mouse: {
+      preventDefaultWheel: true
+    }
+  },
   scene: [BootScene, MenuScene, LevelsMapScene, AchievementsScene, SkinsScene, GameScene, WinScene],
   audio: { disableWebAudio: false },
-  banner: false
+  banner: false,
+  disableContextMenu: true
 };
 
 window.gameData = {
@@ -69,6 +80,14 @@ window.gameData = {
 
 const game = new Phaser.Game(config);
 
+// Курсор-рука на интерактиве (ПК)
+game.canvas.style.cursor = 'default';
+
 window.addEventListener('resize', () => {
   if (game && game.scale) game.scale.refresh();
 });
+
+// На ПК колесо мыши не скроллит страницу
+window.addEventListener('wheel', (e) => {
+  e.preventDefault();
+}, { passive: false });
