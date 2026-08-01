@@ -220,12 +220,6 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  lockLabel(lockColor, isKey) {
-    const meta = (window.LOCK_COLOR_META || [])[lockColor != null ? lockColor : 0];
-    const dot = meta ? meta.label : '⚪';
-    return isKey ? (dot + '🔑') : (dot + '🔒');
-  }
-
   lockArrowColor(lockColor, fallback) {
     const meta = (window.LOCK_COLOR_META || [])[lockColor != null ? lockColor : 0];
     return meta ? meta.hex : fallback;
@@ -242,7 +236,6 @@ class GameScene extends Phaser.Scene {
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
-      // Ключ/замок красим в цвет пары
       if (a.lockId != null || a.keyId != null) {
         color = this.lockArrowColor(a.lockColor, color);
       }
@@ -257,17 +250,17 @@ class GameScene extends Phaser.Scene {
       let badge = null;
       if (a.lockId != null) {
         badge = this.add.text(
-          cx + this.cellSize * 0.3,
-          cy - this.cellSize * 0.3,
-          this.lockLabel(a.lockColor, false),
-          { fontSize: Math.max(13, Math.floor(this.cellSize * 0.26)) + 'px' }
+          cx + this.cellSize * 0.28,
+          cy - this.cellSize * 0.28,
+          '🔒',
+          { fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px' }
         ).setOrigin(0.5);
       } else if (a.keyId != null) {
         badge = this.add.text(
-          cx + this.cellSize * 0.3,
-          cy - this.cellSize * 0.3,
-          this.lockLabel(a.lockColor, true),
-          { fontSize: Math.max(13, Math.floor(this.cellSize * 0.26)) + 'px' }
+          cx + this.cellSize * 0.28,
+          cy - this.cellSize * 0.28,
+          '🔑',
+          { fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px' }
         ).setOrigin(0.5);
       }
 
@@ -395,7 +388,6 @@ class GameScene extends Phaser.Scene {
     this.moves++;
     data.zone.disableInteractive();
 
-    // Ключ открывает только свой замок (тот же lockId / цвет)
     if (data.keyId != null) {
       this.arrows.forEach(a => {
         if (!a.removed && a.lockId === data.keyId && a.badge) {
