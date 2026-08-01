@@ -1,5 +1,5 @@
 // ============================================
-// Arrow skins
+// Стили стрелок
 // ============================================
 
 window.ARROW_SKINS = [
@@ -17,7 +17,7 @@ window.ARROW_SKINS = [
   },
   {
     id: 'pixel',
-    name: 'Pixel',
+    name: 'Пиксель',
     icon: '👾',
     desc: 'Ретро-пиксели'
   },
@@ -35,7 +35,7 @@ window.ARROW_SKINS = [
   },
   {
     id: 'comic',
-    name: 'Comic',
+    name: 'Комикс',
     icon: '💥',
     desc: 'Жирный контур'
   }
@@ -53,10 +53,8 @@ window.setSelectedSkin = function (id) {
 };
 
 /**
- * Рисует стрелку выбранным скином в graphics g
- * dir: 0 up, 1 right, 2 down, 3 left
- * color: number 0xRRGGBB (базовый цвет уровня)
- * cellSize: размер клетки
+ * Рисует стрелку выбранным стилем
+ * dir: 0 вверх, 1 вправо, 2 вниз, 3 влево
  */
 window.drawArrowSkin = function (g, dir, color, cellSize, skinId) {
   g.clear();
@@ -150,7 +148,6 @@ function drawPixel(g, dir, color, s) {
     px(-3, -1, 1, 2);
   }
 
-  // pixel outline
   g.fillStyle(0x000000, 0.35);
   if (dir === 0) {
     px(-1, 5, 2, 1);
@@ -164,7 +161,6 @@ function drawPixel(g, dir, color, s) {
 }
 
 function drawIce(g, dir, color, s) {
-  // холодный оттенок поверх цвета
   const ice = 0x7ec8ff;
   g.fillStyle(ice, 0.25);
   shapeClassic(g, dir, s * 1.3);
@@ -173,7 +169,6 @@ function drawIce(g, dir, color, s) {
   g.fillStyle(0xffffff, 0.45);
   shapeClassic(g, dir, s * 0.4);
 
-  // блик
   g.fillStyle(0xffffff, 0.55);
   if (dir === 0) g.fillCircle(-s * 0.12, -s * 0.35, s * 0.12);
   else if (dir === 1) g.fillCircle(s * 0.35, -s * 0.12, s * 0.12);
@@ -197,7 +192,6 @@ function drawGold(g, dir, color, s) {
 }
 
 function drawComic(g, dir, color, s) {
-  // толстая обводка
   g.fillStyle(0x111118, 1);
   shapeClassic(g, dir, s * 1.22);
   g.fillStyle(color, 1);
