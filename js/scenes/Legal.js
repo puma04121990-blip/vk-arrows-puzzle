@@ -21,21 +21,25 @@ class LegalScene extends Phaser.Scene {
       color: '#6a6a82'
     }).setOrigin(0.5);
 
+    const baseUrl = 'https://puma04121990-blip.github.io/vk-arrows-puzzle/';
+
     const items = [
       {
         title: 'Пользовательское соглашение',
         desc: 'Условия использования игры',
-        url: 'terms.html'
+        url: 'terms.html',
+        fullUrl: baseUrl + 'terms.html'
       },
       {
         title: 'Политика конфиденциальности',
         desc: 'Какие данные используются',
-        url: 'privacy.html'
+        url: 'privacy.html',
+        fullUrl: baseUrl + 'privacy.html'
       }
     ];
 
-    const cardW = Math.min(width - 48, 520);
-    const cardH = wide ? 70 : 78;
+    const cardW = Math.min(width - 48, 560);
+    const cardH = wide ? 88 : 96;
     let y = wide ? 100 : 120;
 
     items.forEach((item) => {
@@ -43,19 +47,26 @@ class LegalScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x2a2a40)
         .setInteractive({ useHandCursor: true });
 
-      this.add.text(width / 2 - cardW / 2 + 18, y - 12, item.title, {
+      this.add.text(width / 2 - cardW / 2 + 18, y - 22, item.title, {
         fontFamily: 'Arial Black, Arial',
         fontSize: wide ? '16px' : '17px',
         color: '#e0e0f0'
       }).setOrigin(0, 0.5);
 
-      this.add.text(width / 2 - cardW / 2 + 18, y + 14, item.desc, {
+      this.add.text(width / 2 - cardW / 2 + 18, y + 2, item.desc, {
         fontFamily: 'Arial',
         fontSize: '13px',
         color: '#6a6a82'
       }).setOrigin(0, 0.5);
 
-      this.add.text(width / 2 + cardW / 2 - 16, y, '↗', {
+      // Дублирование полной ссылки
+      this.add.text(width / 2 - cardW / 2 + 18, y + 26, item.fullUrl, {
+        fontFamily: 'Arial',
+        fontSize: wide ? '11px' : '10px',
+        color: '#00e8c8'
+      }).setOrigin(0, 0.5);
+
+      this.add.text(width / 2 + cardW / 2 - 16, y - 8, '↗', {
         fontSize: '16px',
         color: '#00e8c8'
       }).setOrigin(0.5);
@@ -68,17 +79,20 @@ class LegalScene extends Phaser.Scene {
     });
 
     const note = [
+      'Ссылки для кабинета VK (Правовые документы):',
+      baseUrl + 'terms.html',
+      baseUrl + 'privacy.html',
+      '',
       'Игра бесплатна. Прогресс хранится на устройстве.',
-      'Персональные данные на серверы разработчика не передаются.',
       'Начиная игру, вы принимаете соглашение и политику.'
     ].join('\n');
 
-    this.add.text(width / 2, y + 16, note, {
+    this.add.text(width / 2, y + 8, note, {
       fontFamily: 'Arial',
       fontSize: '12px',
       color: '#505068',
       align: 'center',
-      lineSpacing: 4
+      lineSpacing: 3
     }).setOrigin(0.5, 0);
 
     const btnY = height - (wide ? 34 : 50);
