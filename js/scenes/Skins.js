@@ -5,152 +5,260 @@ class SkinsScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const skins = window.ARROW_SKINS || [];
-    const selected = (window.gameProgress && window.gameProgress.skin) || 'neon';
+    this.skins = window.ARROW_SKINS || [];
+    this.selectedId = (window.gameProgress && window.gameProgress.skin) || 'neon';
+    this.cards = [];
+    this.scrollY = 0;
+    this.isDragging = false;
 
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    // Фон
+    this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b14);
 
-    this.add.text(width / 2, 42, 'СКИНЫ', {
+    // Заголовок (фиксированный)
+    this.add.text(width / 2, 48, 'СКИНЫ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '32px',
+      fontSize: '34px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, 80, 'Нажми на скин, чтобы выбрать', {
+    this.statusText = this.add.text(width / 2, 88, '', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
+    this.updateStatus();
 
-    this.listContainer = this.add.container(0, 0);
-    this.scrollY = 0;
+    // Контейнер списка
+    this.list = this.add.container(0, 0);
 
-    let y = 130;
-    skins.forEach((skin) => {
-      this.createSkinRow(width / 2, y, skin, skin.id === selected);
-      y += 112;
+    const cardW = 600;
+    const cardH = 100;
+    const gap = 14;
+    const startY = 140;
+
+    this.skins.forEach((skin, i) => {
+      const y = startY + i * (cardH + gap);
+      const card = this.buildCard(width / 2, y, cardW, cardH, skin);
+      this.list.add(card.container);
+      this.cards.push(card);
     });
 
-    this.contentBottom = y + 20;
+    this.listHeight = startY + this.skins.length * (cardH + gap);
+    this.maxScroll = Math.max(0, this.listHeight - (height - 110));
 
-    // Кнопка назад
-    const backHit = this.add.rectangle(width / 2, height - 46, 200, 52, 0x181828, 1)
-      .setInteractive({ useHandCursor: true });
-    this.add.text(width / 2, height - 46, '← МЕНЮ', {
+    // Кнопка назад (фиксированная сверху input)
+    const back = this.add.container(width / 2, height - 52);
+    const backBg = this.add.graphics();
+    backBg.fillStyle(0x1a1a28, 1);
+    backBg.fillRoundedRect(-100, -26, 200, 52, 14);
+    backBg.lineStyle(1, 0x2e2e48, 1);
+    backBg.strokeRoundedRect(-100, -26, 200, 52, 14);
+    const backTxt = this.add.text(0, 0, '← МЕНЮ', {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
+    back.add([backBg, backTxt]);
+    back.setSize(200, 52);
+    back.setInteractive(
+      new Phaser.Geom.Rectangle(-100, -26, 200, 52),
+      Phaser.Geom.Rectangle.Contains
+    );
+    back.on('pointerup', () => this.scene.start('Menu'));
 
-    backHit.on('pointerup', () => this.scene.start('Menu'));
-
-    this.setupScroll(height);
+    this.refreshCards();
+    this.bindInput(height);
   }
 
-  createSkinRow(x, y, skin, isSelected) {
-    // Фон
-    const bg = this.add.graphics();
-    bg.fillStyle(isSelected ? 0x14352f : 0x1a1a28, 1);
-    bg.fillRoundedRect(x - 320, y - 46, 640, 96, 16);
-    bg.lineStyle(2, isSelected ? 0x00e8c8 : 0x2a2a40, isSelected ? 0.95 : 1);
-    bg.strokeRoundedRect(x - 320, y - 46, 640, 96, 16);
-    this.listContainer.add(bg);
+  buildCard(x, y, w, h, skin) {
+    const container = this.add.container(x, y);
 
-    // Превью стрелок
+    const bg = this.add.graphics();
+    container.add(bg);
+
+    // Превью 4 стрелок
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
+    const previews = [];
     for (let i = 0; i < 4; i++) {
-      const pg = this.add.graphics();
+      const g = this.add.graphics();
       if (window.drawArrowSkin) {
-        window.drawArrowSkin(pg, i % 4, colors[i], 52, skin.id);
+        window.drawArrowSkin(g, i, colors[i], 48, skin.id);
       }
-      pg.setPosition(x - 250 + i * 48, y);
-      pg.setScale(0.85);
-      this.listContainer.add(pg);
+      g.setPosition(-w / 2 + 50 + i * 42, 0);
+      g.setScale(0.9);
+      container.add(g);
+      previews.push(g);
     }
 
-    const title = this.add.text(x - 40, y - 16, `${skin.icon}  ${skin.name}`, {
+    const title = this.add.text(-20, -16, `${skin.icon}  ${skin.name}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: '20px',
-      color: isSelected ? '#e8e8ff' : '#9a9ab4'
+      color: '#c8c8e0'
     }).setOrigin(0, 0.5);
-    this.listContainer.add(title);
+    container.add(title);
 
-    const desc = this.add.text(x - 40, y + 16, skin.desc, {
+    const desc = this.add.text(-20, 16, skin.desc, {
       fontFamily: 'Arial',
       fontSize: '14px',
-      color: isSelected ? '#9a9ab4' : '#5a5a70'
+      color: '#6a6a82'
     }).setOrigin(0, 0.5);
-    this.listContainer.add(desc);
+    container.add(desc);
 
-    if (isSelected) {
-      const mark = this.add.text(x + 280, y, '✓', {
-        fontSize: '28px',
-        color: '#00e8c8'
-      }).setOrigin(0.5);
-      this.listContainer.add(mark);
+    const check = this.add.text(w / 2 - 36, 0, '✓', {
+      fontSize: '28px',
+      color: '#00e8c8'
+    }).setOrigin(0.5).setAlpha(0);
+    container.add(check);
+
+    // Хит-зона
+    container.setSize(w, h);
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
+      Phaser.Geom.Rectangle.Contains
+    );
+
+    const card = {
+      skin,
+      container,
+      bg,
+      title,
+      desc,
+      check,
+      w,
+      h,
+      baseY: y
+    };
+
+    container.on('pointerup', (pointer) => {
+      if (this.isDragging) return;
+      if (pointer.getDistance() > 24) return;
+      this.selectSkin(skin.id);
+    });
+
+    return card;
+  }
+
+  drawCardBg(card, selected) {
+    const { bg, w, h } = card;
+    bg.clear();
+    if (selected) {
+      bg.fillStyle(0x0f2e2a, 1);
+      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 18);
+      bg.lineStyle(3, 0x00e8c8, 1);
+      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
+    } else {
+      bg.fillStyle(0x161622, 1);
+      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 18);
+      bg.lineStyle(2, 0x2a2a40, 1);
+      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
     }
+  }
 
-    // Прозрачная зона клика — главный хитбокс
-    const hit = this.add.rectangle(x, y, 640, 96, 0xffffff, 0.001);
-    hit.setInteractive({ useHandCursor: true });
-    this.listContainer.add(hit);
-
-    hit.on('pointerup', (pointer) => {
-      // Если палец почти не сдвинулся — это тап, не скролл
-      if (pointer.getDistance() > 28) return;
-      this.applySkin(skin.id);
+  refreshCards() {
+    this.cards.forEach((card) => {
+      const on = card.skin.id === this.selectedId;
+      this.drawCardBg(card, on);
+      card.title.setColor(on ? '#ffffff' : '#c8c8e0');
+      card.desc.setColor(on ? '#9a9ab4' : '#6a6a82');
+      card.check.setAlpha(on ? 1 : 0);
     });
   }
 
-  applySkin(skinId) {
-    if (!skinId) return;
+  updateStatus() {
+    const skin = this.skins.find(s => s.id === this.selectedId);
+    const name = skin ? skin.name : 'Неон';
+    this.statusText.setText(`Выбрано: ${name}`);
+  }
 
+  selectSkin(id) {
+    if (!id || id === this.selectedId) {
+      // Уже выбран — лёгкий pulse
+      const card = this.cards.find(c => c.skin.id === id);
+      if (card) {
+        this.tweens.add({
+          targets: card.container,
+          scaleX: 0.96,
+          scaleY: 0.96,
+          duration: 70,
+          yoyo: true
+        });
+      }
+      return;
+    }
+
+    this.selectedId = id;
+
+    // Сохранение
     if (!window.gameProgress) window.gameProgress = {};
-    window.gameProgress.skin = skinId;
-
+    window.gameProgress.skin = id;
     if (typeof window.setSelectedSkin === 'function') {
-      window.setSelectedSkin(skinId);
+      window.setSelectedSkin(id);
     } else if (typeof window.persistProgress === 'function') {
       window.persistProgress();
     } else {
       try {
-        localStorage.setItem(
-          'arrow_pulse_progress_v3',
-          JSON.stringify(window.gameProgress)
-        );
+        localStorage.setItem('arrow_pulse_progress_v3', JSON.stringify(window.gameProgress));
       } catch (e) {}
     }
 
-    // Мгновенный визуальный отклик + перерисовка
-    this.scene.restart();
+    this.refreshCards();
+    this.updateStatus();
+
+    // Анимация выбранной карточки
+    const card = this.cards.find(c => c.skin.id === id);
+    if (card) {
+      card.container.setScale(1);
+      this.tweens.add({
+        targets: card.container,
+        scaleX: 1.04,
+        scaleY: 1.04,
+        duration: 90,
+        yoyo: true,
+        ease: 'Quad.easeOut'
+      });
+      this.tweens.add({
+        targets: card.check,
+        scale: { from: 0.4, to: 1 },
+        alpha: { from: 0, to: 1 },
+        duration: 160,
+        ease: 'Back.easeOut'
+      });
+    }
   }
 
-  setupScroll(height) {
-    const maxScroll = Math.max(0, this.contentBottom - (height - 100));
-    if (maxScroll <= 0) return;
-
+  bindInput(height) {
     let startY = 0;
     let startScroll = 0;
-    let active = false;
+    let moved = false;
 
     this.input.on('pointerdown', (p) => {
-      if (p.y > height - 80) return;
-      active = true;
+      if (p.y > height - 90) return;
+      this.isDragging = false;
+      moved = false;
       startY = p.y;
       startScroll = this.scrollY;
     });
 
     this.input.on('pointermove', (p) => {
-      if (!active) return;
+      if (startY === 0 && startScroll === 0 && !moved) {
+        // pointerdown could have been ignored
+      }
       const dy = p.y - startY;
-      // Скроллим только при заметном движении
-      if (Math.abs(dy) < 10) return;
-      this.scrollY = Phaser.Math.Clamp(startScroll + dy, -maxScroll, 0);
-      this.listContainer.y = this.scrollY;
+      if (Math.abs(dy) > 12) {
+        moved = true;
+        this.isDragging = true;
+      }
+      if (!moved || this.maxScroll <= 0) return;
+      this.scrollY = Phaser.Math.Clamp(startScroll + dy, -this.maxScroll, 0);
+      this.list.y = this.scrollY;
     });
 
     this.input.on('pointerup', () => {
-      active = false;
+      // Небольшой delay чтобы pointerup карточки успел проверить isDragging
+      this.time.delayedCall(30, () => {
+        this.isDragging = false;
+      });
+      startY = 0;
     });
   }
 }
