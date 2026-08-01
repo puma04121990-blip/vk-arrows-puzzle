@@ -11,11 +11,11 @@ class MenuScene extends Phaser.Scene {
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * (wide ? 0.22 : 0.18), wide ? 120 : 150);
+    glow.fillCircle(width / 2, height * (wide ? 0.18 : 0.14), wide ? 110 : 130);
 
-    this.add.text(width / 2, height * (wide ? 0.1 : 0.12), 'ПУЛЬС СТРЕЛОК', {
+    this.add.text(width / 2, height * (wide ? 0.08 : 0.09), 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '42px' : '36px',
+      fontSize: wide ? '40px' : '32px',
       color: '#00e8c8',
       align: 'center',
       stroke: '#0b0b14',
@@ -28,26 +28,25 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * (wide ? 0.2 : 0.19), greeting, {
+    this.add.text(width / 2, height * (wide ? 0.16 : 0.15), greeting, {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
-    // На ПК кнопки компактнее по вертикали
-    const step = wide ? 58 : 72;
-    let y = height * (wide ? 0.32 : 0.32);
+    const step = wide ? 52 : 58;
+    let y = height * (wide ? 0.26 : 0.24);
 
     if (hasProgress) {
       this.add.text(width / 2, y, `Прогресс: уровень ${maxLevel + 1}`, {
         fontFamily: 'Arial',
-        fontSize: '15px',
+        fontSize: '14px',
         color: '#6a6a82'
       }).setOrigin(0.5);
-      y += wide ? 32 : 40;
+      y += wide ? 28 : 32;
 
       this.createButton(width / 2, y, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
@@ -75,20 +74,33 @@ class MenuScene extends Phaser.Scene {
     this.createButton(width / 2, y, 'ДОСТИЖЕНИЯ', 0x222238, () => {
       this.scene.start('Achievements');
     }, true, wide);
+    y += step;
 
-    this.add.text(width / 2, height * 0.94, `${LEVELS.length} уровней`, {
-      fontFamily: 'Arial',
-      fontSize: '14px',
-      color: '#505068'
-    }).setOrigin(0.5);
+    this.createButton(width / 2, y, 'КАК ИГРАТЬ', 0x222238, () => {
+      this.scene.start('Help');
+    }, true, wide);
+    y += step;
+
+    this.createButton(width / 2, y, 'ПРАВОВАЯ ИНФОРМАЦИЯ', 0x1a1a28, () => {
+      this.scene.start('Legal');
+    }, true, wide);
+
+    this.add.text(width / 2, height * 0.96, 'Играя, вы принимаете соглашение и политику',
+      {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: '#404058',
+        align: 'center'
+      }
+    ).setOrigin(0.5);
 
     this.createDecorArrows(width, height);
   }
 
   createButton(x, y, label, color, callback, secondary = false, wide = false) {
     const btn = this.add.container(x, y);
-    const bw = wide ? 300 : 280;
-    const bh = wide ? 48 : 56;
+    const bw = wide ? 320 : 300;
+    const bh = wide ? 44 : 50;
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
@@ -96,7 +108,7 @@ class MenuScene extends Phaser.Scene {
 
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: secondary ? (wide ? '18px' : '20px') : (wide ? '22px' : '26px'),
+      fontSize: secondary ? (wide ? '16px' : '17px') : (wide ? '20px' : '22px'),
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
