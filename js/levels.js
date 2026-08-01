@@ -1,6 +1,6 @@
 // ============================================
 // Levels: walls + color locks + rotate arrows
-// Rotate: 1st tap ALWAYS turns 90°, only then can leave
+// Fast greedy solvability (must rotate before remove)
 // ============================================
 
 window.LOCK_COLOR_META = [
@@ -40,33 +40,13 @@ function isLockedSim(arrow, remaining) {
   return false;
 }
 
-// ВАЖНО: двухходовую без поворота снять нельзя (как в игре)
+// Как в игре: двухходовую без поворота снять нельзя
 function canRemoveSim(arrow, remaining, size, wallSet) {
   if (isLockedSim(arrow, remaining)) return false;
   if (arrow.rotates && !arrow.rotated) return false;
   return canEscapeSim(arrow, remaining, size, wallSet);
 }
 
-function cloneArrows(arr) {
-  return arr.map(a => ({
-    x: a.x,
-    y: a.y,
-    dir: a.dir,
-    lockId: a.lockId != null ? a.lockId : null,
-    keyId: a.keyId != null ? a.keyId : null,
-    rotates: !!a.rotates,
-    rotated: !!a.rotated
-  }));
-}
-
-function stateKey(arr) {
-  return arr
-    .map(a => a.x + ',' + a.y + ',' + a.dir + ',' + (a.rotated ? 1 : 0))
-    .sort()
-    .join('|');
-}
-
-// BFS — корректно учитывает обязательный поворот
 function isSolvable(arrows, size, walls) {
   const wallSet = new Set();
   if (walls) {
@@ -75,54 +55,46 @@ function isSolvable(arrows, size, walls) {
     }
   }
 
-  const start = cloneArrows(arrows);
-  const queue = [start];
-  const seen = new Set([stateKey(start)]);
-  let steps = 0;
-  const maxSteps = 6000;
+  const remaining = arrows.map(a => ({
+    x: a.x,
+    y: a.y,
+    dir: a.dir,
+    lockId: a.lockId != null ? a.lockId : null,
+    keyId: a.keyId != null ? a.keyId : null,
+    rotates: !!a.rotates,
+    rotated: false
+  }));
 
-  while (queue.length > 0 && steps++ < maxSteps) {
-    const cur = queue.shift();
-    if (cur.length === 0) return true;
+  let guard = 0;
+  const limit = remaining.length * 6 + 30;
 
-    // 1) снять любую, которую можно (незаблокированную и уже повёрнутую / обычную)
-    for (let i = 0; i < cur.length; i++) {
-      if (!canRemoveSim(cur[i], cur, size, wallSet)) continue;
-      const next = cur.slice(0, i).concat(cur.slice(i + 1));
-      const k = stateKey(next);
-      if (!seen.has(k)) {
-        seen.add(k);
-        queue.push(next);
+  while (remaining.length > 0 && guard++ < limit) {
+    let progress = false;
+
+    // 1) снять всё, что можно прямо сейчас
+    for (let i = 0; i < remaining.length; i++) {
+      if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
+        remaining.splice(i, 1);
+        progress = true;
+        break;
       }
     }
+    if (progress) continue;
 
-    // 2) повернуть двухходовую (обязательный первый ход)
-    for (let i = 0; i < cur.length; i++) {
-      const a = cur[i];
+    // 2) повернуть одну двухходовую (обязательный первый ход)
+    for (let i = 0; i < remaining.length; i++) {
+      const a = remaining[i];
       if (!a.rotates || a.rotated) continue;
-      if (isLockedSim(a, cur)) continue;
-
-      const next = cur.map((x, idx) => {
-        if (idx !== i) return x;
-        return {
-          x: x.x,
-          y: x.y,
-          dir: (x.dir + 1) % 4,
-          lockId: x.lockId,
-          keyId: x.keyId,
-          rotates: true,
-          rotated: true
-        };
-      });
-      const k = stateKey(next);
-      if (!seen.has(k)) {
-        seen.add(k);
-        queue.push(next);
-      }
+      if (isLockedSim(a, remaining)) continue;
+      a.dir = (a.dir + 1) % 4;
+      a.rotated = true;
+      progress = true;
+      break;
     }
+    if (!progress) return false;
   }
 
-  return false;
+  return remaining.length === 0;
 }
 
 function validDirs(x, y, size, wallSet) {
@@ -206,7 +178,6 @@ function getRotateCandidates(arrows) {
   return candidates;
 }
 
-// Назначаем rotates только если уровень остаётся решаемым
 function assignRotatesSafe(arrows, count, size, walls) {
   if (count <= 0) return 0;
   const candidates = getRotateCandidates(arrows);
@@ -226,7 +197,7 @@ function assignRotatesSafe(arrows, count, size, walls) {
 
 function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
   const dense = count > size * size * 0.55;
-  const maxAttempts = dense ? 150 : 100;
+  const maxAttempts = dense ? 80 : 50;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
@@ -234,7 +205,7 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const wallSet = new Set();
 
     let wSafety = 0;
-    while (walls.length < wallCount && wSafety < 100) {
+    while (walls.length < wallCount && wSafety < 80) {
       wSafety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
@@ -249,7 +220,7 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const arrows = [];
     let placed = 0;
     let safety = 0;
-    const placeLimit = dense ? 800 : 300;
+    const placeLimit = dense ? 500 : 250;
     while (placed < count && safety < placeLimit) {
       safety++;
       const x = Math.floor(Math.random() * size);
@@ -270,7 +241,6 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
 
     if (!isSolvable(arrows, size, walls)) continue;
 
-    // rotates только если после назначения уровень решаем
     if (rotateCount > 0) {
       assignRotatesSafe(arrows, rotateCount, size, walls);
     }
