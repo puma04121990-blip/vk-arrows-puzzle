@@ -11,39 +11,49 @@ class SkinsScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b14);
 
-    this.add.text(width / 2, 44, 'СТИЛИ', {
+    const wide = width >= height;
+
+    this.add.text(width / 2, wide ? 28 : 44, 'СТИЛИ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '34px',
+      fontSize: wide ? '26px' : '34px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
-    this.statusText = this.add.text(width / 2, 82, '', {
+    this.statusText = this.add.text(width / 2, wide ? 56 : 82, '', {
       fontFamily: 'Arial',
-      fontSize: '16px',
+      fontSize: '15px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
     this.updateStatus();
 
-    const cardW = 620;
-    const cardH = 96;
-    const gap = 12;
-    const startY = 130;
+    // ПК: 2 колонки, телефон: 1
+    const cols = wide ? 2 : 1;
+    const cardW = wide ? Math.min(560, (width - 80) / 2) : Math.min(620, width - 80);
+    const cardH = wide ? 78 : 96;
+    const gapX = 20;
+    const gapY = wide ? 10 : 12;
+    const startY = wide ? 90 : 130;
+    const totalW = cols * cardW + (cols - 1) * gapX;
+    const startX = (width - totalW) / 2 + cardW / 2;
 
     this.skins.forEach((skin, i) => {
-      const y = startY + i * (cardH + gap);
-      this.cards.push(this.makeCard(width / 2, y, cardW, cardH, skin));
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * (cardW + gapX);
+      const y = startY + row * (cardH + gapY);
+      this.cards.push(this.makeCard(x, y, cardW, cardH, skin, wide));
     });
 
     this.paintAll();
 
-    const btnY = height - 56;
-    const menuBtn = this.add.rectangle(width / 2, btnY, 220, 56, 0x1a1a28)
+    const btnY = height - (wide ? 36 : 56);
+    const menuBtn = this.add.rectangle(width / 2, btnY, 200, wide ? 44 : 56, 0x1a1a28)
       .setStrokeStyle(2, 0x2e2e48)
       .setInteractive({ useHandCursor: true });
 
     this.add.text(width / 2, btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: wide ? '18px' : '22px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
 
@@ -56,35 +66,38 @@ class SkinsScene extends Phaser.Scene {
     });
   }
 
-  makeCard(x, y, w, h, skin) {
+  makeCard(x, y, w, h, skin, wide) {
     const bg = this.add.rectangle(x, y, w, h, 0x161622)
       .setStrokeStyle(2, 0x2a2a40)
       .setInteractive({ useHandCursor: true });
 
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
+    const previewScale = wide ? 0.7 : 0.88;
+    const previewStart = x - w / 2 + (wide ? 36 : 48);
     for (let i = 0; i < 4; i++) {
       const g = this.add.graphics();
       if (window.drawArrowSkin) {
-        window.drawArrowSkin(g, i, colors[i], 46, skin.id);
+        window.drawArrowSkin(g, i, colors[i], wide ? 36 : 46, skin.id);
       }
-      g.setPosition(x - w / 2 + 48 + i * 40, y);
-      g.setScale(0.88);
+      g.setPosition(previewStart + i * (wide ? 32 : 40), y);
+      g.setScale(previewScale);
     }
 
-    const title = this.add.text(x - 30, y - 16, `${skin.icon}  ${skin.name}`, {
+    const textX = x - w / 2 + (wide ? 160 : 190);
+    const title = this.add.text(textX, y - (wide ? 12 : 16), `${skin.icon}  ${skin.name}`, {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '20px',
+      fontSize: wide ? '17px' : '20px',
       color: '#c8c8e0'
     }).setOrigin(0, 0.5);
 
-    const desc = this.add.text(x - 30, y + 16, skin.desc, {
+    const desc = this.add.text(textX, y + (wide ? 12 : 16), skin.desc, {
       fontFamily: 'Arial',
-      fontSize: '14px',
+      fontSize: wide ? '12px' : '14px',
       color: '#6a6a82'
     }).setOrigin(0, 0.5);
 
-    const check = this.add.text(x + w / 2 - 36, y, '✓', {
-      fontSize: '28px',
+    const check = this.add.text(x + w / 2 - 28, y, '✓', {
+      fontSize: wide ? '22px' : '28px',
       color: '#00e8c8'
     }).setOrigin(0.5).setAlpha(0);
 
