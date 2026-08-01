@@ -1,6 +1,6 @@
 // ============================================
 // Levels: walls + color locks + rotate arrows
-// Fast greedy solvability (mobile-safe)
+// Rotate: 1st tap ALWAYS turns 90°, only then can leave
 // ============================================
 
 window.LOCK_COLOR_META = [
@@ -40,11 +40,33 @@ function isLockedSim(arrow, remaining) {
   return false;
 }
 
+// ВАЖНО: двухходовую без поворота снять нельзя (как в игре)
 function canRemoveSim(arrow, remaining, size, wallSet) {
   if (isLockedSim(arrow, remaining)) return false;
+  if (arrow.rotates && !arrow.rotated) return false;
   return canEscapeSim(arrow, remaining, size, wallSet);
 }
 
+function cloneArrows(arr) {
+  return arr.map(a => ({
+    x: a.x,
+    y: a.y,
+    dir: a.dir,
+    lockId: a.lockId != null ? a.lockId : null,
+    keyId: a.keyId != null ? a.keyId : null,
+    rotates: !!a.rotates,
+    rotated: !!a.rotated
+  }));
+}
+
+function stateKey(arr) {
+  return arr
+    .map(a => a.x + ',' + a.y + ',' + a.dir + ',' + (a.rotated ? 1 : 0))
+    .sort()
+    .join('|');
+}
+
+// BFS — корректно учитывает обязательный поворот
 function isSolvable(arrows, size, walls) {
   const wallSet = new Set();
   if (walls) {
@@ -53,44 +75,54 @@ function isSolvable(arrows, size, walls) {
     }
   }
 
-  const remaining = arrows.map(a => ({
-    x: a.x,
-    y: a.y,
-    dir: a.dir,
-    lockId: a.lockId != null ? a.lockId : null,
-    keyId: a.keyId != null ? a.keyId : null,
-    rotates: !!a.rotates,
-    rotated: false
-  }));
+  const start = cloneArrows(arrows);
+  const queue = [start];
+  const seen = new Set([stateKey(start)]);
+  let steps = 0;
+  const maxSteps = 6000;
 
-  let guard = 0;
-  const limit = remaining.length * 4 + 20;
+  while (queue.length > 0 && steps++ < maxSteps) {
+    const cur = queue.shift();
+    if (cur.length === 0) return true;
 
-  while (remaining.length > 0 && guard++ < limit) {
-    let progress = false;
-
-    for (let i = 0; i < remaining.length; i++) {
-      if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
-        remaining.splice(i, 1);
-        progress = true;
-        break;
+    // 1) снять любую, которую можно (незаблокированную и уже повёрнутую / обычную)
+    for (let i = 0; i < cur.length; i++) {
+      if (!canRemoveSim(cur[i], cur, size, wallSet)) continue;
+      const next = cur.slice(0, i).concat(cur.slice(i + 1));
+      const k = stateKey(next);
+      if (!seen.has(k)) {
+        seen.add(k);
+        queue.push(next);
       }
     }
-    if (progress) continue;
 
-    for (let i = 0; i < remaining.length; i++) {
-      const a = remaining[i];
+    // 2) повернуть двухходовую (обязательный первый ход)
+    for (let i = 0; i < cur.length; i++) {
+      const a = cur[i];
       if (!a.rotates || a.rotated) continue;
-      if (isLockedSim(a, remaining)) continue;
-      a.dir = (a.dir + 1) % 4;
-      a.rotated = true;
-      progress = true;
-      break;
+      if (isLockedSim(a, cur)) continue;
+
+      const next = cur.map((x, idx) => {
+        if (idx !== i) return x;
+        return {
+          x: x.x,
+          y: x.y,
+          dir: (x.dir + 1) % 4,
+          lockId: x.lockId,
+          keyId: x.keyId,
+          rotates: true,
+          rotated: true
+        };
+      });
+      const k = stateKey(next);
+      if (!seen.has(k)) {
+        seen.add(k);
+        queue.push(next);
+      }
     }
-    if (!progress) return false;
   }
 
-  return remaining.length === 0;
+  return false;
 }
 
 function validDirs(x, y, size, wallSet) {
@@ -159,8 +191,7 @@ function assignLocks(arrows, pairCount) {
   }
 }
 
-function assignRotates(arrows, count) {
-  if (count <= 0) return;
+function getRotateCandidates(arrows) {
   const candidates = [];
   for (let i = 0; i < arrows.length; i++) {
     const a = arrows[i];
@@ -172,15 +203,30 @@ function assignRotates(arrows, count) {
     const j = Math.floor(Math.random() * (i + 1));
     const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
   }
-  const n = Math.min(count, candidates.length);
-  for (let i = 0; i < n; i++) {
-    arrows[candidates[i]].rotates = true;
+  return candidates;
+}
+
+// Назначаем rotates только если уровень остаётся решаемым
+function assignRotatesSafe(arrows, count, size, walls) {
+  if (count <= 0) return 0;
+  const candidates = getRotateCandidates(arrows);
+  let added = 0;
+
+  for (let c = 0; c < candidates.length && added < count; c++) {
+    const i = candidates[c];
+    arrows[i].rotates = true;
+    if (isSolvable(arrows, size, walls)) {
+      added++;
+    } else {
+      delete arrows[i].rotates;
+    }
   }
+  return added;
 }
 
 function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
   const dense = count > size * size * 0.55;
-  const maxAttempts = dense ? 120 : 80;
+  const maxAttempts = dense ? 150 : 100;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
@@ -217,7 +263,6 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
       placed++;
     }
 
-    // Для плотных уровней принимаем, если поставили почти всё
     if (placed < Math.floor(count * 0.9)) continue;
     if (wallCount > 0 && walls.length < wallCount) continue;
 
@@ -225,11 +270,9 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
 
     if (!isSolvable(arrows, size, walls)) continue;
 
+    // rotates только если после назначения уровень решаем
     if (rotateCount > 0) {
-      assignRotates(arrows, rotateCount);
-      if (!isSolvable(arrows, size, walls)) {
-        for (let i = 0; i < arrows.length; i++) delete arrows[i].rotates;
-      }
+      assignRotatesSafe(arrows, rotateCount, size, walls);
     }
 
     return { size: size, arrows: arrows, walls: walls };
@@ -256,24 +299,20 @@ function getWallCount(levelIndex) {
   return 5;
 }
 
-// Каждые 3 уровня +1..3 стрелки → к 40-м поле почти полное
 function getArrowCount(levelIndex, size) {
   const wallsN = getWallCount(levelIndex);
   const free = Math.max(4, size * size - wallsN);
 
-  // старт ~22% свободных клеток
   let count = Math.max(4, Math.floor(free * 0.22));
 
-  // каждые 3 уровня добавляем 1, 2 или 3 стрелки по кругу
   const steps = Math.floor(levelIndex / 3);
   for (let s = 0; s < steps; s++) {
     count += 1 + (s % 3);
   }
 
-  // с 36-го уровня форсируем плотное заполнение
   if (levelIndex >= 36) {
     const t = Math.min(1, (levelIndex - 36) / 12);
-    const target = Math.floor(free * (0.78 + 0.20 * t)); // 78% → 98%
+    const target = Math.floor(free * (0.78 + 0.20 * t));
     count = Math.max(count, target);
   }
 
