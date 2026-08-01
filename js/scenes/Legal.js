@@ -36,11 +36,6 @@ class LegalScene extends Phaser.Scene {
         title: 'Правила VK',
         desc: 'Правила платформы ВКонтакте',
         url: 'https://vk.com/terms'
-      },
-      {
-        title: 'Экосистема VK ID',
-        desc: 'Соглашение и политика VK ID',
-        url: 'https://id.vk.com/terms'
       }
     ];
 
