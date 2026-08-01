@@ -67,12 +67,12 @@ window.drawArrowSkin = function (g, dir, color, cellSize, skinId) {
 };
 
 // dir: 0 up, 1 right, 2 down, 3 left
-// base shapes drawn pointing RIGHT, then rotated
+// Base shape points RIGHT (+X tip). Screen Y grows downward.
 function toDir(x, y, dir) {
-  if (dir === 1) return [x, y];          // right
-  if (dir === 2) return [y, -x];         // down
-  if (dir === 3) return [-x, -y];        // left
-  return [-y, x];                        // up
+  if (dir === 1) return [x, y];       // right: tip +X
+  if (dir === 2) return [-y, x];      // down: tip +Y  (1,0)->(0,1)
+  if (dir === 3) return [-x, -y];     // left: tip -X
+  return [y, -x];                     // up:   tip -Y  (1,0)->(0,-1)
 }
 
 function fillPoly(g, pts) {
@@ -88,8 +88,7 @@ function poly(base, dir) {
   return base.map(p => toDir(p[0], p[1], dir));
 }
 
-// ===== КЛАССИКА / НЕОН =====
-// shaft + triangle head (reference top row)
+// ===== КЛАССИКА =====
 function drawClassic(g, dir, color, s) {
   const head = s * 0.95;
   const shaftW = s * 0.28;
@@ -117,7 +116,7 @@ function drawClassic(g, dir, color, s) {
   ], dir));
 }
 
-// ===== БЛОК: толстая игровая (reference fat arrows) =====
+// ===== БЛОК =====
 function drawBlock(g, dir, color, s) {
   const head = s * 1.0;
   const hw = s * 0.7;
@@ -134,14 +133,10 @@ function drawBlock(g, dir, color, s) {
     [s * 0.05, hw]
   ];
 
-  // shadow
   g.fillStyle(0x000000, 0.35);
   fillPoly(g, poly(body.map(p => [p[0] + 2, p[1] + 2]), dir));
-
   g.fillStyle(color, 1);
   fillPoly(g, poly(body, dir));
-
-  // cut highlight
   g.fillStyle(0xffffff, 0.25);
   fillPoly(g, poly([
     [head * 0.55, 0],
@@ -150,7 +145,7 @@ function drawBlock(g, dir, color, s) {
   ], dir));
 }
 
-// ===== ТРЕУГОЛЬНИК: чистый указатель без хвоста =====
+// ===== ТРЕУГОЛЬНИК =====
 function drawTriangle(g, dir, color, s) {
   const body = [
     [s * 1.0, 0],
@@ -170,7 +165,7 @@ function drawTriangle(g, dir, color, s) {
   ], dir));
 }
 
-// ===== ШЕВРОН: >> двойной =====
+// ===== ШЕВРОН =====
 function drawChevron(g, dir, color, s) {
   function oneChevron(ox) {
     const t = s * 0.75;
@@ -198,7 +193,7 @@ function drawChevron(g, dir, color, s) {
   ], dir));
 }
 
-// ===== ТОНКАЯ: длинный хвост + острый наконечник =====
+// ===== ТОНКАЯ =====
 function drawThin(g, dir, color, s) {
   const head = s * 0.85;
   const hw = s * 0.42;
@@ -218,7 +213,6 @@ function drawThin(g, dir, color, s) {
   g.fillStyle(color, 1);
   fillPoly(g, poly(body, dir));
 
-  // small barbs near tip
   g.fillStyle(color, 0.85);
   fillPoly(g, poly([
     [s * 0.15, -sw],
@@ -239,15 +233,13 @@ function drawThin(g, dir, color, s) {
   ], dir));
 }
 
-// ===== ОПЕРЕНИЕ: стрела из лука (наконечник + древко + оперение) =====
+// ===== ОПЕРЕНИЕ =====
 function drawFeather(g, dir, color, s) {
-  // tip
   const tip = [
     [s * 1.05, 0],
     [s * 0.25, -s * 0.38],
     [s * 0.25, s * 0.38]
   ];
-  // shaft
   const sw = s * 0.1;
   const shaft = [
     [s * 0.25, -sw],
@@ -255,7 +247,6 @@ function drawFeather(g, dir, color, s) {
     [-s * 0.55, sw],
     [s * 0.25, sw]
   ];
-  // fletching (feathers) at tail
   const f1 = [
     [-s * 0.35, -sw],
     [-s * 0.95, -s * 0.45],
