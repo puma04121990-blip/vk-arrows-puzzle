@@ -1,15 +1,17 @@
 window.vkUser = null;
 window.isVK = typeof vkBridge !== 'undefined';
 
-// ПК = широкий экран → горизонтальный холст
-window.isDesktopLayout = (function () {
+// Горизонт (телефон или ПК) → широкий холст 1280×720
+// Портрет → 720×1280
+function detectLayout() {
   const w = window.innerWidth || 720;
   const h = window.innerHeight || 1280;
-  return w >= 900 && w > h;
-})();
+  return w > h;
+}
 
-window.GAME_W = window.isDesktopLayout ? 1280 : 720;
-window.GAME_H = window.isDesktopLayout ? 720 : 1280;
+window.isLandscapeLayout = detectLayout();
+window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
+window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
 
 function initVK() {
   if (!window.isVK) {
@@ -85,10 +87,19 @@ const game = new Phaser.Game(config);
 
 if (game.canvas) game.canvas.style.cursor = 'default';
 
-window.addEventListener('resize', () => {
-  if (game && game.scale) game.scale.refresh();
-});
+// При повороте экрана — перезагрузка с новым форматом
+let lastLandscape = window.isLandscapeLayout;
+function checkOrientation() {
+  const now = detectLayout();
+  if (now !== lastLandscape) {
+    lastLandscape = now;
+    window.location.reload();
+  } else if (game && game.scale) {
+    game.scale.refresh();
+  }
+}
 
-window.addEventListener('wheel', (e) => {
-  e.preventDefault();
-}, { passive: false });
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', () => {
+  setTimeout(checkOrientation, 150);
+});
