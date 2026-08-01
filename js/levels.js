@@ -1,7 +1,14 @@
 // ============================================
-// Levels: walls + LOCK/KEY arrows
-// Locked arrow can't be removed until its key is gone
+// Levels: walls + COLOR LOCK/KEY arrows
+// Red key opens only red lock, etc.
 // ============================================
+
+// 0 = red, 1 = blue, 2 = yellow
+window.LOCK_COLOR_META = [
+  { id: 0, name: 'red', hex: 0xff6b6b, label: '🔴' },
+  { id: 1, name: 'blue', hex: 0x4cc9f0, label: '🔵' },
+  { id: 2, name: 'yellow', hex: 0xffd166, label: '🟡' }
+];
 
 function cellKey(x, y) {
   return x + ',' + y;
@@ -27,7 +34,7 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
 }
 
 function canRemoveSim(arrow, remaining, size, wallSet) {
-  // Замок: ключ ещё на поле
+  // Замок: ключ того же lockId ещё на поле
   if (arrow.lockId != null) {
     for (let i = 0; i < remaining.length; i++) {
       if (remaining[i].keyId === arrow.lockId) return false;
@@ -38,9 +45,12 @@ function canRemoveSim(arrow, remaining, size, wallSet) {
 
 function isSolvable(arrows, size, walls) {
   const remaining = arrows.map(a => ({
-    x: a.x, y: a.y, dir: a.dir,
+    x: a.x,
+    y: a.y,
+    dir: a.dir,
     lockId: a.lockId != null ? a.lockId : null,
-    keyId: a.keyId != null ? a.keyId : null
+    keyId: a.keyId != null ? a.keyId : null,
+    lockColor: a.lockColor != null ? a.lockColor : null
   }));
   const wallSet = new Set();
   if (walls) {
@@ -101,7 +111,6 @@ function createGuaranteedSafe(size) {
 function assignLocks(arrows, pairCount) {
   if (pairCount <= 0 || arrows.length < 2) return;
 
-  // Копия индексов, перемешать
   const idx = [];
   for (let i = 0; i < arrows.length; i++) idx.push(i);
   for (let i = idx.length - 1; i > 0; i--) {
@@ -116,13 +125,17 @@ function assignLocks(arrows, pairCount) {
     const iLock = idx[p + 1];
     p += 2;
 
-    // Не вешаем замок на уже занятые
     if (arrows[iKey].keyId != null || arrows[iKey].lockId != null) continue;
     if (arrows[iLock].keyId != null || arrows[iLock].lockId != null) continue;
 
     const id = pairs + 1;
+    // Цвет пары: 0 red, 1 blue, 2 yellow — по кругу
+    const color = pairs % 3;
+
     arrows[iKey].keyId = id;
+    arrows[iKey].lockColor = color;
     arrows[iLock].lockId = id;
+    arrows[iLock].lockColor = color;
     pairs++;
   }
 }
@@ -167,7 +180,6 @@ function generateLevel(size, count, wallCount, lockPairs) {
     if (placed < count) continue;
     if (wallCount > 0 && walls.length < wallCount) continue;
 
-    // Замки
     assignLocks(arrows, lockPairs);
 
     if (isSolvable(arrows, size, walls)) {
@@ -206,10 +218,10 @@ function getWallCount(levelIndex) {
 }
 
 function getLockPairs(levelIndex) {
-  if (levelIndex < 7) return 0;   // 1–7 без замков
-  if (levelIndex < 15) return 1;  // 8–15
-  if (levelIndex < 30) return 2;  // 16–30
-  return 3;                      // 31–50
+  if (levelIndex < 7) return 0;
+  if (levelIndex < 15) return 1;
+  if (levelIndex < 30) return 2;
+  return 3;
 }
 
 const LEVELS = [];
