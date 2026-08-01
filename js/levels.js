@@ -1,6 +1,6 @@
 // ============================================
 // Levels: walls + color locks + rotate arrows
-// Rotate: 1st tap turns 90°, 2nd tap leaves
+// Fast greedy solvability (mobile-safe)
 // ============================================
 
 window.LOCK_COLOR_META = [
@@ -17,7 +17,7 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
   let cx = arrow.x;
   let cy = arrow.y;
   let guard = 0;
-  while (guard++ < 64) {
+  while (guard++ < 40) {
     if (arrow.dir === 0) cy--;
     else if (arrow.dir === 1) cx++;
     else if (arrow.dir === 2) cy++;
@@ -45,13 +45,7 @@ function canRemoveSim(arrow, remaining, size, wallSet) {
   return canEscapeSim(arrow, remaining, size, wallSet);
 }
 
-function stateKey(arr) {
-  return arr
-    .map(a => a.x + ',' + a.y + ',' + a.dir + ',' + (a.rotated ? 1 : 0))
-    .sort()
-    .join('|');
-}
-
+// Быстрый жадный решатель — не вешает телефон
 function isSolvable(arrows, size, walls) {
   const wallSet = new Set();
   if (walls) {
@@ -60,7 +54,7 @@ function isSolvable(arrows, size, walls) {
     }
   }
 
-  const start = arrows.map(a => ({
+  const remaining = arrows.map(a => ({
     x: a.x,
     y: a.y,
     dir: a.dir,
@@ -70,60 +64,43 @@ function isSolvable(arrows, size, walls) {
     rotated: false
   }));
 
-  const queue = [start];
-  const seen = new Set([stateKey(start)]);
-  let steps = 0;
-  const maxSteps = 8000;
+  let guard = 0;
+  const limit = remaining.length * 4 + 20;
 
-  while (queue.length > 0 && steps++ < maxSteps) {
-    const cur = queue.shift();
-    if (cur.length === 0) return true;
+  while (remaining.length > 0 && guard++ < limit) {
+    let progress = false;
 
-    // 1) снять любую свободную стрелку
-    for (let i = 0; i < cur.length; i++) {
-      if (!canRemoveSim(cur[i], cur, size, wallSet)) continue;
-      const next = cur.slice(0, i).concat(cur.slice(i + 1));
-      const k = stateKey(next);
-      if (!seen.has(k)) {
-        seen.add(k);
-        queue.push(next);
+    // Сначала снимаем всё, что можно
+    for (let i = 0; i < remaining.length; i++) {
+      if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
+        remaining.splice(i, 1);
+        progress = true;
+        break;
       }
     }
+    if (progress) continue;
 
-    // 2) повернуть двухходовую (если ещё не поворачивали)
-    for (let i = 0; i < cur.length; i++) {
-      const a = cur[i];
+    // Иначе один поворот двухходовой
+    for (let i = 0; i < remaining.length; i++) {
+      const a = remaining[i];
       if (!a.rotates || a.rotated) continue;
-      if (isLockedSim(a, cur)) continue;
-
-      const next = cur.map((x, idx) => {
-        if (idx !== i) return x;
-        return {
-          x: x.x,
-          y: x.y,
-          dir: (x.dir + 1) % 4,
-          lockId: x.lockId,
-          keyId: x.keyId,
-          rotates: true,
-          rotated: true
-        };
-      });
-      const k = stateKey(next);
-      if (!seen.has(k)) {
-        seen.add(k);
-        queue.push(next);
-      }
+      if (isLockedSim(a, remaining)) continue;
+      a.dir = (a.dir + 1) % 4;
+      a.rotated = true;
+      progress = true;
+      break;
     }
+    if (!progress) return false;
   }
 
-  return false;
+  return remaining.length === 0;
 }
 
 function validDirs(x, y, size, wallSet) {
   const dirs = [];
   for (let d = 0; d < 4; d++) {
     let cx = x, cy = y, ok = true, guard = 0;
-    while (guard++ < 64) {
+    while (guard++ < 40) {
       if (d === 0) cy--;
       else if (d === 1) cx++;
       else if (d === 2) cy++;
@@ -205,7 +182,7 @@ function assignRotates(arrows, count) {
 }
 
 function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
-  const maxAttempts = 400;
+  const maxAttempts = 80;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
@@ -213,7 +190,7 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const wallSet = new Set();
 
     let wSafety = 0;
-    while (walls.length < wallCount && wSafety < 200) {
+    while (walls.length < wallCount && wSafety < 100) {
       wSafety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
@@ -228,7 +205,7 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const arrows = [];
     let placed = 0;
     let safety = 0;
-    while (placed < count && safety < 500) {
+    while (placed < count && safety < 300) {
       safety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
@@ -245,11 +222,20 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     if (wallCount > 0 && walls.length < wallCount) continue;
 
     assignLocks(arrows, lockPairs);
-    assignRotates(arrows, rotateCount);
 
-    if (isSolvable(arrows, size, walls)) {
-      return { size: size, arrows: arrows, walls: walls };
+    // Сначала проверяем без поворотов
+    if (!isSolvable(arrows, size, walls)) continue;
+
+    // Потом добавляем двухходовые и проверяем снова
+    if (rotateCount > 0) {
+      assignRotates(arrows, rotateCount);
+      if (!isSolvable(arrows, size, walls)) {
+        // убираем rotates, уровень всё равно валиден
+        for (let i = 0; i < arrows.length; i++) delete arrows[i].rotates;
+      }
     }
+
+    return { size: size, arrows: arrows, walls: walls };
   }
 
   return createGuaranteedSafe(size);
@@ -293,7 +279,7 @@ function getRotateCount(levelIndex) {
   if (levelIndex < 12) return 0;
   if (levelIndex < 22) return 1;
   if (levelIndex < 35) return 2;
-  return 3;
+  return 2; // max 2 на телефоне — быстрее генерация
 }
 
 const LEVELS = [];
