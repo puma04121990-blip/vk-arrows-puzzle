@@ -10,9 +10,9 @@ class MenuScene extends Phaser.Scene {
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * 0.16, 150);
+    glow.fillCircle(width / 2, height * 0.18, 150);
 
-    this.add.text(width / 2, height * 0.1, 'ARROW PULSE', {
+    this.add.text(width / 2, height * 0.12, 'ARROW PULSE', {
       fontFamily: 'Arial Black, Arial',
       fontSize: '40px',
       color: '#00e8c8',
@@ -27,37 +27,16 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * 0.16, greeting, {
+    this.add.text(width / 2, height * 0.19, greeting, {
       fontFamily: 'Arial',
       fontSize: '17px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    const rulesY = height * 0.21;
-    this.add.text(width / 2, rulesY, 'КАК ИГРАТЬ', {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: '15px',
-      color: '#00e8c8'
-    }).setOrigin(0.5);
-
-    const rules = [
-      '• Тапай по стрелке, путь должен быть свободен',
-      '• 🔴🔑 открывает только 🔴🔒 (цвет важен)',
-      '• Без ошибок — 3★, лимит 3 ошибки'
-    ];
-
-    rules.forEach((line, i) => {
-      this.add.text(width / 2, rulesY + 24 + i * 20, line, {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#9a9ab4'
-      }).setOrigin(0.5);
-    });
-
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
-    let y = height * 0.38;
+    let y = height * 0.32;
 
     if (hasProgress) {
       this.add.text(width / 2, y, `Прогресс: уровень ${maxLevel + 1}`, {
@@ -65,30 +44,30 @@ class MenuScene extends Phaser.Scene {
         fontSize: '15px',
         color: '#6a6a82'
       }).setOrigin(0.5);
-      y += 38;
+      y += 40;
 
       this.createButton(width / 2, y, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
         this.scene.start('Game');
       });
-      y += 70;
+      y += 72;
     } else {
       this.createButton(width / 2, y, 'ИГРАТЬ', 0x00e8c8, () => {
         window.gameData.currentLevel = 0;
         this.scene.start('Game');
       });
-      y += 70;
+      y += 72;
     }
 
     this.createButton(width / 2, y, 'УРОВНИ', 0x222238, () => {
       this.scene.start('LevelsMap');
     }, true);
-    y += 70;
+    y += 72;
 
     this.createButton(width / 2, y, 'СКИНЫ', 0x222238, () => {
       this.scene.start('Skins');
     }, true);
-    y += 70;
+    y += 72;
 
     this.createButton(width / 2, y, 'ДОСТИЖЕНИЯ', 0x222238, () => {
       this.scene.start('Achievements');
