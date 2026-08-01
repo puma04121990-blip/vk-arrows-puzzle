@@ -1,8 +1,6 @@
 window.vkUser = null;
 window.isVK = typeof vkBridge !== 'undefined';
 
-// Горизонт (телефон или ПК) → широкий холст 1280×720
-// Портрет → 720×1280
 function detectLayout() {
   const w = window.innerWidth || 720;
   const h = window.innerHeight || 1280;
@@ -69,7 +67,17 @@ const config = {
     activePointers: 3,
     mouse: { preventDefaultWheel: true }
   },
-  scene: [BootScene, MenuScene, LevelsMapScene, AchievementsScene, SkinsScene, GameScene, WinScene],
+  scene: [
+    BootScene,
+    MenuScene,
+    LevelsMapScene,
+    AchievementsScene,
+    SkinsScene,
+    HelpScene,
+    LegalScene,
+    GameScene,
+    WinScene
+  ],
   audio: { disableWebAudio: false },
   banner: false,
   disableContextMenu: true
@@ -87,7 +95,6 @@ const game = new Phaser.Game(config);
 
 if (game.canvas) game.canvas.style.cursor = 'default';
 
-// При повороте экрана — перезагрузка с новым форматом
 let lastLandscape = window.isLandscapeLayout;
 function checkOrientation() {
   const now = detectLayout();
