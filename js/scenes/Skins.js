@@ -11,7 +11,7 @@ class SkinsScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b14);
 
-    this.add.text(width / 2, 44, 'СКИНЫ', {
+    this.add.text(width / 2, 44, 'СТИЛИ', {
       fontFamily: 'Arial Black, Arial',
       fontSize: '34px',
       color: '#00e8c8'
@@ -36,7 +36,6 @@ class SkinsScene extends Phaser.Scene {
 
     this.paintAll();
 
-    // Кнопка МЕНЮ — простой прямоугольник
     const btnY = height - 56;
     const menuBtn = this.add.rectangle(width / 2, btnY, 220, 56, 0x1a1a28)
       .setStrokeStyle(2, 0x2e2e48)
@@ -58,12 +57,10 @@ class SkinsScene extends Phaser.Scene {
   }
 
   makeCard(x, y, w, h, skin) {
-    // Фон карточки
     const bg = this.add.rectangle(x, y, w, h, 0x161622)
       .setStrokeStyle(2, 0x2a2a40)
       .setInteractive({ useHandCursor: true });
 
-    // Превью стрелок
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
     for (let i = 0; i < 4; i++) {
       const g = this.add.graphics();
@@ -142,7 +139,6 @@ class SkinsScene extends Phaser.Scene {
   choose(id) {
     if (!id) return;
 
-    // Сохраняем всегда
     if (!window.gameProgress) window.gameProgress = {};
     window.gameProgress.skin = id;
     this.selectedId = id;
@@ -160,7 +156,6 @@ class SkinsScene extends Phaser.Scene {
     this.paintAll();
     this.updateStatus();
 
-    // Pulse
     const card = this.cards.find(c => c.skin.id === id);
     if (card) {
       this.tweens.add({
