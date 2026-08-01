@@ -41,11 +41,12 @@ class GameScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
+    // Чуть больше блок поля
     const panel = this.add.graphics();
     panel.fillStyle(0x12121e, 0.95);
-    panel.fillRoundedRect(20, 155, width - 40, height - 275, 28);
+    panel.fillRoundedRect(16, 140, width - 32, height - 250, 28);
     panel.lineStyle(2, 0x2e2e48, 0.7);
-    panel.strokeRoundedRect(20, 155, width - 40, height - 275, 28);
+    panel.strokeRoundedRect(16, 140, width - 32, height - 250, 28);
 
     this.add.text(width / 2, 42, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
@@ -73,13 +74,14 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const size = this.levelData.size;
-    const maxGridW = width - 80;
-    const maxGridH = height - 360;
+    const maxGridW = width - 64;
+    const maxGridH = height - 320;
     this.cellSize = Math.floor(Math.min(maxGridW / size, maxGridH / size));
     const gridW = this.cellSize * size;
     const gridH = this.cellSize * size;
     this.offsetX = (width - gridW) / 2;
-    this.offsetY = 175 + (maxGridH - gridH) / 2;
+    this.offsetY = 155 + (maxGridH - gridH) / 2;
+    this.gridH = gridH;
 
     this.drawGrid(size);
     this.drawWalls();
@@ -234,10 +236,9 @@ class GameScene extends Phaser.Scene {
       0xf72585, 0x2ec4b6, 0xff9f1c, 0x9b5de5
     ];
 
-    // Бейдж как на референсе: справа-сверху, компактный
-    const badgeSize = Math.max(12, Math.floor(this.cellSize * 0.18));
-    const ox = this.cellSize * 0.24;
-    const oy = this.cellSize * 0.18;
+    // Маленький бейдж, всегда внутри клетки
+    const badgeSize = Math.max(10, Math.floor(this.cellSize * 0.13));
+    const half = this.cellSize * 0.5;
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -255,7 +256,20 @@ class GameScene extends Phaser.Scene {
       let badge = null;
       if (a.lockId != null || a.keyId != null) {
         const icon = a.lockId != null ? '🔒' : '🔑';
-        badge = this.add.text(cx + ox, cy - oy, icon, {
+
+        // Справа-сверху относительно стрелки, но clamp внутри клетки
+        let bx = cx + this.cellSize * 0.16;
+        let by = cy - this.cellSize * 0.1;
+
+        const cellLeft = cx - half + 4;
+        const cellRight = cx + half - 4;
+        const cellTop = cy - half + 4;
+        const cellBottom = cy + half - 4;
+
+        bx = Math.max(cellLeft, Math.min(cellRight, bx));
+        by = Math.max(cellTop, Math.min(cellBottom, by));
+
+        badge = this.add.text(bx, by, icon, {
           fontSize: badgeSize + 'px'
         }).setOrigin(0.5).setDepth(10);
       }
