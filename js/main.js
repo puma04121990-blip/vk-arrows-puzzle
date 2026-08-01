@@ -1,6 +1,16 @@
 window.vkUser = null;
 window.isVK = typeof vkBridge !== 'undefined';
 
+// ПК = широкий экран → горизонтальный холст
+window.isDesktopLayout = (function () {
+  const w = window.innerWidth || 720;
+  const h = window.innerHeight || 1280;
+  return w >= 900 && w > h;
+})();
+
+window.GAME_W = window.isDesktopLayout ? 1280 : 720;
+window.GAME_H = window.isDesktopLayout ? 720 : 1280;
+
 function initVK() {
   if (!window.isVK) {
     if (window.loadProgress) window.loadProgress();
@@ -44,25 +54,18 @@ initVK();
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  width: 720,
-  height: 1280,
+  width: window.GAME_W,
+  height: window.GAME_H,
   backgroundColor: '#0b0b14',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 720,
-    height: 1280,
-    // На больших мониторах не растягиваем бесконечно — удобный размер
-    max: {
-      width: 540,
-      height: 960
-    }
+    width: window.GAME_W,
+    height: window.GAME_H
   },
   input: {
     activePointers: 3,
-    mouse: {
-      preventDefaultWheel: true
-    }
+    mouse: { preventDefaultWheel: true }
   },
   scene: [BootScene, MenuScene, LevelsMapScene, AchievementsScene, SkinsScene, GameScene, WinScene],
   audio: { disableWebAudio: false },
@@ -80,14 +83,12 @@ window.gameData = {
 
 const game = new Phaser.Game(config);
 
-// Курсор-рука на интерактиве (ПК)
-game.canvas.style.cursor = 'default';
+if (game.canvas) game.canvas.style.cursor = 'default';
 
 window.addEventListener('resize', () => {
   if (game && game.scale) game.scale.refresh();
 });
 
-// На ПК колесо мыши не скроллит страницу
 window.addEventListener('wheel', (e) => {
   e.preventDefault();
 }, { passive: false });
