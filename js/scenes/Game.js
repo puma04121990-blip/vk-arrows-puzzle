@@ -234,6 +234,10 @@ class GameScene extends Phaser.Scene {
       0xf72585, 0x2ec4b6, 0xff9f1c, 0x9b5de5
     ];
 
+    // Бейдж чуть меньше и ближе к центру клетки — не обрезается сверху
+    const badgeSize = Math.max(11, Math.floor(this.cellSize * 0.2));
+    const badgeOff = this.cellSize * 0.22;
+
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
       if (a.lockId != null || a.keyId != null) {
@@ -249,19 +253,13 @@ class GameScene extends Phaser.Scene {
 
       let badge = null;
       if (a.lockId != null) {
-        badge = this.add.text(
-          cx + this.cellSize * 0.28,
-          cy - this.cellSize * 0.28,
-          '🔒',
-          { fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px' }
-        ).setOrigin(0.5);
+        badge = this.add.text(cx + badgeOff, cy - badgeOff, '🔒', {
+          fontSize: badgeSize + 'px'
+        }).setOrigin(0.5);
       } else if (a.keyId != null) {
-        badge = this.add.text(
-          cx + this.cellSize * 0.28,
-          cy - this.cellSize * 0.28,
-          '🔑',
-          { fontSize: Math.max(14, Math.floor(this.cellSize * 0.28)) + 'px' }
-        ).setOrigin(0.5);
+        badge = this.add.text(cx + badgeOff, cy - badgeOff, '🔑', {
+          fontSize: badgeSize + 'px'
+        }).setOrigin(0.5);
       }
 
       const zone = this.add.zone(cx, cy, this.cellSize * 0.95, this.cellSize * 0.95);
