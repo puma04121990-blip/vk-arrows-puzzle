@@ -45,7 +45,6 @@ function canRemoveSim(arrow, remaining, size, wallSet) {
   return canEscapeSim(arrow, remaining, size, wallSet);
 }
 
-// Быстрый жадный решатель — не вешает телефон
 function isSolvable(arrows, size, walls) {
   const wallSet = new Set();
   if (walls) {
@@ -70,7 +69,6 @@ function isSolvable(arrows, size, walls) {
   while (remaining.length > 0 && guard++ < limit) {
     let progress = false;
 
-    // Сначала снимаем всё, что можно
     for (let i = 0; i < remaining.length; i++) {
       if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
         remaining.splice(i, 1);
@@ -80,7 +78,6 @@ function isSolvable(arrows, size, walls) {
     }
     if (progress) continue;
 
-    // Иначе один поворот двухходовой
     for (let i = 0; i < remaining.length; i++) {
       const a = remaining[i];
       if (!a.rotates || a.rotated) continue;
@@ -182,7 +179,8 @@ function assignRotates(arrows, count) {
 }
 
 function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
-  const maxAttempts = 80;
+  const dense = count > size * size * 0.55;
+  const maxAttempts = dense ? 120 : 80;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
@@ -205,7 +203,8 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const arrows = [];
     let placed = 0;
     let safety = 0;
-    while (placed < count && safety < 300) {
+    const placeLimit = dense ? 800 : 300;
+    while (placed < count && safety < placeLimit) {
       safety++;
       const x = Math.floor(Math.random() * size);
       const y = Math.floor(Math.random() * size);
@@ -218,19 +217,17 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
       placed++;
     }
 
-    if (placed < count) continue;
+    // Для плотных уровней принимаем, если поставили почти всё
+    if (placed < Math.floor(count * 0.9)) continue;
     if (wallCount > 0 && walls.length < wallCount) continue;
 
     assignLocks(arrows, lockPairs);
 
-    // Сначала проверяем без поворотов
     if (!isSolvable(arrows, size, walls)) continue;
 
-    // Потом добавляем двухходовые и проверяем снова
     if (rotateCount > 0) {
       assignRotates(arrows, rotateCount);
       if (!isSolvable(arrows, size, walls)) {
-        // убираем rotates, уровень всё равно валиден
         for (let i = 0; i < arrows.length; i++) delete arrows[i].rotates;
       }
     }
@@ -250,15 +247,6 @@ function getSizeForLevel(levelIndex) {
   return 9;
 }
 
-function getArrowCount(levelIndex, size) {
-  const base = Math.floor(size * size * 0.26);
-  const extra = Math.floor(levelIndex * 0.3);
-  const count = base + extra;
-  const min = Math.max(4, Math.floor(size * 1.1));
-  const max = Math.floor(size * size * 0.45);
-  return Math.min(max, Math.max(min, count));
-}
-
 function getWallCount(levelIndex) {
   if (levelIndex < 5) return 0;
   if (levelIndex < 10) return 1;
@@ -266,6 +254,30 @@ function getWallCount(levelIndex) {
   if (levelIndex < 30) return 3;
   if (levelIndex < 40) return 4;
   return 5;
+}
+
+// Каждые 3 уровня +1..3 стрелки → к 40-м поле почти полное
+function getArrowCount(levelIndex, size) {
+  const wallsN = getWallCount(levelIndex);
+  const free = Math.max(4, size * size - wallsN);
+
+  // старт ~22% свободных клеток
+  let count = Math.max(4, Math.floor(free * 0.22));
+
+  // каждые 3 уровня добавляем 1, 2 или 3 стрелки по кругу
+  const steps = Math.floor(levelIndex / 3);
+  for (let s = 0; s < steps; s++) {
+    count += 1 + (s % 3);
+  }
+
+  // с 36-го уровня форсируем плотное заполнение
+  if (levelIndex >= 36) {
+    const t = Math.min(1, (levelIndex - 36) / 12);
+    const target = Math.floor(free * (0.78 + 0.20 * t)); // 78% → 98%
+    count = Math.max(count, target);
+  }
+
+  return Math.max(4, Math.min(free, count));
 }
 
 function getLockPairs(levelIndex) {
@@ -279,7 +291,7 @@ function getRotateCount(levelIndex) {
   if (levelIndex < 12) return 0;
   if (levelIndex < 22) return 1;
   if (levelIndex < 35) return 2;
-  return 2; // max 2 на телефоне — быстрее генерация
+  return 2;
 }
 
 const LEVELS = [];
