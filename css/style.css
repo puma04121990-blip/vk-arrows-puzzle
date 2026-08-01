@@ -20,7 +20,6 @@ html, body {
   inset: 0;
   touch-action: manipulation;
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: none;
 }
 
 #game-container {
@@ -30,6 +29,7 @@ html, body {
   justify-content: center;
   align-items: center;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: #0b0b14;
 }
 
 canvas {
@@ -40,29 +40,9 @@ canvas {
   outline: none;
 }
 
-/* ПК: красивая «телефонная» рамка по центру */
-@media (min-width: 900px) {
-  html, body {
-    background: radial-gradient(ellipse at center, #141422 0%, #0b0b14 65%);
-  }
-
-  #game-container {
-    background: transparent;
-  }
-
-  #game-container canvas {
-    border-radius: 18px;
-    box-shadow:
-      0 0 0 2px #1e1e32,
-      0 0 0 6px rgba(0, 232, 200, 0.06),
-      0 28px 80px rgba(0, 0, 0, 0.55);
-  }
-}
-
-/* Узкие/средние экраны — без рамки, на весь экран */
-@media (max-width: 899px) {
-  #game-container canvas {
-    border-radius: 0;
-    box-shadow: none;
+/* ПК: мягкий фон, холст на весь доступный FIT */
+@media (min-width: 900px) and (orientation: landscape) {
+  html, body, #game-container {
+    background: radial-gradient(ellipse at center, #12121e 0%, #0b0b14 70%);
   }
 }
