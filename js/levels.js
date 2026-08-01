@@ -1,9 +1,8 @@
 // ============================================
-// Levels: walls + COLOR LOCK/KEY arrows
-// Red key opens only red lock, etc.
+// Levels: walls + color locks + rotate arrows
+// Rotate: 1st tap turns 90°, 2nd tap leaves
 // ============================================
 
-// 0 = red, 1 = blue, 2 = yellow
 window.LOCK_COLOR_META = [
   { id: 0, name: 'red', hex: 0xff6b6b, label: '🔴' },
   { id: 1, name: 'blue', hex: 0x4cc9f0, label: '🔵' },
@@ -33,44 +32,91 @@ function canEscapeSim(arrow, remaining, size, wallSet) {
   return false;
 }
 
-function canRemoveSim(arrow, remaining, size, wallSet) {
-  // Замок: ключ того же lockId ещё на поле
-  if (arrow.lockId != null) {
-    for (let i = 0; i < remaining.length; i++) {
-      if (remaining[i].keyId === arrow.lockId) return false;
-    }
+function isLockedSim(arrow, remaining) {
+  if (arrow.lockId == null) return false;
+  for (let i = 0; i < remaining.length; i++) {
+    if (remaining[i].keyId === arrow.lockId) return true;
   }
+  return false;
+}
+
+function canRemoveSim(arrow, remaining, size, wallSet) {
+  if (isLockedSim(arrow, remaining)) return false;
   return canEscapeSim(arrow, remaining, size, wallSet);
 }
 
+function stateKey(arr) {
+  return arr
+    .map(a => a.x + ',' + a.y + ',' + a.dir + ',' + (a.rotated ? 1 : 0))
+    .sort()
+    .join('|');
+}
+
 function isSolvable(arrows, size, walls) {
-  const remaining = arrows.map(a => ({
-    x: a.x,
-    y: a.y,
-    dir: a.dir,
-    lockId: a.lockId != null ? a.lockId : null,
-    keyId: a.keyId != null ? a.keyId : null,
-    lockColor: a.lockColor != null ? a.lockColor : null
-  }));
   const wallSet = new Set();
   if (walls) {
     for (let i = 0; i < walls.length; i++) {
       wallSet.add(cellKey(walls[i].x, walls[i].y));
     }
   }
-  let guard = 0;
-  while (remaining.length > 0 && guard++ < 200) {
-    let found = false;
-    for (let i = 0; i < remaining.length; i++) {
-      if (canRemoveSim(remaining[i], remaining, size, wallSet)) {
-        remaining.splice(i, 1);
-        found = true;
-        break;
+
+  const start = arrows.map(a => ({
+    x: a.x,
+    y: a.y,
+    dir: a.dir,
+    lockId: a.lockId != null ? a.lockId : null,
+    keyId: a.keyId != null ? a.keyId : null,
+    rotates: !!a.rotates,
+    rotated: false
+  }));
+
+  const queue = [start];
+  const seen = new Set([stateKey(start)]);
+  let steps = 0;
+  const maxSteps = 8000;
+
+  while (queue.length > 0 && steps++ < maxSteps) {
+    const cur = queue.shift();
+    if (cur.length === 0) return true;
+
+    // 1) снять любую свободную стрелку
+    for (let i = 0; i < cur.length; i++) {
+      if (!canRemoveSim(cur[i], cur, size, wallSet)) continue;
+      const next = cur.slice(0, i).concat(cur.slice(i + 1));
+      const k = stateKey(next);
+      if (!seen.has(k)) {
+        seen.add(k);
+        queue.push(next);
       }
     }
-    if (!found) return false;
+
+    // 2) повернуть двухходовую (если ещё не поворачивали)
+    for (let i = 0; i < cur.length; i++) {
+      const a = cur[i];
+      if (!a.rotates || a.rotated) continue;
+      if (isLockedSim(a, cur)) continue;
+
+      const next = cur.map((x, idx) => {
+        if (idx !== i) return x;
+        return {
+          x: x.x,
+          y: x.y,
+          dir: (x.dir + 1) % 4,
+          lockId: x.lockId,
+          keyId: x.keyId,
+          rotates: true,
+          rotated: true
+        };
+      });
+      const k = stateKey(next);
+      if (!seen.has(k)) {
+        seen.add(k);
+        queue.push(next);
+      }
+    }
   }
-  return remaining.length === 0;
+
+  return false;
 }
 
 function validDirs(x, y, size, wallSet) {
@@ -129,7 +175,6 @@ function assignLocks(arrows, pairCount) {
     if (arrows[iLock].keyId != null || arrows[iLock].lockId != null) continue;
 
     const id = pairs + 1;
-    // Цвет пары: 0 red, 1 blue, 2 yellow — по кругу
     const color = pairs % 3;
 
     arrows[iKey].keyId = id;
@@ -140,8 +185,27 @@ function assignLocks(arrows, pairCount) {
   }
 }
 
-function generateLevel(size, count, wallCount, lockPairs) {
-  const maxAttempts = 500;
+function assignRotates(arrows, count) {
+  if (count <= 0) return;
+  const candidates = [];
+  for (let i = 0; i < arrows.length; i++) {
+    const a = arrows[i];
+    if (a.lockId != null || a.keyId != null) continue;
+    if (a.rotates) continue;
+    candidates.push(i);
+  }
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
+  }
+  const n = Math.min(count, candidates.length);
+  for (let i = 0; i < n; i++) {
+    arrows[candidates[i]].rotates = true;
+  }
+}
+
+function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
+  const maxAttempts = 400;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const occupied = new Set();
@@ -181,6 +245,7 @@ function generateLevel(size, count, wallCount, lockPairs) {
     if (wallCount > 0 && walls.length < wallCount) continue;
 
     assignLocks(arrows, lockPairs);
+    assignRotates(arrows, rotateCount);
 
     if (isSolvable(arrows, size, walls)) {
       return { size: size, arrows: arrows, walls: walls };
@@ -224,6 +289,13 @@ function getLockPairs(levelIndex) {
   return 3;
 }
 
+function getRotateCount(levelIndex) {
+  if (levelIndex < 12) return 0;
+  if (levelIndex < 22) return 1;
+  if (levelIndex < 35) return 2;
+  return 3;
+}
+
 const LEVELS = [];
 
 for (let i = 0; i < 50; i++) {
@@ -231,5 +303,6 @@ for (let i = 0; i < 50; i++) {
   const count = getArrowCount(i, size);
   const wallsN = getWallCount(i);
   const locksN = getLockPairs(i);
-  LEVELS.push(generateLevel(size, count, wallsN, locksN));
+  const rotN = getRotateCount(i);
+  LEVELS.push(generateLevel(size, count, wallsN, locksN, rotN));
 }
