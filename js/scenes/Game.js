@@ -236,9 +236,12 @@ class GameScene extends Phaser.Scene {
       0xf72585, 0x2ec4b6, 0xff9f1c, 0x9b5de5
     ];
 
-    // Маленький бейдж, всегда внутри клетки
-    const badgeSize = Math.max(10, Math.floor(this.cellSize * 0.13));
-    const half = this.cellSize * 0.5;
+    // Бейдж выше стрелки, чтобы не перекрывать её
+    const badgeSize = Math.max(11, Math.floor(this.cellSize * 0.14));
+    const gridTop = this.offsetY + 4;
+    const gridBottom = this.offsetY + this.levelData.size * this.cellSize - 4;
+    const gridLeft = this.offsetX + 4;
+    const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -257,17 +260,13 @@ class GameScene extends Phaser.Scene {
       if (a.lockId != null || a.keyId != null) {
         const icon = a.lockId != null ? '🔒' : '🔑';
 
-        // Справа-сверху относительно стрелки, но clamp внутри клетки
-        let bx = cx + this.cellSize * 0.16;
-        let by = cy - this.cellSize * 0.1;
+        // Выше и правее стрелки
+        let bx = cx + this.cellSize * 0.28;
+        let by = cy - this.cellSize * 0.32;
 
-        const cellLeft = cx - half + 4;
-        const cellRight = cx + half - 4;
-        const cellTop = cy - half + 4;
-        const cellBottom = cy + half - 4;
-
-        bx = Math.max(cellLeft, Math.min(cellRight, bx));
-        by = Math.max(cellTop, Math.min(cellBottom, by));
+        // Не выходим за границы поля
+        bx = Math.max(gridLeft, Math.min(gridRight, bx));
+        by = Math.max(gridTop, Math.min(gridBottom, by));
 
         badge = this.add.text(bx, by, icon, {
           fontSize: badgeSize + 'px'
