@@ -11,10 +11,25 @@ window.isLandscapeLayout = detectLayout();
 window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
 window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
 
+/**
+ * Init VK Bridge, then load cloud progress BEFORE game UI relies on it.
+ * Progress must sync across Android / iOS / Web (rule 2.3.8).
+ */
 function initVK() {
+  const load = () => {
+    if (!window.loadProgress) {
+      window.gameProgress = window.gameProgress || { loaded: true };
+      window.gameProgress.loaded = true;
+      if (window.markProgressReady) window.markProgressReady();
+      return Promise.resolve();
+    }
+    return window.loadProgress().then(() => {
+      if (window.markProgressReady) window.markProgressReady();
+    });
+  };
+
   if (!window.isVK) {
-    if (window.loadProgress) window.loadProgress();
-    return Promise.resolve();
+    return load();
   }
 
   return vkBridge.send('VKWebAppInit')
@@ -22,11 +37,11 @@ function initVK() {
       status_bar_style: 'light',
       action_bar_color: '#0b0b14',
       navigation_bar_color: '#0b0b14'
-    }))
+    }).catch(() => null))
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
     .then((user) => { if (user) window.vkUser = user; })
     .catch((err) => console.warn('[ArrowPulse] VK Bridge error:', err))
-    .finally(() => { if (window.loadProgress) window.loadProgress(); });
+    .then(() => load());
 }
 
 function setupLifecycle() {
@@ -35,6 +50,8 @@ function setupLifecycle() {
       if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
         window.gameAudioCtx.suspend().catch(() => {});
       }
+      // Flush progress when app is backgrounded
+      if (window.persistProgress) window.persistProgress();
     } else {
       if (window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
         window.gameAudioCtx.resume().catch(() => {});
@@ -46,10 +63,18 @@ function setupLifecycle() {
   document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
+
+  // Extra flush on page hide (mobile WebView)
+  window.addEventListener('pagehide', () => {
+    if (window.persistProgress) window.persistProgress();
+  });
 }
 
 setupLifecycle();
-initVK();
+
+// Start progress load immediately (in parallel with Phaser boot)
+const progressInitPromise = initVK();
+window.progressInitPromise = progressInitPromise;
 
 const config = {
   type: Phaser.AUTO,
