@@ -13,16 +13,11 @@ class WinScene extends Phaser.Scene {
 
     const nextLevel = levelIndex + 1;
     if (window.saveProgress) {
-      try {
-        window.saveProgress(nextLevel, levelIndex, stars);
-      } catch (e) {}
+      try { window.saveProgress(nextLevel, levelIndex, stars); } catch (e) {}
     }
 
-    // Достижения
     if (window.trackLevelResult) {
-      try {
-        window.trackLevelResult(levelIndex, stars, mistakes, elapsed);
-      } catch (e) {}
+      try { window.trackLevelResult(levelIndex, stars, mistakes, elapsed); } catch (e) {}
     }
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
@@ -79,7 +74,6 @@ class WinScene extends Phaser.Scene {
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    // Новые достижения
     const news = window.popNewAchievements ? window.popNewAchievements() : [];
     if (news.length) {
       const a = window.getAchievementById ? window.getAchievementById(news[0]) : null;
@@ -129,6 +123,13 @@ class WinScene extends Phaser.Scene {
     });
 
     this.playWinMelody();
+
+    // Interstitial after level — never at app launch (VK rules)
+    this.time.delayedCall(900, () => {
+      if (window.showInterstitialAd) {
+        window.showInterstitialAd(false).catch(() => {});
+      }
+    });
   }
 
   formatTime(sec) {
