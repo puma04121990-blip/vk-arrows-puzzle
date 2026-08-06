@@ -4,7 +4,6 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // Generate simple particle texture
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1);
     g.fillCircle(8, 8, 8);
@@ -30,7 +29,6 @@ class BootScene extends Phaser.Scene {
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
-    // Soft pulse on title while waiting
     this.tweens.add({
       targets: title,
       alpha: { from: 0.7, to: 1 },
@@ -39,19 +37,20 @@ class BootScene extends Phaser.Scene {
       repeat: -1
     });
 
-    const goMenu = () => {
+    const goNext = () => {
       if (this._went) return;
       this._went = true;
-      this.scene.start('Menu');
+      const accepted = window.hasConsentAccepted
+        ? window.hasConsentAccepted()
+        : false;
+      this.scene.start(accepted ? 'Menu' : 'Consent');
     };
 
-    // Wait until cloud/local progress is ready (VK rule 2.3.8)
     const ready = window.progressInitPromise
-      || (window.whenProgressReady)
+      || window.whenProgressReady
       || Promise.resolve();
 
     const timeout = new Promise((resolve) => {
-      // Safety: never hang forever if Bridge stalls
       this.time.delayedCall(8000, () => {
         if (!window.gameProgress) window.gameProgress = {};
         window.gameProgress.loaded = true;
@@ -66,9 +65,9 @@ class BootScene extends Phaser.Scene {
       timeout
     ]).then(() => {
       if (status && status.active) status.setText('Готово');
-      this.time.delayedCall(80, goMenu);
+      this.time.delayedCall(80, goNext);
     }).catch(() => {
-      goMenu();
+      goNext();
     });
   }
 }
