@@ -1,5 +1,5 @@
 // ============================================
-// Progress + Stages + Stats + Skin
+// Progress + Stages + Stats + Skin + Unlocked skins
 // Cloud-first: VK Storage (user_id) + localStorage cache
 // Rule 2.3.8 — progress sync across Android / iOS / Web
 // ============================================
@@ -8,6 +8,7 @@ window.gameProgress = {
   maxLevel: 0,
   stars: {},
   skin: 'neon',
+  unlockedSkins: {},
   stats: {
     totalMistakes: 0,
     levelsCleared: 0,
@@ -19,15 +20,12 @@ window.gameProgress = {
   loaded: false
 };
 
-// Local cache key (legacy single blob)
 const LOCAL_KEY = 'arrow_pulse_progress_v3';
 const LOCAL_KEY_LEGACY = 'arrow_pulse_progress_v2';
 
-// VK Storage keys — only [a-zA-Z_\-0-9], keep payloads compact
 const VK_KEY_CORE = 'ap_core';
 const VK_KEY_STARS = 'ap_stars';
 const VK_KEY_STATS = 'ap_stats';
-// Legacy single-key (read for migration)
 const VK_KEY_LEGACY = 'arrow_pulse_progress_v3';
 
 window.STAGES = [
@@ -53,37 +51,28 @@ function defaultStats() {
   };
 }
 
-/** Snapshot without transient fields (for storage). */
 function snapshotProgress() {
   const st = window.gameProgress.stats || defaultStats();
   return {
     maxLevel: window.gameProgress.maxLevel || 0,
     stars: window.gameProgress.stars || {},
     skin: window.gameProgress.skin || 'neon',
+    unlockedSkins: window.gameProgress.unlockedSkins || {},
     stats: {
       totalMistakes: st.totalMistakes || 0,
       levelsCleared: st.levelsCleared || 0,
       perfectStreak: st.perfectStreak || 0,
       bestStreak: st.bestStreak || 0,
       unlocked: st.unlocked || {}
-      // newlyUnlocked is session-only — not persisted
     }
   };
 }
 
 function parseJSON(raw) {
   if (!raw || typeof raw !== 'string') return null;
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
+  try { return JSON.parse(raw); } catch (e) { return null; }
 }
 
-/**
- * Merge two progress blobs, keeping the "best" of each field.
- * Used so cloud + local never lose progress when switching platforms.
- */
 function mergeProgress(base, incoming) {
   if (!incoming || typeof incoming !== 'object') return base;
 
@@ -93,7 +82,6 @@ function mergeProgress(base, incoming) {
 
   if (incoming.stars && typeof incoming.stars === 'object') {
     if (!base.stars) base.stars = {};
-    // stars may be object { "0": 3 } or compact array [3,2,...]
     if (Array.isArray(incoming.stars)) {
       for (let i = 0; i < incoming.stars.length; i++) {
         const v = incoming.stars[i] || 0;
@@ -111,11 +99,18 @@ function mergeProgress(base, incoming) {
   }
 
   if (incoming.skin && typeof incoming.skin === 'string') {
-    // Prefer non-default skin from either side if base still default
     if (!base.skin || base.skin === 'neon') {
       base.skin = incoming.skin;
     } else if (incoming.skin !== 'neon' && incoming.maxLevel >= (base.maxLevel || 0)) {
       base.skin = incoming.skin;
+    }
+  }
+
+  if (incoming.unlockedSkins && typeof incoming.unlockedSkins === 'object') {
+    if (!base.unlockedSkins) base.unlockedSkins = {};
+    for (const id in incoming.unlockedSkins) {
+      if (!Object.prototype.hasOwnProperty.call(incoming.unlockedSkins, id)) continue;
+      if (incoming.unlockedSkins[id]) base.unlockedSkins[id] = true;
     }
   }
 
@@ -126,7 +121,6 @@ function mergeProgress(base, incoming) {
     bs.totalMistakes = Math.max(bs.totalMistakes || 0, is.totalMistakes || 0);
     bs.levelsCleared = Math.max(bs.levelsCleared || 0, is.levelsCleared || 0);
     bs.bestStreak = Math.max(bs.bestStreak || 0, is.bestStreak || 0);
-    // perfectStreak is "current" — take the higher of the two snapshots
     bs.perfectStreak = Math.max(bs.perfectStreak || 0, is.perfectStreak || 0);
     if (!bs.unlocked) bs.unlocked = {};
     if (is.unlocked && typeof is.unlocked === 'object') {
@@ -144,10 +138,16 @@ function mergeProgress(base, incoming) {
 function applyToGameProgress(parsed) {
   if (!parsed) return;
   mergeProgress(window.gameProgress, parsed);
+  if (!window.gameProgress.unlockedSkins) window.gameProgress.unlockedSkins = {};
   if (!window.gameProgress.stats) window.gameProgress.stats = defaultStats();
   if (!window.gameProgress.stats.unlocked) window.gameProgress.stats.unlocked = {};
   if (!Array.isArray(window.gameProgress.stats.newlyUnlocked)) {
     window.gameProgress.stats.newlyUnlocked = [];
+  }
+  if (window.gameProgress.skin && window.gameProgress.skin !== 'neon') {
+    if (!window.gameProgress.unlockedSkins[window.gameProgress.skin]) {
+      window.gameProgress.skin = 'neon';
+    }
   }
 }
 
@@ -165,15 +165,12 @@ function readLocalCache() {
 
 function writeLocalCache() {
   const data = JSON.stringify(snapshotProgress());
-  try {
-    localStorage.setItem(LOCAL_KEY, data);
-  } catch (e) {
+  try { localStorage.setItem(LOCAL_KEY, data); } catch (e) {
     console.warn('[ArrowPulse] localStorage write failed:', e);
   }
   return data;
 }
 
-/** Compact stars as array of 0–3 (shorter than object keys for 50 levels). */
 function starsToCompact(starsObj) {
   const out = [];
   const s = starsObj || {};
@@ -183,9 +180,7 @@ function starsToCompact(starsObj) {
     if (!isNaN(i) && i > maxIdx) maxIdx = i;
   }
   const n = Math.max(maxIdx + 1, window.gameProgress.maxLevel || 0, 0);
-  for (let i = 0; i < n; i++) {
-    out.push(s[String(i)] || 0);
-  }
+  for (let i = 0; i < n; i++) out.push(s[String(i)] || 0);
   return out;
 }
 
@@ -201,9 +196,11 @@ function starsFromCompact(arr) {
 
 function buildVkPayloads() {
   const snap = snapshotProgress();
+  const unlockedList = Object.keys(snap.unlockedSkins || {}).filter(k => snap.unlockedSkins[k]);
   const core = JSON.stringify({
     m: snap.maxLevel,
     k: snap.skin,
+    us: unlockedList,
     v: 1
   });
   const stars = JSON.stringify(starsToCompact(snap.stars));
@@ -220,14 +217,15 @@ function buildVkPayloads() {
 function parseVkCore(raw) {
   const o = parseJSON(raw);
   if (!o) return null;
-  // compact format
-  if (typeof o.m === 'number' || o.k) {
-    return { maxLevel: o.m || 0, skin: o.k || 'neon' };
+  if (typeof o.m === 'number' || o.k || o.us) {
+    const unlockedSkins = {};
+    if (Array.isArray(o.us)) o.us.forEach(id => { if (id) unlockedSkins[id] = true; });
+    return { maxLevel: o.m || 0, skin: o.k || 'neon', unlockedSkins };
   }
-  // full / legacy
   return {
     maxLevel: typeof o.maxLevel === 'number' ? o.maxLevel : 0,
     skin: o.skin || 'neon',
+    unlockedSkins: o.unlockedSkins || {},
     stars: o.stars,
     stats: o.stats
   };
@@ -238,12 +236,9 @@ function parseVkStars(raw) {
   if (!o) return null;
   if (Array.isArray(o)) return { stars: starsFromCompact(o) };
   if (o.stars) return { stars: o.stars };
-  // object of level->stars
   if (typeof o === 'object' && !Array.isArray(o)) {
     const keys = Object.keys(o);
-    if (keys.length && keys.every(k => !isNaN(parseInt(k, 10)))) {
-      return { stars: o };
-    }
+    if (keys.length && keys.every(k => !isNaN(parseInt(k, 10)))) return { stars: o };
   }
   return null;
 }
@@ -283,7 +278,6 @@ function vkStorageSet(key, value) {
   return vkBridge.send('VKWebAppStorageSet', { key, value })
     .catch((err) => {
       console.warn('[ArrowPulse] VKWebAppStorageSet failed:', key, err);
-      // one retry
       return vkBridge.send('VKWebAppStorageSet', { key, value })
         .catch((err2) => {
           console.warn('[ArrowPulse] VKWebAppStorageSet retry failed:', key, err2);
@@ -305,17 +299,9 @@ function vkStorageGet(keys) {
     });
 }
 
-/**
- * Write progress to localStorage + VK Storage (all platforms, same user_id).
- * Returns a Promise so callers can optionally await.
- */
 window.persistProgress = function () {
   writeLocalCache();
-
-  if (!isVK()) {
-    return Promise.resolve(true);
-  }
-
+  if (!isVK()) return Promise.resolve(true);
   const payloads = buildVkPayloads();
   return Promise.all([
     vkStorageSet(VK_KEY_CORE, payloads.core),
@@ -374,26 +360,18 @@ window.getStarsNeededForLevel = function (levelIndex) {
   return stage ? stage.needStars : 0;
 };
 
-/**
- * Load local cache, then VK Storage, merge best-of, write-back.
- * Resolves when ready (always sets gameProgress.loaded = true).
- */
 window.loadProgress = function () {
   return new Promise((resolve) => {
     const finish = (writeBack) => {
       window.gameProgress.loaded = true;
       if (writeBack) {
-        // Sync merged result to both stores so next platform sees it
-        window.persistProgress().finally(() => {
-          resolve(window.gameProgress);
-        });
+        window.persistProgress().finally(() => resolve(window.gameProgress));
       } else {
         writeLocalCache();
         resolve(window.gameProgress);
       }
     };
 
-    // 1) Local cache first (instant offline baseline)
     const local = readLocalCache();
     if (local) applyToGameProgress(local);
 
@@ -402,44 +380,24 @@ window.loadProgress = function () {
       return;
     }
 
-    // 2) VK cloud (source of truth across platforms)
     vkStorageGet([VK_KEY_CORE, VK_KEY_STARS, VK_KEY_STATS, VK_KEY_LEGACY])
       .then((map) => {
-        let hadCloud = false;
-
-        // New multi-key format
         if (map[VK_KEY_CORE]) {
           const core = parseVkCore(map[VK_KEY_CORE]);
-          if (core) {
-            applyToGameProgress(core);
-            hadCloud = true;
-          }
+          if (core) applyToGameProgress(core);
         }
         if (map[VK_KEY_STARS]) {
           const st = parseVkStars(map[VK_KEY_STARS]);
-          if (st) {
-            applyToGameProgress(st);
-            hadCloud = true;
-          }
+          if (st) applyToGameProgress(st);
         }
         if (map[VK_KEY_STATS]) {
           const ss = parseVkStats(map[VK_KEY_STATS]);
-          if (ss) {
-            applyToGameProgress(ss);
-            hadCloud = true;
-          }
+          if (ss) applyToGameProgress(ss);
         }
-
-        // Legacy single blob (migration)
         if (map[VK_KEY_LEGACY]) {
           const leg = parseJSON(map[VK_KEY_LEGACY]);
-          if (leg) {
-            applyToGameProgress(leg);
-            hadCloud = true;
-          }
+          if (leg) applyToGameProgress(leg);
         }
-
-        // Write-back merged progress so all platforms share the best state
         finish(true);
       })
       .catch((err) => {
@@ -449,7 +407,6 @@ window.loadProgress = function () {
   });
 };
 
-// Promise that scenes can await before showing UI
 window.whenProgressReady = new Promise((resolve) => {
   window.__resolveProgressReady = resolve;
 });
@@ -459,6 +416,5 @@ window.markProgressReady = function () {
     window.__resolveProgressReady(window.gameProgress);
     window.__resolveProgressReady = null;
   }
-  // Keep whenProgressReady always resolved for late subscribers
   window.whenProgressReady = Promise.resolve(window.gameProgress);
 };
