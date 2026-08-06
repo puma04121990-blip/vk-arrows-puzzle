@@ -5,6 +5,7 @@ class AchievementsScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const wide = width >= height;
     const list = window.ACHIEVEMENTS || [];
     const unlocked = window.getUnlockedAchievements ? window.getUnlockedAchievements() : {};
 
@@ -13,76 +14,97 @@ class AchievementsScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    this.add.text(width / 2, 48, 'ДОСТИЖЕНИЯ', {
+    const headerH = wide ? 72 : 96;
+    const footerH = wide ? 56 : 72;
+
+    const headerBg = this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1);
+    headerBg.setDepth(50);
+
+    this.add.text(width / 2, wide ? 22 : 32, 'ДОСТИЖЕНИЯ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '32px',
+      fontSize: wide ? '26px' : '30px',
       color: '#00e8c8'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(51);
 
-    this.add.text(width / 2, 88, `${done} / ${list.length}`, {
+    this.add.text(width / 2, wide ? 50 : 68, `${done} / ${list.length}`, {
       fontFamily: 'Arial',
-      fontSize: '18px',
+      fontSize: wide ? '15px' : '17px',
       color: '#ffd166'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(51);
 
-    this.listContainer = this.add.container(0, 0);
+    const footerBg = this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1);
+    footerBg.setDepth(50);
 
-    let y = 130;
-    list.forEach((a) => {
-      const isOn = !!unlocked[a.id];
-      this.createRow(width / 2, y, a, isOn);
-      y += 96;
-    });
-
-    const back = this.add.text(width / 2, height - 48, '← МЕНЮ', {
+    const back = this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
       fontFamily: 'Arial',
-      fontSize: '22px',
+      fontSize: wide ? '18px' : '20px',
       color: '#9a9ab8',
       backgroundColor: '#181828',
-      padding: { x: 22, y: 12 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
+      padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setDepth(51).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.scene.start('Menu'));
 
-    this.setupScroll(y + 20, height);
+    this.listContainer = this.add.container(0, 0);
+    this.listContainer.setDepth(10);
+
+    const cardW = Math.min(width - 40, 640);
+    let y = headerH + 28;
+    list.forEach((a) => {
+      const isOn = !!unlocked[a.id];
+      this.createRow(width / 2, y, a, isOn, cardW, wide);
+      y += wide ? 84 : 92;
+    });
+
+    this.setupScroll(y + 20, height, headerH, footerH);
   }
 
-  createRow(x, y, a, isOn) {
+  createRow(x, y, a, isOn, cardW, wide) {
+    const half = cardW / 2;
+    const rowH = wide ? 72 : 80;
+
     const g = this.add.graphics();
     g.fillStyle(isOn ? 0x14352f : 0x1a1a28, 1);
-    g.fillRoundedRect(x - 320, y - 38, 640, 80, 16);
+    g.fillRoundedRect(x - half, y - rowH / 2, cardW, rowH, 14);
     g.lineStyle(2, isOn ? 0x00e8c8 : 0x2a2a40, isOn ? 0.85 : 1);
-    g.strokeRoundedRect(x - 320, y - 38, 640, 80, 16);
+    g.strokeRoundedRect(x - half, y - rowH / 2, cardW, rowH, 14);
     this.listContainer.add(g);
 
-    const icon = this.add.text(x - 280, y, a.icon || '🏅', {
-      fontSize: '30px'
+    const iconX = x - half + 28;
+    const textX = x - half + 56;
+    const markX = x + half - 28;
+    const maxTextW = cardW - 100;
+
+    const icon = this.add.text(iconX, y, a.icon || '🏅', {
+      fontSize: wide ? '24px' : '28px'
     }).setOrigin(0.5);
     this.listContainer.add(icon);
 
-    const title = this.add.text(x - 240, y - 14, a.title, {
+    const title = this.add.text(textX, y - 14, a.title, {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '20px',
-      color: isOn ? '#e8e8ff' : '#6a6a82'
+      fontSize: wide ? '16px' : '18px',
+      color: isOn ? '#e8e8ff' : '#6a6a82',
+      wordWrap: { width: maxTextW }
     }).setOrigin(0, 0.5);
     this.listContainer.add(title);
 
-    const desc = this.add.text(x - 240, y + 16, a.desc, {
+    const desc = this.add.text(textX, y + 14, a.desc, {
       fontFamily: 'Arial',
-      fontSize: '15px',
-      color: isOn ? '#9a9ab4' : '#4a4a60'
+      fontSize: wide ? '13px' : '14px',
+      color: isOn ? '#9a9ab4' : '#4a4a60',
+      wordWrap: { width: maxTextW }
     }).setOrigin(0, 0.5);
     this.listContainer.add(desc);
 
-    const mark = this.add.text(x + 280, y, isOn ? '✓' : '🔒', {
-      fontSize: '24px',
+    const mark = this.add.text(markX, y, isOn ? '✓' : '🔒', {
+      fontSize: wide ? '20px' : '22px',
       color: isOn ? '#00e8c8' : '#4a4a60'
     }).setOrigin(0.5);
     this.listContainer.add(mark);
   }
 
-  setupScroll(contentH, height) {
-    const maxScroll = Math.max(0, contentH - (height - 90));
+  setupScroll(contentH, height, headerH, footerH) {
+    const viewH = height - headerH - footerH;
+    const maxScroll = Math.max(0, contentH - headerH - viewH);
     this.scrollY = 0;
     let dragging = false;
     let lastY = 0;
@@ -94,6 +116,12 @@ class AchievementsScene extends Phaser.Scene {
       const dy = p.y - lastY;
       lastY = p.y;
       this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
+      this.listContainer.y = this.scrollY;
+    });
+
+    this.input.on('wheel', (pointer, over, dx, dy) => {
+      if (maxScroll <= 0) return;
+      this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.5, -maxScroll, 0);
       this.listContainer.y = this.scrollY;
     });
   }

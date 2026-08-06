@@ -42,10 +42,12 @@ class GameScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const wide = width >= height;
-    const topPad = wide ? 56 : 140;
-    const bottomPad = wide ? 64 : 100;
-    const headerY = wide ? 28 : 42;
-    const statsY = wide ? 28 : 100;
+    // Enough top/bottom padding so HUD never sits on the grid or each other
+    const topPad = wide ? 64 : 148;
+    const bottomPad = wide ? 72 : 108;
+    const headerY = wide ? 22 : 40;
+    // Stats on a separate row from the title (avoids text-on-text overlap)
+    const statsY = wide ? 48 : 98;
 
     const panel = this.add.graphics();
     panel.fillStyle(0x12121e, 0.95);
@@ -55,28 +57,29 @@ class GameScene extends Phaser.Scene {
 
     this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '22px' : '28px',
+      fontSize: wide ? '20px' : '26px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
     if (!wide) {
       const line = this.add.graphics();
       line.lineStyle(2, 0x00e8c8, 0.35);
-      line.lineBetween(width / 2 - 50, 66, width / 2 + 50, 66);
+      line.lineBetween(width / 2 - 50, 64, width / 2 + 50, 64);
     }
 
-    this.movesText = this.add.text(wide ? width * 0.12 : width * 0.28, statsY, `Ошибки: 0/${this.maxMistakes}`, {
+    // Fixed side padding so labels never collide with title or each other
+    this.movesText = this.add.text(wide ? 24 : width * 0.28, statsY, `Ошибки: 0/${this.maxMistakes}`, {
       fontFamily: 'Arial',
-      fontSize: wide ? '16px' : '18px',
+      fontSize: wide ? '15px' : '17px',
       color: '#6e6e8a'
     }).setOrigin(wide ? 0 : 0.5, 0.5);
 
     this.timeLimit = this.calcTimeLimit();
     this.timeLeft = this.timeLimit;
 
-    this.timerText = this.add.text(wide ? width * 0.88 : width * 0.72, statsY, this.formatTime(this.timeLeft), {
+    this.timerText = this.add.text(wide ? width - 24 : width * 0.72, statsY, this.formatTime(this.timeLeft), {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '18px' : '20px',
+      fontSize: wide ? '16px' : '19px',
       color: '#00e8c8'
     }).setOrigin(wide ? 1 : 0.5, 0.5);
 
@@ -762,20 +765,22 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
     const wide = width >= height;
-    const by = height - (wide ? 32 : 58);
+    // Keep buttons in reserved bottom zone, clear of the board
+    const by = height - (wide ? 36 : 54);
     const makeBtn = (x, label, cb) => {
       const t = this.add.text(x, by, label, {
         fontFamily: 'Arial',
-        fontSize: wide ? '16px' : '20px',
+        fontSize: wide ? '15px' : '18px',
         color: '#8a8aa8',
         backgroundColor: '#181828',
-        padding: { x: 16, y: wide ? 8 : 11 }
+        padding: { x: 18, y: wide ? 8 : 10 }
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.setDepth(20);
       t.on('pointerdown', cb);
       return t;
     };
-    makeBtn(width * 0.25, '↺ ЗАНОВО', () => this.scene.restart());
-    makeBtn(width * 0.75, 'МЕНЮ', () => this.scene.start('Menu'));
+    makeBtn(width * 0.28, '↺ ЗАНОВО', () => this.scene.restart());
+    makeBtn(width * 0.72, 'МЕНЮ', () => this.scene.start('Menu'));
   }
 
   initAudio() {

@@ -11,16 +11,18 @@ class MenuScene extends Phaser.Scene {
 
     const glow = this.add.graphics();
     glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * (wide ? 0.18 : 0.14), wide ? 110 : 130);
+    glow.fillCircle(width / 2, height * (wide ? 0.16 : 0.12), wide ? 100 : 120);
 
-    this.add.text(width / 2, height * (wide ? 0.08 : 0.09), 'ПУЛЬС СТРЕЛОК', {
+    // Title zone — fixed top band so nothing overlaps
+    const titleY = wide ? 36 : Math.max(40, height * 0.07);
+    this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '40px' : '32px',
+      fontSize: wide ? '34px' : '30px',
       color: '#00e8c8',
       align: 'center',
       stroke: '#0b0b14',
-      strokeThickness: 5,
-      shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 16, fill: true }
+      strokeThickness: 4,
+      shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 14, fill: true }
     }).setOrigin(0.5);
 
     let greeting = 'Головоломка со стрелками';
@@ -28,79 +30,90 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    this.add.text(width / 2, height * (wide ? 0.16 : 0.15), greeting, {
+    const greetY = titleY + (wide ? 32 : 36);
+    this.add.text(width / 2, greetY, greeting, {
       fontFamily: 'Arial',
-      fontSize: '16px',
-      color: '#8a8aa8'
+      fontSize: wide ? '14px' : '15px',
+      color: '#8a8aa8',
+      wordWrap: { width: width - 48 }
     }).setOrigin(0.5);
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
-    const step = wide ? 52 : 58;
-    let y = height * (wide ? 0.26 : 0.24);
+    // Bottom footer reserved so buttons never cover it
+    const footerH = wide ? 36 : 44;
+    const footerY = height - footerH / 2 - 4;
 
+    this.add.text(width / 2, footerY, 'Играя, вы принимаете соглашение и политику', {
+      fontFamily: 'Arial',
+      fontSize: wide ? '11px' : '12px',
+      color: '#404058',
+      align: 'center',
+      wordWrap: { width: width - 40 }
+    }).setOrigin(0.5);
+
+    // Build button list first, then place with even spacing in free zone
+    const buttons = [];
     if (hasProgress) {
-      this.add.text(width / 2, y, `Прогресс: уровень ${maxLevel + 1}`, {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#6a6a82'
-      }).setOrigin(0.5);
-      y += wide ? 28 : 32;
-
-      this.createButton(width / 2, y, 'ПРОДОЛЖИТЬ', 0x00e8c8, () => {
-        window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
-        this.scene.start('Game');
-      }, false, wide);
-      y += step;
+      buttons.push({
+        label: 'ПРОДОЛЖИТЬ',
+        color: 0x00e8c8,
+        secondary: false,
+        cb: () => {
+          window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
+          this.scene.start('Game');
+        }
+      });
     } else {
-      this.createButton(width / 2, y, 'ИГРАТЬ', 0x00e8c8, () => {
-        window.gameData.currentLevel = 0;
-        this.scene.start('Game');
-      }, false, wide);
-      y += step;
+      buttons.push({
+        label: 'ИГРАТЬ',
+        color: 0x00e8c8,
+        secondary: false,
+        cb: () => {
+          window.gameData.currentLevel = 0;
+          this.scene.start('Game');
+        }
+      });
     }
 
-    this.createButton(width / 2, y, 'УРОВНИ', 0x222238, () => {
-      this.scene.start('LevelsMap');
-    }, true, wide);
-    y += step;
+    buttons.push(
+      { label: 'УРОВНИ', color: 0x222238, secondary: true, cb: () => this.scene.start('LevelsMap') },
+      { label: 'СТИЛИ', color: 0x222238, secondary: true, cb: () => this.scene.start('Skins') },
+      { label: 'ДОСТИЖЕНИЯ', color: 0x222238, secondary: true, cb: () => this.scene.start('Achievements') },
+      { label: 'КАК ИГРАТЬ', color: 0x222238, secondary: true, cb: () => this.scene.start('Help') },
+      { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
+    );
 
-    this.createButton(width / 2, y, 'СТИЛИ', 0x222238, () => {
-      this.scene.start('Skins');
-    }, true, wide);
-    y += step;
+    const zoneTop = greetY + (wide ? 28 : 36);
+    const zoneBottom = footerY - footerH / 2 - 10;
+    const bh = wide ? 42 : 48;
+    const n = buttons.length;
+    const progressLine = hasProgress ? (wide ? 22 : 26) : 0;
+    const freeH = Math.max(0, zoneBottom - zoneTop - progressLine);
+    const step = Math.min(wide ? 52 : 58, freeH / n);
+    const totalH = step * (n - 1);
+    let y = zoneTop + progressLine + (freeH - totalH) / 2;
 
-    this.createButton(width / 2, y, 'ДОСТИЖЕНИЯ', 0x222238, () => {
-      this.scene.start('Achievements');
-    }, true, wide);
-    y += step;
-
-    this.createButton(width / 2, y, 'КАК ИГРАТЬ', 0x222238, () => {
-      this.scene.start('Help');
-    }, true, wide);
-    y += step;
-
-    this.createButton(width / 2, y, 'ПРАВОВАЯ ИНФОРМАЦИЯ', 0x1a1a28, () => {
-      this.scene.start('Legal');
-    }, true, wide);
-
-    this.add.text(width / 2, height * 0.96, 'Играя, вы принимаете соглашение и политику',
-      {
+    if (hasProgress) {
+      this.add.text(width / 2, zoneTop + 4, `Прогресс: уровень ${maxLevel + 1}`, {
         fontFamily: 'Arial',
-        fontSize: '12px',
-        color: '#404058',
-        align: 'center'
-      }
-    ).setOrigin(0.5);
+        fontSize: '13px',
+        color: '#6a6a82'
+      }).setOrigin(0.5);
+    }
+
+    buttons.forEach((b) => {
+      this.createButton(width / 2, y, b.label, b.color, b.cb, b.secondary, wide, bh);
+      y += step;
+    });
 
     this.createDecorArrows(width, height);
   }
 
-  createButton(x, y, label, color, callback, secondary = false, wide = false) {
+  createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
     const btn = this.add.container(x, y);
-    const bw = wide ? 320 : 300;
-    const bh = wide ? 44 : 50;
+    const bw = wide ? 300 : 280;
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
@@ -108,9 +121,15 @@ class MenuScene extends Phaser.Scene {
 
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: secondary ? (wide ? '16px' : '17px') : (wide ? '20px' : '22px'),
+      fontSize: secondary ? (wide ? '15px' : '16px') : (wide ? '18px' : '20px'),
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
+
+    // Guard: shrink label if wider than button
+    const maxTextW = bw - 28;
+    if (text.width > maxTextW) {
+      text.setScale(maxTextW / text.width);
+    }
 
     btn.add([bg, text]);
     btn.setSize(bw, bh);
@@ -138,7 +157,8 @@ class MenuScene extends Phaser.Scene {
       const arrow = this.add.graphics();
       this.drawMiniArrow(arrow, Phaser.Math.Between(0, 3), color);
       arrow.setPosition(x, y);
-      arrow.setAlpha(0.1);
+      arrow.setAlpha(0.08);
+      arrow.setDepth(-1);
 
       this.tweens.add({
         targets: arrow,
