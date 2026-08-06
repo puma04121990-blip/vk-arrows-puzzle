@@ -43,7 +43,6 @@ function initVK() {
       return Promise.resolve();
     }
     return window.loadProgress().then(() => {
-      // Pull consent from VK storage if present
       if (window.isVK && typeof vkBridge !== 'undefined') {
         return vkBridge.send('VKWebAppStorageGet', { keys: [VK_CONSENT_KEY] })
           .then((result) => {
@@ -75,6 +74,10 @@ function initVK() {
     }).catch(() => null))
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
     .then((user) => { if (user) window.vkUser = user; })
+    .then(() => {
+      // Preload ads — never show at launch
+      if (window.preloadVKAds) return window.preloadVKAds().catch(() => {});
+    })
     .catch((err) => console.warn('[ArrowPulse] VK Bridge error:', err))
     .then(() => load());
 }
