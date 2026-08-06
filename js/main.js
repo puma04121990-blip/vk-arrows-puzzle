@@ -1,6 +1,29 @@
 window.vkUser = null;
 window.isVK = typeof vkBridge !== 'undefined';
 
+const CONSENT_KEY = 'arrow_pulse_consent_v1';
+const VK_CONSENT_KEY = 'ap_consent';
+
+window.hasConsentAccepted = function () {
+  try {
+    if (localStorage.getItem(CONSENT_KEY) === '1') return true;
+  } catch (e) {}
+  if (window.gameProgress && window.gameProgress.consentAccepted) return true;
+  return false;
+};
+
+window.setConsentAccepted = function (value) {
+  const on = !!value;
+  if (window.gameProgress) window.gameProgress.consentAccepted = on;
+  try {
+    if (on) localStorage.setItem(CONSENT_KEY, '1');
+    else localStorage.removeItem(CONSENT_KEY);
+  } catch (e) {}
+  if (window.isVK && typeof vkBridge !== 'undefined' && on) {
+    vkBridge.send('VKWebAppStorageSet', { key: VK_CONSENT_KEY, value: '1' }).catch(() => {});
+  }
+};
+
 function detectLayout() {
   const w = window.innerWidth || 720;
   const h = window.innerHeight || 1280;
@@ -11,10 +34,6 @@ window.isLandscapeLayout = detectLayout();
 window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
 window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
 
-/**
- * Init VK Bridge, then load cloud progress BEFORE game UI relies on it.
- * Progress must sync across Android / iOS / Web (rule 2.3.8).
- */
 function initVK() {
   const load = () => {
     if (!window.loadProgress) {
@@ -24,6 +43,22 @@ function initVK() {
       return Promise.resolve();
     }
     return window.loadProgress().then(() => {
+      // Pull consent from VK storage if present
+      if (window.isVK && typeof vkBridge !== 'undefined') {
+        return vkBridge.send('VKWebAppStorageGet', { keys: [VK_CONSENT_KEY] })
+          .then((result) => {
+            const list = (result && result.keys) || [];
+            for (let i = 0; i < list.length; i++) {
+              if (list[i] && list[i].key === VK_CONSENT_KEY && list[i].value === '1') {
+                window.setConsentAccepted(true);
+              }
+            }
+          })
+          .catch(() => {})
+          .then(() => {
+            if (window.markProgressReady) window.markProgressReady();
+          });
+      }
       if (window.markProgressReady) window.markProgressReady();
     });
   };
@@ -50,7 +85,6 @@ function setupLifecycle() {
       if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
         window.gameAudioCtx.suspend().catch(() => {});
       }
-      // Flush progress when app is backgrounded
       if (window.persistProgress) window.persistProgress();
     } else {
       if (window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
@@ -64,7 +98,6 @@ function setupLifecycle() {
     if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
 
-  // Extra flush on page hide (mobile WebView)
   window.addEventListener('pagehide', () => {
     if (window.persistProgress) window.persistProgress();
   });
@@ -72,7 +105,6 @@ function setupLifecycle() {
 
 setupLifecycle();
 
-// Start progress load immediately (in parallel with Phaser boot)
 const progressInitPromise = initVK();
 window.progressInitPromise = progressInitPromise;
 
@@ -94,6 +126,7 @@ const config = {
   },
   scene: [
     BootScene,
+    ConsentScene,
     MenuScene,
     LevelsMapScene,
     AchievementsScene,
