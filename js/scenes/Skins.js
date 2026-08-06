@@ -7,7 +7,11 @@ class SkinsScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.skins = window.ARROW_SKINS || [];
     this.selectedId = (window.gameProgress && window.gameProgress.skin) || 'neon';
+    if (window.isSkinUnlocked && !window.isSkinUnlocked(this.selectedId)) {
+      this.selectedId = 'neon';
+    }
     this.cards = [];
+    this.busy = false;
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b14);
 
@@ -15,7 +19,6 @@ class SkinsScene extends Phaser.Scene {
     const headerH = wide ? 68 : 90;
     const footerH = wide ? 56 : 72;
 
-    // Fixed header
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1).setDepth(50);
     this.add.text(width / 2, wide ? 20 : 28, 'СТИЛИ', {
       fontFamily: 'Arial Black, Arial',
@@ -25,12 +28,12 @@ class SkinsScene extends Phaser.Scene {
 
     this.statusText = this.add.text(width / 2, wide ? 48 : 64, '', {
       fontFamily: 'Arial',
-      fontSize: '14px',
-      color: '#8a8aa8'
+      fontSize: '13px',
+      color: '#8a8aa8',
+      wordWrap: { width: width - 40 }
     }).setOrigin(0.5).setDepth(51);
     this.updateStatus();
 
-    // Fixed footer
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1).setDepth(50);
     const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, 200, wide ? 40 : 48, 0x1a1a28)
       .setStrokeStyle(2, 0x2e2e48)
@@ -47,7 +50,7 @@ class SkinsScene extends Phaser.Scene {
 
     const cols = wide ? 2 : 1;
     const cardW = wide ? Math.min(540, (width - 60) / 2) : Math.min(620, width - 48);
-    const cardH = wide ? 74 : 88;
+    const cardH = wide ? 84 : 96;
     const gapX = 16;
     const gapY = wide ? 10 : 12;
     const startY = headerH + cardH / 2 + 8;
@@ -66,7 +69,6 @@ class SkinsScene extends Phaser.Scene {
 
     this.paintAll();
 
-    // Scroll if cards exceed footer
     const rows = Math.ceil(this.skins.length / cols);
     const contentBottom = startY + (rows - 1) * (cardH + gapY) + cardH / 2 + 12;
     this.setupScroll(contentBottom, height, headerH, footerH);
@@ -79,44 +81,51 @@ class SkinsScene extends Phaser.Scene {
     this.cardsContainer.add(bg);
 
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
-    const previewScale = wide ? 0.65 : 0.8;
-    const previewStart = x - w / 2 + (wide ? 32 : 44);
+    const previewScale = wide ? 0.6 : 0.72;
+    const previewStart = x - w / 2 + (wide ? 30 : 40);
     for (let i = 0; i < 4; i++) {
       const g = this.add.graphics();
       if (window.drawArrowSkin) {
-        window.drawArrowSkin(g, i, colors[i], wide ? 34 : 42, skin.id);
+        window.drawArrowSkin(g, i, colors[i], wide ? 32 : 40, skin.id);
       }
-      g.setPosition(previewStart + i * (wide ? 28 : 36), y);
+      g.setPosition(previewStart + i * (wide ? 26 : 34), y - 6);
       g.setScale(previewScale);
       this.cardsContainer.add(g);
     }
 
-    const textX = x - w / 2 + (wide ? 150 : 180);
-    const maxTextW = w - (wide ? 200 : 230);
+    const textX = x - w / 2 + (wide ? 140 : 170);
+    const maxTextW = w - (wide ? 190 : 220);
 
-    const title = this.add.text(textX, y - (wide ? 12 : 14), `${skin.icon}  ${skin.name}`, {
+    const title = this.add.text(textX, y - (wide ? 18 : 20), `${skin.icon}  ${skin.name}`, {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '15px' : '18px',
+      fontSize: wide ? '14px' : '17px',
       color: '#c8c8e0',
       wordWrap: { width: maxTextW }
     }).setOrigin(0, 0.5);
     this.cardsContainer.add(title);
 
-    const desc = this.add.text(textX, y + (wide ? 12 : 14), skin.desc || '', {
+    const desc = this.add.text(textX, y + 2, skin.desc || '', {
       fontFamily: 'Arial',
-      fontSize: wide ? '11px' : '13px',
+      fontSize: wide ? '11px' : '12px',
       color: '#6a6a82',
       wordWrap: { width: maxTextW }
     }).setOrigin(0, 0.5);
     this.cardsContainer.add(desc);
 
-    const check = this.add.text(x + w / 2 - 24, y, '✓', {
-      fontSize: wide ? '20px' : '26px',
+    const lockBadge = this.add.text(textX, y + (wide ? 20 : 24), '🔒 Смотреть рекламу', {
+      fontFamily: 'Arial',
+      fontSize: wide ? '11px' : '12px',
+      color: '#00e8c8'
+    }).setOrigin(0, 0.5).setAlpha(0);
+    this.cardsContainer.add(lockBadge);
+
+    const check = this.add.text(x + w / 2 - 22, y, '✓', {
+      fontSize: wide ? '18px' : '24px',
       color: '#00e8c8'
     }).setOrigin(0.5).setAlpha(0);
     this.cardsContainer.add(check);
 
-    const card = { skin, bg, title, desc, check, x, y, w, h };
+    const card = { skin, bg, title, desc, lockBadge, check, x, y, w, h };
 
     bg.on('pointerover', () => {
       if (skin.id !== this.selectedId) bg.setFillStyle(0x1c1c2c);
@@ -125,7 +134,7 @@ class SkinsScene extends Phaser.Scene {
     bg.on('pointerdown', () => bg.setScale(0.98));
     bg.on('pointerup', () => {
       bg.setScale(1);
-      this.choose(skin.id);
+      this.onCardTap(skin.id);
     });
     bg.on('pointerupoutside', () => bg.setScale(1));
 
@@ -150,7 +159,20 @@ class SkinsScene extends Phaser.Scene {
   }
 
   paintCard(card) {
+    const unlocked = window.isSkinUnlocked ? window.isSkinUnlocked(card.skin.id) : true;
     const on = card.skin.id === this.selectedId;
+
+    if (!unlocked) {
+      card.bg.setFillStyle(0x12121c);
+      card.bg.setStrokeStyle(2, 0x3a3a50);
+      card.title.setColor('#8a8aa0');
+      card.desc.setColor('#505068');
+      card.lockBadge.setAlpha(1);
+      card.check.setAlpha(0);
+      return;
+    }
+
+    card.lockBadge.setAlpha(0);
     if (on) {
       card.bg.setFillStyle(0x0f2e2a);
       card.bg.setStrokeStyle(3, 0x00e8c8);
@@ -170,24 +192,71 @@ class SkinsScene extends Phaser.Scene {
     this.cards.forEach(c => this.paintCard(c));
   }
 
-  updateStatus() {
+  updateStatus(msg) {
+    if (msg) {
+      this.statusText.setText(msg);
+      return;
+    }
     const skin = this.skins.find(s => s.id === this.selectedId);
-    this.statusText.setText('Выбрано: ' + (skin ? skin.name : 'Неон'));
+    this.statusText.setText('Выбрано: ' + (skin ? skin.name : 'Классика'));
+  }
+
+  onCardTap(id) {
+    if (this.busy || !id) return;
+
+    const unlocked = window.isSkinUnlocked ? window.isSkinUnlocked(id) : true;
+    if (unlocked) {
+      this.choose(id);
+      return;
+    }
+
+    // Locked — offer rewarded ad
+    this.busy = true;
+    this.updateStatus('Смотрите рекламу, чтобы открыть стиль…');
+
+    const show = window.showRewardedAd
+      ? window.showRewardedAd()
+      : Promise.resolve(false);
+
+    show.then((ok) => {
+      this.busy = false;
+      if (ok) {
+        if (window.unlockSkin) window.unlockSkin(id);
+        this.choose(id);
+        this.updateStatus('Стиль открыт!');
+        this.time.delayedCall(1200, () => this.updateStatus());
+      } else {
+        // Outside VK or no fill — for local test still unlock so QA works
+        const isVK = window.isVK && typeof vkBridge !== 'undefined';
+        if (!isVK) {
+          if (window.unlockSkin) window.unlockSkin(id);
+          this.choose(id);
+          this.updateStatus('Стиль открыт (тест вне VK)');
+          this.time.delayedCall(1400, () => this.updateStatus());
+        } else {
+          this.updateStatus('Реклама недоступна. Попробуйте позже');
+          this.time.delayedCall(1800, () => this.updateStatus());
+        }
+      }
+      this.paintAll();
+    }).catch(() => {
+      this.busy = false;
+      this.updateStatus('Не удалось показать рекламу');
+      this.time.delayedCall(1600, () => this.updateStatus());
+    });
   }
 
   choose(id) {
     if (!id) return;
+    if (window.isSkinUnlocked && !window.isSkinUnlocked(id)) return;
 
     if (!window.gameProgress) window.gameProgress = {};
     window.gameProgress.skin = id;
     this.selectedId = id;
 
     try {
-      if (typeof window.setSelectedSkin === 'function') {
-        window.setSelectedSkin(id);
-      } else if (typeof window.persistProgress === 'function') {
-        window.persistProgress();
-      }
+      if (typeof window.setSelectedSkin === 'function') window.setSelectedSkin(id);
+      else if (typeof window.persistProgress === 'function') window.persistProgress();
     } catch (e) {}
 
     this.paintAll();
