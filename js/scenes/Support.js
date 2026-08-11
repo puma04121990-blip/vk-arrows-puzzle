@@ -11,7 +11,8 @@ class SupportScene extends Phaser.Scene {
     const email = s.email || '—';
     const communityLabel = (community || '').replace(/^https?:\/\/(m\.)?vk\.(com|ru)\//i, '');
 
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    if (window.drawAppBackground) window.drawAppBackground(this, width, height);
+    else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     this.add.text(width / 2, wide ? 36 : 48, 'ПОДДЕРЖКА', {
       fontFamily: 'Arial Black, Arial',

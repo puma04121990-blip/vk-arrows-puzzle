@@ -39,16 +39,18 @@ class GameScene extends Phaser.Scene {
       this.wallSet.add(String(w.x) + ',' + String(w.y));
     });
 
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    if (window.drawAppBackground) {
+      window.drawAppBackground(this, width, height);
+    } else {
+      this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    }
 
     const wide = width >= height;
-    // HUD + buttons zones (symmetric)
     const topPad = wide ? 70 : 148;
     const bottomPad = wide ? 78 : 108;
     const headerY = wide ? 24 : 40;
     const statsY = wide ? 50 : 98;
 
-    // Title centered
     this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '20px' : '26px',
@@ -57,27 +59,63 @@ class GameScene extends Phaser.Scene {
 
     if (!wide) {
       const line = this.add.graphics();
-      line.lineStyle(2, 0x00e8c8, 0.35);
+      line.lineStyle(2, 0x00e8c8, 0.4);
       line.lineBetween(width / 2 - 50, 64, width / 2 + 50, 64);
     }
 
-    // Stats row centered as a pair under the title
-    this.movesText = this.add.text(width / 2 - (wide ? 70 : 90), statsY, `Ошибки: 0/${this.maxMistakes}`, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '15px' : '17px',
-      color: '#6e6e8a'
-    }).setOrigin(1, 0.5);
-
+    // Stats as HUD chips
     this.timeLimit = this.calcTimeLimit();
     this.timeLeft = this.timeLimit;
 
-    this.timerText = this.add.text(width / 2 + (wide ? 70 : 90), statsY, this.formatTime(this.timeLeft), {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '16px' : '19px',
-      color: '#00e8c8'
-    }).setOrigin(0, 0.5);
+    if (window.createHudChip) {
+      this.mistakesChip = window.createHudChip(
+        this,
+        width / 2 - (wide ? 78 : 96),
+        statsY,
+        `Ошибки: 0/${this.maxMistakes}`,
+        { fontSize: wide ? '14px' : '15px', color: '#9a9ab4' }
+      );
+      this.timerChip = window.createHudChip(
+        this,
+        width / 2 + (wide ? 78 : 96),
+        statsY,
+        this.formatTime(this.timeLeft),
+        { fontSize: wide ? '15px' : '16px', color: '#00e8c8', fontFamily: 'Arial Black, Arial' }
+      );
+      this._mistakesStr = `Ошибки: 0/${this.maxMistakes}`;
+      this._mistakesColor = '#9a9ab4';
+      this._timerStr = this.formatTime(this.timeLeft);
+      this._timerColor = '#00e8c8';
+      this.movesText = {
+        setText: (t) => {
+          this._mistakesStr = t;
+          if (this.mistakesChip) this.mistakesChip.setLabel(t, this._mistakesColor);
+        },
+        setColor: (c) => {
+          this._mistakesColor = c;
+          if (this.mistakesChip) this.mistakesChip.setLabel(this._mistakesStr, c);
+        }
+      };
+      this.timerText = {
+        setText: (t) => {
+          this._timerStr = t;
+          if (this.timerChip) this.timerChip.setLabel(t, this._timerColor);
+        },
+        setColor: (c) => {
+          this._timerColor = c;
+          if (this.timerChip) this.timerChip.setLabel(this._timerStr, c);
+        }
+      };
+    } else {
+      this.movesText = this.add.text(width / 2 - (wide ? 70 : 90), statsY, `Ошибки: 0/${this.maxMistakes}`, {
+        fontFamily: 'Arial', fontSize: wide ? '15px' : '17px', color: '#6e6e8a'
+      }).setOrigin(1, 0.5);
+      this.timerText = this.add.text(width / 2 + (wide ? 70 : 90), statsY, this.formatTime(this.timeLeft), {
+        fontFamily: 'Arial Black, Arial', fontSize: wide ? '16px' : '19px', color: '#00e8c8'
+      }).setOrigin(0, 0.5);
+    }
 
-    // Grid sized to free area, then panel hugs the grid and is centered
+    // Grid + centered panel
     const size = this.levelData.size;
     const sideMargin = wide ? 48 : 40;
     const maxGridW = width - sideMargin * 2;
@@ -94,12 +132,17 @@ class GameScene extends Phaser.Scene {
     const panelY = Math.round(topPad + (freeH - panelH) / 2);
 
     const panel = this.add.graphics();
-    panel.fillStyle(0x12121e, 1);
+    // Panel body + soft outer glow
+    panel.fillStyle(0x00e8c8, 0.06);
+    panel.fillRoundedRect(panelX - 6, panelY - 6, panelW + 12, panelH + 12, 20);
+    panel.fillStyle(0x141422, 1);
     panel.fillRoundedRect(panelX, panelY, panelW, panelH, 16);
-    panel.lineStyle(1, 0x2e2e48, 1);
+    panel.lineStyle(2, 0x3a3a58, 1);
     panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 16);
+    // Inner rim
+    panel.lineStyle(1, 0x00e8c8, 0.12);
+    panel.strokeRoundedRect(panelX + 4, panelY + 4, panelW - 8, panelH - 8, 12);
 
-    // Field origin = center of screen area
     this.offsetX = panelX + panelPad;
     this.offsetY = panelY + panelPad;
     this.gridH = gridH;
@@ -122,10 +165,16 @@ class GameScene extends Phaser.Scene {
 
   updateMistakesUI() {
     const shown = Math.min(this.mistakes, this.maxMistakes);
-    this.movesText.setText(`Ошибки: ${shown}/${this.maxMistakes}`);
-    if (shown >= this.maxMistakes - 1) this.movesText.setColor('#ff6b6b');
-    else if (shown >= 1) this.movesText.setColor('#ffd166');
-    else this.movesText.setColor('#6e6e8a');
+    const label = `Ошибки: ${shown}/${this.maxMistakes}`;
+    let color = '#9a9ab4';
+    if (shown >= this.maxMistakes - 1) color = '#ff6b6b';
+    else if (shown >= 1) color = '#ffd166';
+    if (this.mistakesChip && this.mistakesChip.setLabel) {
+      this.mistakesChip.setLabel(label, color);
+    } else if (this.movesText) {
+      this.movesText.setText(label);
+      if (this.movesText.setColor) this.movesText.setColor(color);
+    }
   }
 
   startTimer() {
@@ -210,13 +259,21 @@ class GameScene extends Phaser.Scene {
 
   drawGrid(size) {
     const g = this.add.graphics();
+    const cell = this.cellSize;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         if (this.wallSet.has(x + ',' + y)) continue;
-        const cx = this.offsetX + x * this.cellSize + this.cellSize / 2;
-        const cy = this.offsetY + y * this.cellSize + this.cellSize / 2;
-        g.fillStyle(0x2a2a40, 0.85);
-        g.fillCircle(cx, cy, 3.2);
+        const px = this.offsetX + x * cell;
+        const py = this.offsetY + y * cell;
+        // Soft cell plate
+        const odd = (x + y) % 2 === 0;
+        g.fillStyle(odd ? 0x1a1a2c : 0x161624, 0.95);
+        g.fillRoundedRect(px + 2, py + 2, cell - 4, cell - 4, 6);
+        // Center marker
+        const cx = px + cell / 2;
+        const cy = py + cell / 2;
+        g.fillStyle(0x3a3a55, 0.9);
+        g.fillCircle(cx, cy, Math.max(2.5, cell * 0.05));
       }
     }
   }
@@ -232,15 +289,14 @@ class GameScene extends Phaser.Scene {
     walls.forEach(w => {
       const x = this.offsetX + w.x * this.cellSize + pad;
       const y = this.offsetY + w.y * this.cellSize + pad;
-      g.fillStyle(0x000000, 0.35);
-      g.fillRoundedRect(x + 2, y + 2, s, s, 8);
-      g.fillStyle(0x3a3a52, 1);
-      g.fillRoundedRect(x, y, s, s, 8);
-      g.lineStyle(2, 0x7a7a9a, 1);
-      g.strokeRoundedRect(x, y, s, s, 8);
-      g.lineStyle(1, 0x2a2a40, 0.9);
-      g.lineBetween(x + 4, y + s / 2, x + s - 4, y + s / 2);
-      g.lineBetween(x + s / 2, y + 4, x + s / 2, y + s - 4);
+      if (window.drawWallIcon) {
+        window.drawWallIcon(g, x, y, s);
+      } else {
+        g.fillStyle(0x3a3a52, 1);
+        g.fillRoundedRect(x, y, s, s, 8);
+        g.lineStyle(2, 0x7a7a9a, 1);
+        g.strokeRoundedRect(x, y, s, s, 8);
+      }
     });
   }
 
@@ -279,25 +335,42 @@ class GameScene extends Phaser.Scene {
 
       let badge = null;
       let rotBadge = null;
+      const iconSize = Math.max(10, Math.floor(this.cellSize * 0.16));
       if (a.lockId != null || a.keyId != null) {
-        const icon = a.lockId != null ? '🔒' : '🔑';
         let bx = cx + this.cellSize * 0.28;
         let by = cy - this.cellSize * 0.32;
         bx = Math.max(gridLeft, Math.min(gridRight, bx));
         by = Math.max(gridTop, Math.min(gridBottom, by));
-        badge = this.add.text(bx, by, icon, {
-          fontSize: badgeSize + 'px'
-        }).setOrigin(0.5).setDepth(10);
+        const badgeG = this.add.graphics().setDepth(10);
+        badgeG.setPosition(bx, by);
+        if (a.lockId != null && window.drawLockIcon) {
+          window.drawLockIcon(badgeG, color, iconSize);
+          badge = badgeG;
+        } else if (a.keyId != null && window.drawKeyIcon) {
+          window.drawKeyIcon(badgeG, color, iconSize);
+          badge = badgeG;
+        } else {
+          badge = this.add.text(bx, by, a.lockId != null ? '🔒' : '🔑', {
+            fontSize: badgeSize + 'px'
+          }).setOrigin(0.5).setDepth(10);
+        }
       }
       if (a.rotates) {
         let rx = cx - this.cellSize * 0.28;
         let ry = cy - this.cellSize * 0.32;
         rx = Math.max(gridLeft, Math.min(gridRight, rx));
         ry = Math.max(gridTop, Math.min(gridBottom, ry));
-        rotBadge = this.add.text(rx, ry, '↻', {
-          fontSize: Math.max(12, Math.floor(this.cellSize * 0.2)) + 'px',
-          color: '#ffe066'
-        }).setOrigin(0.5).setDepth(10);
+        if (window.drawRotateIcon) {
+          const rotG = this.add.graphics().setDepth(10);
+          rotG.setPosition(rx, ry);
+          window.drawRotateIcon(rotG, 0xffe066, iconSize);
+          rotBadge = rotG;
+        } else {
+          rotBadge = this.add.text(rx, ry, '↻', {
+            fontSize: Math.max(12, Math.floor(this.cellSize * 0.2)) + 'px',
+            color: '#ffe066'
+          }).setOrigin(0.5).setDepth(10);
+        }
       }
 
       const zone = this.add.zone(cx, cy, this.cellSize * 0.95, this.cellSize * 0.95);
@@ -777,25 +850,25 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
     const wide = width >= height;
-    // Bottom buttons centered as a pair under the field
     const by = height - (wide ? 38 : 54);
-    const gap = wide ? 160 : 140;
-    const makeBtn = (x, label, cb) => {
-      const t = this.add.text(x, by, label, {
-        fontFamily: 'Arial',
-        fontSize: wide ? '15px' : '18px',
-        color: '#8a8aa8',
-        backgroundColor: '#181828',
-        padding: { x: 18, y: wide ? 8 : 10 }
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.setDepth(20);
-      t.on('pointerdown', cb);
-      return t;
-    };
-    makeBtn(width / 2 - gap / 2, '↺ ЗАНОВО', () => this.scene.restart());
-    makeBtn(width / 2 + gap / 2, 'МЕНЮ', () => this.scene.start('Menu'));
+    const gap = wide ? 170 : 150;
+    const bw = wide ? 130 : 140;
+    const bh = wide ? 40 : 46;
 
-    // Sound toggle — top-right (doesn't shift field center)
+    if (window.createNiceButton) {
+      window.createNiceButton(this, width / 2 - gap / 2, by, '↺ ЗАНОВО', () => this.scene.restart(), {
+        w: bw, h: bh, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
+      });
+      window.createNiceButton(this, width / 2 + gap / 2, by, 'МЕНЮ', () => this.scene.start('Menu'), {
+        w: bw, h: bh, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
+      });
+    } else if (window.createHudChip) {
+      const a = window.createHudChip(this, width / 2 - gap / 2, by, '↺ ЗАНОВО', { fontSize: '16px' });
+      a.setInteractiveChip(() => this.scene.restart());
+      const m = window.createHudChip(this, width / 2 + gap / 2, by, 'МЕНЮ', { fontSize: '16px' });
+      m.setInteractiveChip(() => this.scene.start('Menu'));
+    }
+
     if (window.createSoundToggle) {
       window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
         size: wide ? 36 : 40,

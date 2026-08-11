@@ -7,7 +7,11 @@ class MenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const wide = width >= height;
 
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    if (window.drawAppBackground) {
+      window.drawAppBackground(this, width, height);
+    } else {
+      this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    }
 
     // Sound toggle (top-right) — VK rule: quick mute
     if (window.createSoundToggle) {
@@ -132,39 +136,33 @@ class MenuScene extends Phaser.Scene {
   }
 
   createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
-    const btn = this.add.container(x, y);
     const bw = wide ? 300 : 280;
+    if (window.createNiceButton) {
+      return window.createNiceButton(this, x, y, label, callback, {
+        w: bw,
+        h: bh,
+        color: color,
+        secondary: secondary || color !== 0x00e8c8,
+        fontSize: secondary ? (wide ? '15px' : '16px') : (wide ? '18px' : '20px'),
+        depth: 10
+      });
+    }
 
+    const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
-
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
       fontSize: secondary ? (wide ? '15px' : '16px') : (wide ? '18px' : '20px'),
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
-
-    // Guard: shrink label if wider than button
-    const maxTextW = bw - 28;
-    if (text.width > maxTextW) {
-      text.setScale(maxTextW / text.width);
-    }
-
     btn.add([bg, text]);
     btn.setSize(bw, bh);
     btn.setInteractive({ useHandCursor: true });
-
     btn.on('pointerdown', () => {
-      this.tweens.add({
-        targets: btn,
-        scale: 0.94,
-        duration: 70,
-        yoyo: true,
-        onComplete: callback
-      });
+      this.tweens.add({ targets: btn, scale: 0.94, duration: 70, yoyo: true, onComplete: callback });
     });
-
     return btn;
   }
 
