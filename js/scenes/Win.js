@@ -12,8 +12,15 @@ class WinScene extends Phaser.Scene {
     const elapsed = window.gameData.elapsed || 0;
 
     const nextLevel = levelIndex + 1;
+
+    // Save FIRST and keep the promise — critical for 2.3.8 cross-platform sync
+    let savePromise = Promise.resolve(true);
     if (window.saveProgress) {
-      try { window.saveProgress(nextLevel, levelIndex, stars); } catch (e) {}
+      try {
+        savePromise = Promise.resolve(window.saveProgress(nextLevel, levelIndex, stars));
+      } catch (e) {
+        savePromise = Promise.resolve(false);
+      }
     }
 
     if (window.trackLevelResult) {
@@ -22,19 +29,17 @@ class WinScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const glow = this.add.graphics();
-    glow.fillStyle(0x00e8c8, 0.06);
-    glow.fillCircle(width / 2, height * 0.24, 180);
-
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'СУПЕР!'];
     const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
 
     const title = this.add.text(width / 2, height * 0.14, phrase, {
       fontFamily: 'Arial Black',
-      fontSize: '40px',
+      fontSize: '36px',
       color: '#00e8c8',
       align: 'center'
     }).setOrigin(0.5).setAlpha(0);
+
+    this._savePromise = savePromise;
 
     this.tweens.add({
       targets: title,
@@ -124,11 +129,17 @@ class WinScene extends Phaser.Scene {
 
     this.playWinMelody();
 
-    // Interstitial after level — never at app launch (VK rules)
-    this.time.delayedCall(900, () => {
-      if (window.showInterstitialAd) {
-        window.showInterstitialAd(false).catch(() => {});
-      }
+    // Flush cloud save, then optional interstitial (never at launch)
+    this.time.delayedCall(400, () => {
+      const go = () => {
+        if (window.showInterstitialAd) {
+          window.showInterstitialAd(false).catch(() => {});
+        }
+      };
+      const p = this._savePromise || Promise.resolve();
+      // Don't wait forever — 2.5s max, then show ad / continue
+      const timeout = new Promise((r) => setTimeout(r, 2500));
+      Promise.race([p, timeout]).then(go).catch(go);
     });
   }
 

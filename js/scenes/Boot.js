@@ -50,8 +50,9 @@ class BootScene extends Phaser.Scene {
       || window.whenProgressReady
       || Promise.resolve();
 
+    // Wait up to 12s for cloud progress (2.3.8) before showing menu
     const timeout = new Promise((resolve) => {
-      this.time.delayedCall(8000, () => {
+      this.time.delayedCall(12000, () => {
         if (!window.gameProgress) window.gameProgress = {};
         window.gameProgress.loaded = true;
         resolve();
@@ -64,8 +65,11 @@ class BootScene extends Phaser.Scene {
       }),
       timeout
     ]).then(() => {
-      if (status && status.active) status.setText('Готово');
-      this.time.delayedCall(80, goNext);
+      if (status && status.active) {
+        const m = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+        status.setText(m > 0 ? `Прогресс: ур. ${m + 1}` : 'Готово');
+      }
+      this.time.delayedCall(120, goNext);
     }).catch(() => {
       goNext();
     });

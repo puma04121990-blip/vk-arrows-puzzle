@@ -50,10 +50,10 @@ class GameScene extends Phaser.Scene {
     const statsY = wide ? 48 : 98;
 
     const panel = this.add.graphics();
-    panel.fillStyle(0x12121e, 0.95);
-    panel.fillRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
-    panel.lineStyle(2, 0x2e2e48, 0.7);
-    panel.strokeRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
+    panel.fillStyle(0x12121e, 1);
+    panel.fillRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 16);
+    panel.lineStyle(1, 0x2e2e48, 1);
+    panel.strokeRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 16);
 
     this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',

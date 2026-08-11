@@ -1,5 +1,24 @@
 window.vkUser = null;
-window.isVK = typeof vkBridge !== 'undefined';
+
+/** True when running inside VK client / iframe (not just because bridge script is loaded). */
+window.isVK = (function detectVK() {
+  if (typeof vkBridge === 'undefined' || typeof vkBridge.send !== 'function') return false;
+  try {
+    const s = String(window.location.search || '') + String(window.location.hash || '');
+    if (/vk_user_id=|vk_app_id=|sign=/.test(s)) return true;
+  } catch (e) {}
+  try {
+    const ref = String(document.referrer || '');
+    if (/(\.|^)(vk\.com|vk\.ru|vkontakte\.ru)/i.test(ref)) return true;
+  } catch (e) {}
+  // Bridge present in iframe — still try VK APIs
+  try {
+    if (window.parent && window.parent !== window) return true;
+  } catch (e) {
+    return true; // cross-origin parent ⇒ likely VK iframe
+  }
+  return false;
+})();
 
 const CONSENT_KEY = 'arrow_pulse_consent_v1';
 const VK_CONSENT_KEY = 'ap_consent';
@@ -25,14 +44,38 @@ window.setConsentAccepted = function (value) {
 };
 
 function detectLayout() {
-  const w = window.innerWidth || 720;
-  const h = window.innerHeight || 1280;
+  const w = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 720);
+  const h = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1280);
   return w > h;
 }
 
 window.isLandscapeLayout = detectLayout();
 window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
 window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
+
+/**
+ * Snap canvas CSS size to whole pixels — kills subpixel blur
+ * that moderators flagged as "избыточное размытие".
+ */
+function snapCanvasPixels(game) {
+  if (!game || !game.canvas || !game.scale) return;
+  try {
+    const canvas = game.canvas;
+    const styleW = parseFloat(canvas.style.width) || canvas.clientWidth;
+    const styleH = parseFloat(canvas.style.height) || canvas.clientHeight;
+    if (styleW > 0 && styleH > 0) {
+      canvas.style.width = Math.round(styleW) + 'px';
+      canvas.style.height = Math.round(styleH) + 'px';
+    }
+    // Center explicitly inside parent
+    const parent = canvas.parentElement;
+    if (parent) {
+      parent.style.display = 'flex';
+      parent.style.justifyContent = 'center';
+      parent.style.alignItems = 'center';
+    }
+  } catch (e) {}
+}
 
 function initVK() {
   const load = () => {
@@ -62,7 +105,7 @@ function initVK() {
     });
   };
 
-  if (!window.isVK) {
+  if (!window.isVK || typeof vkBridge === 'undefined') {
     return load();
   }
 
@@ -75,7 +118,6 @@ function initVK() {
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
     .then((user) => { if (user) window.vkUser = user; })
     .then(() => {
-      // Preload ads — never show at launch
       if (window.preloadVKAds) return window.preloadVKAds().catch(() => {});
     })
     .catch((err) => console.warn('[ArrowPulse] VK Bridge error:', err))
@@ -93,8 +135,31 @@ function setupLifecycle() {
       if (window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
         window.gameAudioCtx.resume().catch(() => {});
       }
+      // Re-pull cloud progress when returning to the app (2.3.8)
+      if (window.loadProgress) {
+        window.loadProgress().catch(() => {});
+      }
     }
   });
+
+  // VK: mute audio when WebView is hidden
+  if (window.isVK && typeof vkBridge !== 'undefined' && vkBridge.subscribe) {
+    try {
+      vkBridge.subscribe((e) => {
+        const t = e && e.detail && e.detail.type;
+        if (t === 'VKWebAppViewHide' || t === 'VKWebAppViewRestore') {
+          if (t === 'VKWebAppViewHide') {
+            if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
+              window.gameAudioCtx.suspend().catch(() => {});
+            }
+            if (window.persistProgress) window.persistProgress();
+          } else if (window.loadProgress) {
+            window.loadProgress().catch(() => {});
+          }
+        }
+      });
+    } catch (e) {}
+  }
 
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('touchmove', (e) => {
@@ -111,17 +176,27 @@ setupLifecycle();
 const progressInitPromise = initVK();
 window.progressInitPromise = progressInitPromise;
 
+const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
   width: window.GAME_W,
   height: window.GAME_H,
   backgroundColor: '#0b0b14',
+  resolution: dpr,
+  render: {
+    antialias: true,
+    roundPixels: true,
+    pixelArt: false,
+    transparent: false
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: window.GAME_W,
-    height: window.GAME_H
+    height: window.GAME_H,
+    expandParent: true
   },
   input: {
     activePointers: 3,
@@ -141,7 +216,8 @@ const config = {
   ],
   audio: { disableWebAudio: false },
   banner: false,
-  disableContextMenu: true
+  disableContextMenu: true,
+  fps: { target: 60, forceSetTimeOut: false }
 };
 
 window.gameData = {
@@ -153,8 +229,18 @@ window.gameData = {
 };
 
 const game = new Phaser.Game(config);
+window.game = game;
 
-if (game.canvas) game.canvas.style.cursor = 'default';
+if (game.canvas) {
+  game.canvas.style.cursor = 'default';
+  // Center + snap after first layout
+  game.events.once('ready', () => {
+    snapCanvasPixels(game);
+    if (game.scale) game.scale.refresh();
+    setTimeout(() => snapCanvasPixels(game), 50);
+    setTimeout(() => snapCanvasPixels(game), 250);
+  });
+}
 
 let lastLandscape = window.isLandscapeLayout;
 function checkOrientation() {
@@ -164,6 +250,7 @@ function checkOrientation() {
     window.location.reload();
   } else if (game && game.scale) {
     game.scale.refresh();
+    snapCanvasPixels(game);
   }
 }
 

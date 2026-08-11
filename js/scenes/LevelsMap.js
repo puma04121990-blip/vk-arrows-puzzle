@@ -103,6 +103,12 @@ class LevelsMapScene extends Phaser.Scene {
       y += (rows - 1) * cellH + btnHalfH + 32;
     });
 
+    // Clip content so it never overlaps fixed header/footer
+    const maskG = this.make.graphics({ x: 0, y: 0, add: false });
+    maskG.fillStyle(0xffffff);
+    maskG.fillRect(0, headerH, width, height - headerH - footerH);
+    this.mapContainer.setMask(maskG.createGeometryMask());
+
     this.setupScroll(y + 24, height, headerH, footerH);
   }
 
@@ -113,19 +119,19 @@ class LevelsMapScene extends Phaser.Scene {
 
     if (!stageUnlocked || !progressed) {
       g.fillStyle(0x1a1a28, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
-      g.lineStyle(2, 0x2a2a40, 1);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.lineStyle(1, 0x2a2a40, 1);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
     } else if (stars > 0) {
       g.fillStyle(0x14352f, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
-      g.lineStyle(2, 0x00e8c8, 0.85);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.lineStyle(1, 0x00e8c8, 1);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
     } else {
       g.fillStyle(0x1e1e32, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
-      g.lineStyle(2, 0x3a3a58, 1);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.lineStyle(1, 0x3a3a58, 1);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
     }
 
     this.mapContainer.add(g);

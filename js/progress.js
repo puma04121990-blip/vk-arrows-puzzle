@@ -17,12 +17,15 @@ window.gameProgress = {
     unlocked: {},
     newlyUnlocked: []
   },
-  loaded: false
+  loaded: false,
+  cloudSynced: false
 };
 
 const LOCAL_KEY = 'arrow_pulse_progress_v3';
 const LOCAL_KEY_LEGACY = 'arrow_pulse_progress_v2';
 
+// Split keys + atomic full snapshot (primary for 2.3.8)
+const VK_KEY_FULL = 'ap_full';
 const VK_KEY_CORE = 'ap_core';
 const VK_KEY_STARS = 'ap_stars';
 const VK_KEY_STATS = 'ap_stats';
@@ -37,7 +40,14 @@ window.STAGES = [
 ];
 
 function isVK() {
-  return typeof vkBridge !== 'undefined' && typeof vkBridge.send === 'function';
+  if (typeof vkBridge === 'undefined' || typeof vkBridge.send !== 'function') return false;
+  if (window.isVK === true) return true;
+  try {
+    const s = String(window.location.search || '');
+    if (/vk_user_id=|vk_app_id=|sign=/.test(s)) return true;
+  } catch (e) {}
+  // Try storage when bridge is present (inside VK iframe)
+  return true;
 }
 
 function defaultStats() {
@@ -64,7 +74,9 @@ function snapshotProgress() {
       perfectStreak: st.perfectStreak || 0,
       bestStreak: st.bestStreak || 0,
       unlocked: st.unlocked || {}
-    }
+    },
+    v: 4,
+    ts: Date.now()
   };
 }
 
@@ -101,7 +113,7 @@ function mergeProgress(base, incoming) {
   if (incoming.skin && typeof incoming.skin === 'string') {
     if (!base.skin || base.skin === 'neon') {
       base.skin = incoming.skin;
-    } else if (incoming.skin !== 'neon' && incoming.maxLevel >= (base.maxLevel || 0)) {
+    } else if (incoming.skin !== 'neon' && (incoming.maxLevel || 0) >= (base.maxLevel || 0)) {
       base.skin = incoming.skin;
     }
   }
@@ -197,6 +209,24 @@ function starsFromCompact(arr) {
 function buildVkPayloads() {
   const snap = snapshotProgress();
   const unlockedList = Object.keys(snap.unlockedSkins || {}).filter(k => snap.unlockedSkins[k]);
+
+  // Compact full blob for atomic sync (must stay < 4096 chars)
+  const full = JSON.stringify({
+    m: snap.maxLevel,
+    s: starsToCompact(snap.stars),
+    k: snap.skin,
+    us: unlockedList,
+    st: {
+      tm: snap.stats.totalMistakes || 0,
+      lc: snap.stats.levelsCleared || 0,
+      ps: snap.stats.perfectStreak || 0,
+      bs: snap.stats.bestStreak || 0,
+      u: snap.stats.unlocked || {}
+    },
+    v: 4,
+    ts: snap.ts
+  });
+
   const core = JSON.stringify({
     m: snap.maxLevel,
     k: snap.skin,
@@ -211,7 +241,30 @@ function buildVkPayloads() {
     bs: snap.stats.bestStreak || 0,
     u: snap.stats.unlocked || {}
   });
-  return { core, stars, stats };
+  return { full, core, stars, stats };
+}
+
+function parseVkFull(raw) {
+  const o = parseJSON(raw);
+  if (!o) return null;
+  const unlockedSkins = {};
+  if (Array.isArray(o.us)) o.us.forEach(id => { if (id) unlockedSkins[id] = true; });
+  const stars = Array.isArray(o.s) ? starsFromCompact(o.s) : (o.stars || {});
+  const st = o.st || o.stats || {};
+  return {
+    maxLevel: typeof o.m === 'number' ? o.m : (o.maxLevel || 0),
+    skin: o.k || o.skin || 'neon',
+    unlockedSkins: Object.keys(unlockedSkins).length ? unlockedSkins : (o.unlockedSkins || {}),
+    stars: stars,
+    stats: {
+      totalMistakes: st.tm || st.totalMistakes || 0,
+      levelsCleared: st.lc || st.levelsCleared || 0,
+      perfectStreak: st.ps || st.perfectStreak || 0,
+      bestStreak: st.bs || st.bestStreak || 0,
+      unlocked: st.u || st.unlocked || {},
+      newlyUnlocked: []
+    }
+  };
 }
 
 function parseVkCore(raw) {
@@ -275,19 +328,26 @@ function parseVkStats(raw) {
 }
 
 function vkStorageSet(key, value) {
-  return vkBridge.send('VKWebAppStorageSet', { key, value })
+  if (typeof value !== 'string') value = String(value);
+  // VK Storage value limit is 4096
+  if (value.length > 4000) {
+    console.warn('[ArrowPulse] storage value too long for', key, value.length);
+  }
+  return vkBridge.send('VKWebAppStorageSet', { key: key, value: value })
     .catch((err) => {
       console.warn('[ArrowPulse] VKWebAppStorageSet failed:', key, err);
-      return vkBridge.send('VKWebAppStorageSet', { key, value })
-        .catch((err2) => {
-          console.warn('[ArrowPulse] VKWebAppStorageSet retry failed:', key, err2);
-          return null;
-        });
+      return new Promise((resolve) => setTimeout(resolve, 120)).then(() =>
+        vkBridge.send('VKWebAppStorageSet', { key: key, value: value })
+          .catch((err2) => {
+            console.warn('[ArrowPulse] VKWebAppStorageSet retry failed:', key, err2);
+            return null;
+          })
+      );
     });
 }
 
 function vkStorageGet(keys) {
-  return vkBridge.send('VKWebAppStorageGet', { keys })
+  return vkBridge.send('VKWebAppStorageGet', { keys: keys })
     .then((result) => {
       const map = {};
       const list = (result && result.keys) || [];
@@ -299,15 +359,38 @@ function vkStorageGet(keys) {
     });
 }
 
+let _persistChain = Promise.resolve();
+
 window.persistProgress = function () {
   writeLocalCache();
-  if (!isVK()) return Promise.resolve(true);
+  if (!isVK()) {
+    window.gameProgress.cloudSynced = false;
+    return Promise.resolve(true);
+  }
+
   const payloads = buildVkPayloads();
-  return Promise.all([
-    vkStorageSet(VK_KEY_CORE, payloads.core),
-    vkStorageSet(VK_KEY_STARS, payloads.stars),
-    vkStorageSet(VK_KEY_STATS, payloads.stats)
-  ]).then(() => true).catch(() => false);
+
+  // Serialize writes so concurrent saves don't race
+  _persistChain = _persistChain.then(() => {
+    // Primary atomic full blob first (2.3.8), then split keys as backup
+    return vkStorageSet(VK_KEY_FULL, payloads.full)
+      .then(() => Promise.all([
+        vkStorageSet(VK_KEY_CORE, payloads.core),
+        vkStorageSet(VK_KEY_STARS, payloads.stars),
+        vkStorageSet(VK_KEY_STATS, payloads.stats)
+      ]))
+      .then(() => {
+        window.gameProgress.cloudSynced = true;
+        return true;
+      })
+      .catch((err) => {
+        console.warn('[ArrowPulse] persistProgress cloud failed:', err);
+        window.gameProgress.cloudSynced = false;
+        return false;
+      });
+  });
+
+  return _persistChain;
 };
 
 window.saveProgress = function (maxLevel, levelIndex, stars) {
@@ -372,6 +455,7 @@ window.loadProgress = function () {
       }
     };
 
+    // Start from local cache, then merge cloud (best-of)
     const local = readLocalCache();
     if (local) applyToGameProgress(local);
 
@@ -380,24 +464,52 @@ window.loadProgress = function () {
       return;
     }
 
-    vkStorageGet([VK_KEY_CORE, VK_KEY_STARS, VK_KEY_STATS, VK_KEY_LEGACY])
+    const keys = [VK_KEY_FULL, VK_KEY_CORE, VK_KEY_STARS, VK_KEY_STATS, VK_KEY_LEGACY];
+
+    vkStorageGet(keys)
       .then((map) => {
+        let gotCloud = false;
+
+        // Prefer atomic full snapshot
+        if (map[VK_KEY_FULL]) {
+          const full = parseVkFull(map[VK_KEY_FULL]);
+          if (full) {
+            applyToGameProgress(full);
+            gotCloud = true;
+          }
+        }
+
         if (map[VK_KEY_CORE]) {
           const core = parseVkCore(map[VK_KEY_CORE]);
-          if (core) applyToGameProgress(core);
+          if (core) {
+            applyToGameProgress(core);
+            gotCloud = true;
+          }
         }
         if (map[VK_KEY_STARS]) {
           const st = parseVkStars(map[VK_KEY_STARS]);
-          if (st) applyToGameProgress(st);
+          if (st) {
+            applyToGameProgress(st);
+            gotCloud = true;
+          }
         }
         if (map[VK_KEY_STATS]) {
           const ss = parseVkStats(map[VK_KEY_STATS]);
-          if (ss) applyToGameProgress(ss);
+          if (ss) {
+            applyToGameProgress(ss);
+            gotCloud = true;
+          }
         }
         if (map[VK_KEY_LEGACY]) {
           const leg = parseJSON(map[VK_KEY_LEGACY]);
-          if (leg) applyToGameProgress(leg);
+          if (leg) {
+            applyToGameProgress(leg);
+            gotCloud = true;
+          }
         }
+
+        window.gameProgress.cloudSynced = gotCloud;
+        // Always write back merged best-of so all platforms converge
         finish(true);
       })
       .catch((err) => {

@@ -13,6 +13,27 @@ function cellKey(x, y) {
   return x + ',' + y;
 }
 
+/** Deterministic PRNG so the same level index is identical on every platform (2.3.8). */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Active RNG for generation (set per level)
+let _rng = Math.random;
+function rnd() {
+  return _rng();
+}
+function rndInt(n) {
+  return Math.floor(rnd() * n);
+}
+
 function canEscapeSim(arrow, remaining, size, wallSet) {
   let cx = arrow.x;
   let cy = arrow.y;
@@ -119,8 +140,8 @@ function pickDir(x, y, size, wallSet) {
   if (dirs.length === 0) return -1;
   const dist = [y, size - 1 - x, size - 1 - y, x];
   dirs.sort((a, b) => dist[a] - dist[b]);
-  if (Math.random() < 0.7) return dirs[0];
-  return dirs[Math.floor(Math.random() * dirs.length)];
+  if (rnd() < 0.7) return dirs[0];
+  return dirs[rndInt(dirs.length)];
 }
 
 function createGuaranteedSafe(size) {
@@ -138,7 +159,7 @@ function assignLocks(arrows, pairCount) {
   const idx = [];
   for (let i = 0; i < arrows.length; i++) idx.push(i);
   for (let i = idx.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = rndInt(i + 1);
     const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
   }
 
@@ -172,7 +193,7 @@ function getRotateCandidates(arrows) {
     candidates.push(i);
   }
   for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = rndInt(i + 1);
     const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
   }
   return candidates;
@@ -195,11 +216,17 @@ function assignRotatesSafe(arrows, count, size, walls) {
   return added;
 }
 
-function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
+function generateLevel(size, count, wallCount, lockPairs, rotateCount, seed) {
+  // Fixed seed → same level on Android / iOS / Web
+  _rng = mulberry32((seed == null ? 1 : seed) >>> 0);
+
   const dense = count > size * size * 0.55;
   const maxAttempts = dense ? 80 : 50;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Re-seed per attempt so retries stay deterministic
+    _rng = mulberry32((((seed == null ? 1 : seed) + attempt * 9973) >>> 0));
+
     const occupied = new Set();
     const walls = [];
     const wallSet = new Set();
@@ -207,9 +234,9 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     let wSafety = 0;
     while (walls.length < wallCount && wSafety < 80) {
       wSafety++;
-      const x = Math.floor(Math.random() * size);
-      const y = Math.floor(Math.random() * size);
-      if (Math.random() < 0.3 && (x === 0 || y === 0 || x === size - 1 || y === size - 1)) continue;
+      const x = rndInt(size);
+      const y = rndInt(size);
+      if (rnd() < 0.3 && (x === 0 || y === 0 || x === size - 1 || y === size - 1)) continue;
       const k = cellKey(x, y);
       if (occupied.has(k)) continue;
       walls.push({ x: x, y: y });
@@ -223,8 +250,8 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount) {
     const placeLimit = dense ? 500 : 250;
     while (placed < count && safety < placeLimit) {
       safety++;
-      const x = Math.floor(Math.random() * size);
-      const y = Math.floor(Math.random() * size);
+      const x = rndInt(size);
+      const y = rndInt(size);
       const k = cellKey(x, y);
       if (occupied.has(k)) continue;
       const dir = pickDir(x, y, size, wallSet);
@@ -311,5 +338,7 @@ for (let i = 0; i < 50; i++) {
   const wallsN = getWallCount(i);
   const locksN = getLockPairs(i);
   const rotN = getRotateCount(i);
-  LEVELS.push(generateLevel(size, count, wallsN, locksN, rotN));
+  // Stable seed per level index — identical on all platforms
+  const seed = 0xA770 + i * 7919;
+  LEVELS.push(generateLevel(size, count, wallsN, locksN, rotN, seed));
 }
