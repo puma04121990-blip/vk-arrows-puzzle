@@ -6,6 +6,7 @@ class LegalScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const wide = width >= height;
+    const support = window.APP_SUPPORT || {};
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
@@ -28,57 +29,73 @@ class LegalScene extends Phaser.Scene {
 
     const items = [
       {
+        title: 'Сообщество поддержки',
+        desc: support.communityTitle || 'Группа VK',
+        action: () => {
+          if (window.openSupportCommunity) window.openSupportCommunity();
+        }
+      },
+      {
+        title: 'Email',
+        desc: support.email || '—',
+        action: () => {
+          if (window.openSupportEmail) window.openSupportEmail();
+        }
+      },
+      {
         title: 'Пользовательское соглашение',
         desc: 'Открыть в браузере',
-        url: this.DOCS.terms
+        action: () => this.openExternal(this.DOCS.terms)
       },
       {
         title: 'Политика конфиденциальности',
         desc: 'Открыть в браузере',
-        url: this.DOCS.privacy
+        action: () => this.openExternal(this.DOCS.privacy)
       }
     ];
 
     const cardW = Math.min(width - 48, 520);
-    const cardH = wide ? 70 : 78;
-    let y = wide ? 110 : 130;
+    const cardH = wide ? 58 : 66;
+    let y = wide ? 108 : 128;
 
     items.forEach((item) => {
       const bg = this.add.rectangle(width / 2, y, cardW, cardH, 0x161622)
-        .setStrokeStyle(2, 0x2a2a40)
+        .setStrokeStyle(1, 0x2a2a40)
         .setInteractive({ useHandCursor: true });
 
-      this.add.text(width / 2 - cardW / 2 + 18, y - 12, item.title, {
+      this.add.text(width / 2 - cardW / 2 + 18, y - 10, item.title, {
         fontFamily: 'Arial Black, Arial',
-        fontSize: wide ? '15px' : '16px',
+        fontSize: wide ? '14px' : '15px',
         color: '#e0e0f0'
       }).setOrigin(0, 0.5);
 
-      this.add.text(width / 2 - cardW / 2 + 18, y + 14, item.desc, {
+      const desc = this.add.text(width / 2 - cardW / 2 + 18, y + 12, item.desc, {
         fontFamily: 'Arial',
         fontSize: '12px',
         color: '#6a6a82'
       }).setOrigin(0, 0.5);
+      const maxDW = cardW - 56;
+      if (desc.width > maxDW) desc.setScale(maxDW / desc.width);
 
-      this.add.text(width / 2 + cardW / 2 - 18, y, '↗', {
+      this.add.text(width / 2 + cardW / 2 - 18, y, '→', {
         fontSize: '18px',
         color: '#00e8c8'
       }).setOrigin(0.5);
 
       bg.on('pointerover', () => bg.setFillStyle(0x1c1c2c));
       bg.on('pointerout', () => bg.setFillStyle(0x161622));
-      bg.on('pointerup', () => this.openExternal(item.url));
+      bg.on('pointerup', () => item.action && item.action());
 
-      y += cardH + 14;
+      y += cardH + 10;
     });
 
     const note = [
-      'Игра бесплатна. Прогресс синхронизируется',
-      'между Android, iOS и Web через VK Storage.',
-      'Начиная игру, вы принимаете соглашение и политику.'
+      'Поддержка: сообщество VK и email.',
+      support.responseHint || 'Ответ в течение 7 дней.',
+      'Прогресс синхронизируется через VK Storage.'
     ].join('\n');
 
-    this.add.text(width / 2, y + 16, note, {
+    this.add.text(width / 2, y + 10, note, {
       fontFamily: 'Arial',
       fontSize: '12px',
       color: '#505068',
@@ -88,7 +105,7 @@ class LegalScene extends Phaser.Scene {
 
     const btnY = height - (wide ? 36 : 52);
     const menuBtn = this.add.rectangle(width / 2, btnY, 200, wide ? 42 : 50, 0x1a1a28)
-      .setStrokeStyle(2, 0x2e2e48)
+      .setStrokeStyle(1, 0x2e2e48)
       .setInteractive({ useHandCursor: true });
     this.add.text(width / 2, btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
@@ -102,6 +119,10 @@ class LegalScene extends Phaser.Scene {
   }
 
   openExternal(url) {
+    if (window.openExternalUrl) {
+      window.openExternalUrl(url);
+      return;
+    }
     if (window.isVK && typeof vkBridge !== 'undefined') {
       vkBridge.send('VKWebAppOpenURL', { url }).catch(() => {
         try { window.open(url, '_blank'); } catch (e) {}
