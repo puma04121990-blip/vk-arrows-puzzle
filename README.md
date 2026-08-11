@@ -66,7 +66,7 @@ python -m http.server 8080
 ## Зависимости
 
 - Phaser 3.80.1: **локально** endor/phaser.min.js (не CDN)
-- VK Bridge: CDN (только для среды VK)
+- VK Bridge: **локально** `vendor/vk-bridge.min.js` (не CDN)
 
 ## Структура
 

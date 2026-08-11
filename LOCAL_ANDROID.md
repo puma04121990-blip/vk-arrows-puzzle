@@ -43,7 +43,7 @@ npx serve -p 8080
 ---
 
 ## Важно
-- Phaser подключён локально (`vendor/phaser.min.js`) — для геймплея CDN не нужен. VK Bridge по-прежнему с CDN (нужен только внутри клиента VK).
+- Phaser подключён локально (`vendor/phaser.min.js`) — для геймплея CDN не нужен. Phaser и VK Bridge лежат локально в `vendor/` — внешние CDN не нужны.
 - На Android лучше всего работает Chrome / Samsung Internet.
 
 Приятной игры!
