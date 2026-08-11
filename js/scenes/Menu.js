@@ -9,8 +9,8 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Title — original top position (no glow), clear of VK chrome
-    const titleY = wide ? 36 : Math.max(40, height * 0.07);
+    // Title lower (red rect) — fully below browser/VK chrome, no glow
+    const titleY = wide ? 64 : Math.max(100, Math.round(height * 0.12));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '34px' : '30px',
@@ -18,9 +18,9 @@ class MenuScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
 
-    // Dark circle below title; subtitle centered inside it
-    const circleR = wide ? 88 : 100;
-    const circleY = titleY + (wide ? 100 : 120);
+    // Circle lower (red circle + arrow) — gap under title, above buttons
+    const circleR = wide ? 80 : 92;
+    const circleY = titleY + circleR + (wide ? 56 : 72);
 
     const circle = this.add.graphics();
     circle.fillStyle(0x12121e, 1);
@@ -33,6 +33,7 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
+    // Subtitle centered inside the circle
     this.add.text(width / 2, circleY, greeting, {
       fontFamily: 'Arial',
       fontSize: wide ? '14px' : '15px',
@@ -88,7 +89,8 @@ class MenuScene extends Phaser.Scene {
       { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
     );
 
-    const zoneTop = circleY + circleR + (wide ? 16 : 20);
+    // Buttons start below the lowered circle
+    const zoneTop = circleY + circleR + (wide ? 20 : 28);
     const zoneBottom = footerY - footerH / 2 - 10;
     const bh = wide ? 42 : 48;
     const n = buttons.length;
