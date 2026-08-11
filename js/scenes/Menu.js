@@ -9,20 +9,24 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const glow = this.add.graphics();
-    glow.fillStyle(0x00e8c8, 0.045);
-    glow.fillCircle(width / 2, height * (wide ? 0.16 : 0.12), wide ? 100 : 120);
+    // Header: title (no glow) + dark circle with subtitle centered inside
+    const circleR = wide ? 88 : 100;
+    const circleY = wide ? 118 : Math.max(150, height * 0.16);
+    const titleY = circleY - circleR - (wide ? 28 : 32);
 
-    // Title zone — fixed top band so nothing overlaps
-    const titleY = wide ? 36 : Math.max(40, height * 0.07);
+    // Flat circle (no glow / blur)
+    const circle = this.add.graphics();
+    circle.fillStyle(0x12121e, 1);
+    circle.fillCircle(width / 2, circleY, circleR);
+    circle.lineStyle(1, 0x2a2a40, 1);
+    circle.strokeCircle(width / 2, circleY, circleR);
+
+    // Title — crisp, no shadow / glow
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '34px' : '30px',
+      fontSize: wide ? '32px' : '28px',
       color: '#00e8c8',
-      align: 'center',
-      stroke: '#0b0b14',
-      strokeThickness: 4,
-      shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 14, fill: true }
+      align: 'center'
     }).setOrigin(0.5);
 
     let greeting = 'Головоломка со стрелками';
@@ -30,12 +34,13 @@ class MenuScene extends Phaser.Scene {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    const greetY = titleY + (wide ? 32 : 36);
-    this.add.text(width / 2, greetY, greeting, {
+    // Subtitle exactly in the center of the circle
+    this.add.text(width / 2, circleY, greeting, {
       fontFamily: 'Arial',
       fontSize: wide ? '14px' : '15px',
       color: '#8a8aa8',
-      wordWrap: { width: width - 48 }
+      align: 'center',
+      wordWrap: { width: circleR * 1.6 }
     }).setOrigin(0.5);
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
@@ -85,7 +90,7 @@ class MenuScene extends Phaser.Scene {
       { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
     );
 
-    const zoneTop = greetY + (wide ? 28 : 36);
+    const zoneTop = circleY + circleR + (wide ? 16 : 20);
     const zoneBottom = footerY - footerH / 2 - 10;
     const bh = wide ? 42 : 48;
     const n = buttons.length;
