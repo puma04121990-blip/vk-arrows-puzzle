@@ -45,15 +45,40 @@ class MenuScene extends Phaser.Scene {
       wordWrap: { width: width - 48 }
     }).setOrigin(0.5);
 
-    // Circle — red circle: lower, between subtitle and buttons
+    // Logo circle — between subtitle and buttons
     const circleR = wide ? 80 : 92;
     const circleY = greetY + circleR + (wide ? 40 : 52);
+    const cx = width / 2;
 
-    const circle = this.add.graphics();
-    circle.fillStyle(0x12121e, 1);
-    circle.fillCircle(width / 2, circleY, circleR);
-    circle.lineStyle(1, 0x2a2a40, 1);
-    circle.strokeCircle(width / 2, circleY, circleR);
+    // Dark plate under logo
+    const plate = this.add.graphics();
+    plate.fillStyle(0x0e0e18, 1);
+    plate.fillCircle(cx, circleY, circleR);
+    plate.lineStyle(2, 0x2a2a40, 1);
+    plate.strokeCircle(cx, circleY, circleR);
+
+    // Circular logo image
+    if (this.textures.exists('menuLogo')) {
+      const logo = this.add.image(cx, circleY, 'menuLogo');
+      const diam = circleR * 2 - 4;
+      logo.setDisplaySize(diam, diam);
+      logo.setDepth(2);
+      // Geometry mask = exact circle fit
+      const maskG = this.make.graphics({ x: 0, y: 0, add: false });
+      maskG.fillStyle(0xffffff);
+      maskG.fillCircle(cx, circleY, circleR - 2);
+      logo.setMask(maskG.createGeometryMask());
+      // Soft cyan ring
+      const ring = this.add.graphics().setDepth(3);
+      ring.lineStyle(2, 0x00e8c8, 0.35);
+      ring.strokeCircle(cx, circleY, circleR - 1);
+      ring.lineStyle(1, 0x00e8c8, 0.15);
+      ring.strokeCircle(cx, circleY, circleR + 3);
+    } else {
+      // Fallback if texture missing
+      plate.lineStyle(1, 0x00e8c8, 0.25);
+      plate.strokeCircle(cx, circleY, circleR - 8);
+    }
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
