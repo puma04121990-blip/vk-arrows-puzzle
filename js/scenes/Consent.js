@@ -91,7 +91,7 @@ class ConsentScene extends Phaser.Scene {
       fontSize: wide ? '14px' : '15px',
       color: '#e0e0f0'
     }).setOrigin(0, 0.5);
-    if (window.fitTextWidth) window.fitTextWidth(t, labelMax);
+    if (t.width > labelMax) t.setScale(labelMax / t.width);
 
     this.add.text(x + w / 2 - 16, y, '→', {
       fontSize: '16px',

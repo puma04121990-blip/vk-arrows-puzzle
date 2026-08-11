@@ -89,14 +89,13 @@ class AchievementsScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.listContainer.add(icon);
 
-    // Bold Arial (not Arial Black) — cleaner at small sizes. NO setScale.
     const title = this.add.text(textX, y - 12, a.title, {
       fontFamily: 'Arial, Helvetica, sans-serif',
       fontStyle: 'bold',
       fontSize: wide ? '16px' : '17px',
       color: isOn ? '#e8e8ff' : '#6a6a82'
     }).setOrigin(0, 0.5);
-    if (window.fitTextWidth) window.fitTextWidth(title, textMaxW);
+    if (title.width > textMaxW) title.setScale(textMaxW / title.width);
     this.listContainer.add(title);
 
     const desc = this.add.text(textX, y + 12, a.desc, {
@@ -104,7 +103,7 @@ class AchievementsScene extends Phaser.Scene {
       fontSize: wide ? '13px' : '14px',
       color: isOn ? '#9a9ab4' : '#4a4a60'
     }).setOrigin(0, 0.5);
-    if (window.fitTextWidth) window.fitTextWidth(desc, textMaxW);
+    if (desc.width > textMaxW) desc.setScale(textMaxW / desc.width);
     this.listContainer.add(desc);
 
     const mark = this.add.text(markX, y, isOn ? '✓' : '🔒', {

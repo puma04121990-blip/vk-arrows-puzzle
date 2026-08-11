@@ -183,27 +183,19 @@ window.progressInitPromise = progressInitPromise;
  */
 window.TEXT_RES = Math.min(3, Math.max(2, Math.round(window.devicePixelRatio || 2)));
 
-/** Never scale text with setScale — that blurs glyphs. Truncate instead. */
+/**
+ * Fit text into max width by scaling (keeps full label, no "…").
+ * Prefer this over truncation for buttons like «ПРОДОЛЖИТЬ».
+ */
 window.fitTextWidth = function (textObj, maxW) {
   if (!textObj || !maxW || maxW <= 0) return textObj;
-  const raw = textObj.text || '';
-  if (textObj.width <= maxW) return textObj;
-  // Binary shrink by characters (keeps 1:1 pixel glyphs)
-  let lo = 1;
-  let hi = raw.length;
-  let best = '…';
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    const candidate = raw.slice(0, mid) + '…';
-    textObj.setText(candidate);
-    if (textObj.width <= maxW) {
-      best = candidate;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
+  try {
+    textObj.setScale(1);
+    const w = textObj.width;
+    if (w > maxW && w > 0) {
+      textObj.setScale(maxW / w);
     }
-  }
-  textObj.setText(best);
+  } catch (e) {}
   return textObj;
 };
 
