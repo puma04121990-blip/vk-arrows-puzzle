@@ -9,6 +9,15 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
+    // Sound toggle (top-right) — VK rule: quick mute
+    if (window.createSoundToggle) {
+      window.createSoundToggle(this, width - (wide ? 36 : 40), wide ? 28 : 36, {
+        size: wide ? 40 : 44,
+        fontSize: wide ? '20px' : '22px',
+        depth: 80
+      });
+    }
+
     // Title
     const titleY = wide ? 64 : Math.max(100, Math.round(height * 0.12));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {

@@ -781,10 +781,20 @@ class GameScene extends Phaser.Scene {
     };
     makeBtn(width * 0.28, '↺ ЗАНОВО', () => this.scene.restart());
     makeBtn(width * 0.72, 'МЕНЮ', () => this.scene.start('Menu'));
+
+    // Sound toggle — top-right corner of Game
+    if (window.createSoundToggle) {
+      window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
+        size: wide ? 36 : 40,
+        fontSize: wide ? '18px' : '20px',
+        depth: 80
+      });
+    }
   }
 
   initAudio() {
-    if (!window.gameAudioCtx) {
+    if (window.ensureGameAudio) window.ensureGameAudio();
+    else if (!window.gameAudioCtx) {
       try {
         window.gameAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
       } catch (e) {
@@ -794,12 +804,14 @@ class GameScene extends Phaser.Scene {
   }
 
   unlockAudio() {
+    if (!window.isSoundOn || !window.isSoundOn()) return;
     const ctx = window.gameAudioCtx;
     if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
   }
 
   playTone(freq, duration, type = 'sine', vol = 0.11) {
-    const ctx = window.gameAudioCtx;
+    if (window.isSoundOn && !window.isSoundOn()) return;
+    const ctx = window.gameAudioCtx || (window.ensureGameAudio && window.ensureGameAudio());
     if (!ctx) return;
     const play = () => {
       try {
@@ -817,8 +829,9 @@ class GameScene extends Phaser.Scene {
         osc.stop(now + duration + 0.02);
       } catch (e) {}
     };
-    if (ctx.state === 'suspended') ctx.resume().then(play).catch(() => {});
-    else play();
+    if (ctx.state === 'suspended') {
+      if (window.isSoundOn && window.isSoundOn()) ctx.resume().then(play).catch(() => {});
+    } else play();
   }
 
   playSuccessSound() {

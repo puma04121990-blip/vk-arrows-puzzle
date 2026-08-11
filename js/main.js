@@ -83,29 +83,52 @@ function initVK() {
 }
 
 function setupLifecycle() {
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
-        window.gameAudioCtx.suspend().catch(() => {});
-      }
-      if (window.persistProgress) window.persistProgress();
-    } else {
-      if (window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
-        window.gameAudioCtx.resume().catch(() => {});
-      }
-      // Re-sync progress across platforms when app is shown again (2.3.8)
-      if (window.loadProgress) window.loadProgress().catch(() => {});
+  const onHide = () => {
+    if (window.suspendGameAudio) window.suspendGameAudio();
+    else if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
+      window.gameAudioCtx.suspend().catch(() => {});
     }
+    if (window.persistProgress) window.persistProgress();
+  };
+
+  const onShow = () => {
+    // Resume only if sound is enabled
+    if (window.resumeGameAudio) window.resumeGameAudio();
+    else if (window.isSoundOn && window.isSoundOn() &&
+      window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
+      window.gameAudioCtx.resume().catch(() => {});
+    }
+    if (window.loadProgress) window.loadProgress().catch(() => {});
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) onHide();
+    else onShow();
   });
+
+  window.addEventListener('pagehide', onHide);
+  window.addEventListener('blur', () => {
+    // Extra safety for some WebViews
+    if (document.hidden) onHide();
+  });
+
+  // VK Bridge: mute when mini-app is closed / covered (rule 2.2.5)
+  if (typeof vkBridge !== 'undefined' && typeof vkBridge.subscribe === 'function') {
+    try {
+      vkBridge.subscribe((e) => {
+        const t = e && e.detail && e.detail.type;
+        if (t === 'VKWebAppViewHide') onHide();
+        else if (t === 'VKWebAppViewRestore') onShow();
+      });
+    } catch (err) {
+      console.warn('[ArrowPulse] VK bridge subscribe failed:', err);
+    }
+  }
 
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
-
-  window.addEventListener('pagehide', () => {
-    if (window.persistProgress) window.persistProgress();
-  });
 }
 
 setupLifecycle();
