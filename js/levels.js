@@ -382,8 +382,14 @@ const LEVELS = (function buildFixedLevels() {
   return bakeLevelsFromSeed();
 })();
 
-// Expose for debugging / tools
+// Expose for daily puzzle + tools
 if (typeof window !== 'undefined') {
   window.LEVELS = LEVELS;
   window.regenerateLevelsSeeded = bakeLevelsFromSeed;
+  window.generateLevel = generateLevel;
+  window.getSizeForLevel = getSizeForLevel;
+  window.getWallCount = getWallCount;
+  window.getArrowCount = getArrowCount;
+  window.getLockPairs = getLockPairs;
+  window.getRotateCount = getRotateCount;
 }

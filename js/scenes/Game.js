@@ -4,8 +4,15 @@ class GameScene extends Phaser.Scene {
   }
 
   init() {
-    this.levelIndex = window.gameData.currentLevel || 0;
-    this.levelData = LEVELS[this.levelIndex] || LEVELS[0];
+    this.isDaily = !!(window.gameData && window.gameData.mode === 'daily');
+    if (this.isDaily && window.gameData.dailyLevel) {
+      this.levelIndex = -1;
+      this.levelData = window.gameData.dailyLevel;
+    } else {
+      this.isDaily = false;
+      this.levelIndex = window.gameData.currentLevel || 0;
+      this.levelData = LEVELS[this.levelIndex] || LEVELS[0];
+    }
     this.arrows = [];
     this.wallSet = new Set();
     this.cellSize = 0;
@@ -51,7 +58,10 @@ class GameScene extends Phaser.Scene {
     const headerY = wide ? 24 : 40;
     const statsY = wide ? 50 : 98;
 
-    this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
+    const headerLabel = this.isDaily
+      ? 'ЕЖЕДНЕВНЫЙ'
+      : `УРОВЕНЬ ${this.levelIndex + 1}`;
+    this.add.text(width / 2, headerY, headerLabel, {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '20px' : '26px',
       color: '#00e8c8'

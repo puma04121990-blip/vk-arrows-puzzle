@@ -155,7 +155,8 @@ class LevelsMapScene extends Phaser.Scene {
       const zone = this.add.zone(x, y, bw, bh).setOrigin(0.5).setInteractive({ useHandCursor: true });
       this.mapContainer.add(zone);
       zone.on('pointerdown', () => {
-        window.gameData.currentLevel = index;
+        if (window.startCampaignLevel) window.startCampaignLevel(index);
+        else { window.gameData.mode = 'campaign'; window.gameData.currentLevel = index; }
         this.scene.start('Game');
       });
     }

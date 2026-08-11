@@ -17,6 +17,13 @@ window.gameProgress = {
     unlocked: {},
     newlyUnlocked: []
   },
+  // Retention Phase A
+  loginStreak: 0,
+  lastLoginDate: '',
+  lastClaimDate: '',
+  hints: 0,
+  doubleStarsNext: false,
+  daily: { date: '', bestStars: 0, bestTime: 0, plays: 0 },
   loaded: false,
   cloudSynced: false
 };
@@ -61,8 +68,13 @@ function defaultStats() {
   };
 }
 
+function defaultDaily() {
+  return { date: '', bestStars: 0, bestTime: 0, plays: 0 };
+}
+
 function snapshotProgress() {
   const st = window.gameProgress.stats || defaultStats();
+  const daily = window.gameProgress.daily || defaultDaily();
   return {
     maxLevel: window.gameProgress.maxLevel || 0,
     stars: window.gameProgress.stars || {},
@@ -75,7 +87,18 @@ function snapshotProgress() {
       bestStreak: st.bestStreak || 0,
       unlocked: st.unlocked || {}
     },
-    v: 4,
+    loginStreak: window.gameProgress.loginStreak || 0,
+    lastLoginDate: window.gameProgress.lastLoginDate || '',
+    lastClaimDate: window.gameProgress.lastClaimDate || '',
+    hints: window.gameProgress.hints || 0,
+    doubleStarsNext: !!window.gameProgress.doubleStarsNext,
+    daily: {
+      date: daily.date || '',
+      bestStars: daily.bestStars || 0,
+      bestTime: daily.bestTime || 0,
+      plays: daily.plays || 0
+    },
+    v: 5,
     ts: Date.now()
   };
 }
@@ -142,6 +165,41 @@ function mergeProgress(base, incoming) {
       }
     }
     if (!Array.isArray(bs.newlyUnlocked)) bs.newlyUnlocked = [];
+  }
+
+  // Retention fields — take best streak / max hints / fresher daily
+  if (typeof incoming.loginStreak === 'number') {
+    base.loginStreak = Math.max(base.loginStreak || 0, incoming.loginStreak);
+  }
+  if (incoming.lastLoginDate && (!base.lastLoginDate || incoming.lastLoginDate > base.lastLoginDate)) {
+    base.lastLoginDate = incoming.lastLoginDate;
+    if (typeof incoming.loginStreak === 'number') base.loginStreak = Math.max(base.loginStreak || 0, incoming.loginStreak);
+  }
+  if (incoming.lastClaimDate && (!base.lastClaimDate || incoming.lastClaimDate > base.lastClaimDate)) {
+    base.lastClaimDate = incoming.lastClaimDate;
+  }
+  if (typeof incoming.hints === 'number') {
+    base.hints = Math.max(base.hints || 0, incoming.hints);
+  }
+  if (incoming.doubleStarsNext) base.doubleStarsNext = true;
+
+  if (incoming.daily && typeof incoming.daily === 'object') {
+    if (!base.daily) base.daily = defaultDaily();
+    const bd = base.daily;
+    const id = incoming.daily;
+    // Prefer same-day best; if remote is newer date, take it
+    if (!bd.date || (id.date && id.date > bd.date)) {
+      base.daily = {
+        date: id.date || '',
+        bestStars: id.bestStars || 0,
+        bestTime: id.bestTime || 0,
+        plays: id.plays || 0
+      };
+    } else if (id.date === bd.date) {
+      bd.bestStars = Math.max(bd.bestStars || 0, id.bestStars || 0);
+      if (id.bestTime && (!bd.bestTime || id.bestTime < bd.bestTime)) bd.bestTime = id.bestTime;
+      bd.plays = Math.max(bd.plays || 0, id.plays || 0);
+    }
   }
 
   return base;
@@ -223,7 +281,19 @@ function buildVkPayloads() {
       bs: snap.stats.bestStreak || 0,
       u: snap.stats.unlocked || {}
     },
-    v: 4,
+    // daily retention compact
+    r: {
+      ls: snap.loginStreak || 0,
+      ld: snap.lastLoginDate || '',
+      cd: snap.lastClaimDate || '',
+      h: snap.hints || 0,
+      ds: snap.doubleStarsNext ? 1 : 0,
+      dd: (snap.daily && snap.daily.date) || '',
+      db: (snap.daily && snap.daily.bestStars) || 0,
+      dt: (snap.daily && snap.daily.bestTime) || 0,
+      dp: (snap.daily && snap.daily.plays) || 0
+    },
+    v: 5,
     ts: snap.ts
   });
 
@@ -251,6 +321,7 @@ function parseVkFull(raw) {
   if (Array.isArray(o.us)) o.us.forEach(id => { if (id) unlockedSkins[id] = true; });
   const stars = Array.isArray(o.s) ? starsFromCompact(o.s) : (o.stars || {});
   const st = o.st || o.stats || {};
+  const r = o.r || {};
   return {
     maxLevel: typeof o.m === 'number' ? o.m : (o.maxLevel || 0),
     skin: o.k || o.skin || 'neon',
@@ -263,6 +334,17 @@ function parseVkFull(raw) {
       bestStreak: st.bs || st.bestStreak || 0,
       unlocked: st.u || st.unlocked || {},
       newlyUnlocked: []
+    },
+    loginStreak: r.ls || o.loginStreak || 0,
+    lastLoginDate: r.ld || o.lastLoginDate || '',
+    lastClaimDate: r.cd || o.lastClaimDate || '',
+    hints: r.h || o.hints || 0,
+    doubleStarsNext: !!(r.ds || o.doubleStarsNext),
+    daily: {
+      date: r.dd || (o.daily && o.daily.date) || '',
+      bestStars: r.db || (o.daily && o.daily.bestStars) || 0,
+      bestTime: r.dt || (o.daily && o.daily.bestTime) || 0,
+      plays: r.dp || (o.daily && o.daily.plays) || 0
     }
   };
 }

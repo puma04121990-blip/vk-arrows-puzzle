@@ -5,29 +5,37 @@ class WinScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const stars = window.gameData.stars || 1;
-    const level = window.gameData.currentLevel + 1;
+    const isDaily = !!(window.gameData && window.gameData.mode === 'daily');
+    let stars = window.gameData.stars || 1;
     const mistakes = window.gameData.mistakes || 0;
     const levelIndex = window.gameData.currentLevel;
     const elapsed = window.gameData.elapsed || 0;
+    const level = isDaily ? 0 : (levelIndex + 1);
 
-    const nextLevel = levelIndex + 1;
+    if (!isDaily && window.applyDoubleStarsIfNeeded) {
+      stars = window.applyDoubleStarsIfNeeded(stars);
+      window.gameData.stars = stars;
+    }
 
-    // Save FIRST and keep the promise — critical for 2.3.8 cross-platform sync
     let savePromise = Promise.resolve(true);
-    if (window.saveProgress) {
-      try {
-        savePromise = Promise.resolve(window.saveProgress(nextLevel, levelIndex, stars));
-      } catch (e) {
-        savePromise = Promise.resolve(false);
+    if (isDaily) {
+      if (window.saveDailyResult) {
+        try { savePromise = Promise.resolve(window.saveDailyResult(stars, mistakes, elapsed)); }
+        catch (e) { savePromise = Promise.resolve(false); }
+      }
+    } else {
+      const nextLevel = levelIndex + 1;
+      if (window.saveProgress) {
+        try { savePromise = Promise.resolve(window.saveProgress(nextLevel, levelIndex, stars)); }
+        catch (e) { savePromise = Promise.resolve(false); }
+      }
+      if (window.trackLevelResult) {
+        try { window.trackLevelResult(levelIndex, stars, mistakes, elapsed); } catch (e) {}
       }
     }
 
-    if (window.trackLevelResult) {
-      try { window.trackLevelResult(levelIndex, stars, mistakes, elapsed); } catch (e) {}
-    }
-
-    this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
+    if (window.drawAppBackground) window.drawAppBackground(this, width, height);
+    else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const phrases = ['ПРЕВОСХОДНО!', 'ОТЛИЧНО!', 'СУПЕР!'];
     const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
@@ -49,11 +57,22 @@ class WinScene extends Phaser.Scene {
       ease: 'Back.easeOut'
     });
 
-    this.add.text(width / 2, height * 0.23, `Уровень ${level} пройден`, {
+    this.add.text(width / 2, height * 0.23, isDaily
+      ? 'Ежедневный уровень пройден'
+      : ('Уровень ' + level + ' пройден'), {
       fontFamily: 'Arial',
       fontSize: '20px',
       color: '#9a9ab8'
     }).setOrigin(0.5);
+
+    if (isDaily && window.getDailyBest) {
+      const best = window.getDailyBest();
+      this.add.text(width / 2, height * 0.275, 'Рекорд дня: ' + (best.bestStars || stars) + '★', {
+        fontFamily: 'Arial',
+        fontSize: '15px',
+        color: '#ffd166'
+      }).setOrigin(0.5);
+    }
 
     const starY = height * 0.33;
     for (let i = 0; i < 3; i++) {
@@ -73,16 +92,16 @@ class WinScene extends Phaser.Scene {
     }
 
     const timeStr = this.formatTime(elapsed);
-    this.add.text(width / 2, height * 0.44, `Ошибок: ${mistakes}   ·   Время: ${timeStr}`, {
+    this.add.text(width / 2, height * 0.44, 'Ошибок: ' + mistakes + '   ·   Время: ' + timeStr, {
       fontFamily: 'Arial',
       fontSize: '17px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
 
     const news = window.popNewAchievements ? window.popNewAchievements() : [];
-    if (news.length) {
+    if (news.length && !isDaily) {
       const a = window.getAchievementById ? window.getAchievementById(news[0]) : null;
-      const label = a ? `${a.icon} ${a.title}` : 'Новое достижение!';
+      const label = a ? (a.icon + ' ' + a.title) : 'Новое достижение!';
       this.add.text(width / 2, height * 0.51, label, {
         fontFamily: 'Arial',
         fontSize: '18px',
@@ -90,7 +109,7 @@ class WinScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       if (news.length > 1) {
-        this.add.text(width / 2, height * 0.55, `+ ещё ${news.length - 1}`, {
+        this.add.text(width / 2, height * 0.55, '+ ещё ' + (news.length - 1), {
           fontFamily: 'Arial',
           fontSize: '14px',
           color: '#6a6a82'
@@ -98,38 +117,48 @@ class WinScene extends Phaser.Scene {
       }
     }
 
-    const isLast = levelIndex >= LEVELS.length - 1;
-    const nextIndex = levelIndex + 1;
-    const canNext = !isLast && window.isLevelPlayable && window.isLevelPlayable(nextIndex);
+    const btnY = height * 0.64;
 
-    let btnY = height * 0.64;
-
-    if (!isLast && canNext) {
-      this.createButton(width / 2, btnY, 'ДАЛЬШЕ →', 0x00e8c8, () => {
-        window.gameData.currentLevel++;
+    if (isDaily) {
+      this.createButton(width / 2, btnY, 'ЕЩЁ РАЗ', 0x00e8c8, () => {
+        if (window.startDailyPuzzle) window.startDailyPuzzle();
         this.scene.start('Game');
       });
-    } else if (!isLast && !canNext) {
-      const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(nextIndex) : 0;
-      const have = window.getTotalStars ? window.getTotalStars() : 0;
-      this.add.text(width / 2, btnY, `Нужно ★${need} (есть ${have})`, {
-        fontFamily: 'Arial',
-        fontSize: '18px',
-        color: '#ff6b6b'
-      }).setOrigin(0.5);
+      this.createButton(width / 2, height * 0.78, 'МЕНЮ', 0x222238, () => {
+        if (window.gameData) window.gameData.mode = 'campaign';
+        this.scene.start('Menu');
+      });
+    } else {
+      const isLast = levelIndex >= LEVELS.length - 1;
+      const nextIndex = levelIndex + 1;
+      const canNext = !isLast && window.isLevelPlayable && window.isLevelPlayable(nextIndex);
+
+      if (!isLast && canNext) {
+        this.createButton(width / 2, btnY, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+          window.gameData.currentLevel++;
+          this.scene.start('Game');
+        });
+      } else if (!isLast && !canNext) {
+        const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(nextIndex) : 0;
+        const have = window.getTotalStars ? window.getTotalStars() : 0;
+        this.add.text(width / 2, btnY, 'Нужно ★' + need + ' (есть ' + have + ')', {
+          fontFamily: 'Arial',
+          fontSize: '18px',
+          color: '#ff6b6b'
+        }).setOrigin(0.5);
+      }
+
+      this.createButton(width / 2, height * 0.76, 'УРОВНИ', 0x2a2a45, () => {
+        this.scene.start('LevelsMap');
+      });
+
+      this.createButton(width / 2, height * 0.88, 'МЕНЮ', 0x222238, () => {
+        this.scene.start('Menu');
+      });
     }
-
-    this.createButton(width / 2, height * 0.76, 'УРОВНИ', 0x2a2a45, () => {
-      this.scene.start('LevelsMap');
-    });
-
-    this.createButton(width / 2, height * 0.88, 'МЕНЮ', 0x222238, () => {
-      this.scene.start('Menu');
-    });
 
     this.playWinMelody();
 
-    // Flush cloud save, then optional interstitial (never at launch)
     this.time.delayedCall(400, () => {
       const go = () => {
         if (window.showInterstitialAd) {
@@ -137,7 +166,6 @@ class WinScene extends Phaser.Scene {
         }
       };
       const p = this._savePromise || Promise.resolve();
-      // Don't wait forever — 2.5s max, then show ad / continue
       const timeout = new Promise((r) => setTimeout(r, 2500));
       Promise.race([p, timeout]).then(go).catch(go);
     });
@@ -147,10 +175,20 @@ class WinScene extends Phaser.Scene {
     const s = Math.max(0, Math.floor(sec));
     const m = Math.floor(s / 60);
     const r = s % 60;
-    return m > 0 ? `${m}:${r.toString().padStart(2, '0')}` : `${r} сек`;
+    return m > 0 ? m + ':' + r.toString().padStart(2, '0') : r + ' сек';
   }
 
   createButton(x, y, label, color, callback) {
+    if (window.createNiceButton) {
+      return window.createNiceButton(this, x, y, label, callback, {
+        w: 240,
+        h: 56,
+        color: color,
+        secondary: color !== 0x00e8c8,
+        fontSize: '20px',
+        depth: 10
+      });
+    }
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
