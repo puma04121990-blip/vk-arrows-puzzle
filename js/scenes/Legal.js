@@ -6,8 +6,6 @@ class LegalScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const wide = width >= height;
-    const support = window.APP_SUPPORT || {};
-
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     this.DOCS = {
@@ -28,20 +26,6 @@ class LegalScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const items = [
-      {
-        title: 'Сообщество поддержки',
-        desc: support.communityTitle || 'Группа VK',
-        action: () => {
-          if (window.openSupportCommunity) window.openSupportCommunity();
-        }
-      },
-      {
-        title: 'Email',
-        desc: support.email || '—',
-        action: () => {
-          if (window.openSupportEmail) window.openSupportEmail();
-        }
-      },
       {
         title: 'Пользовательское соглашение',
         desc: 'Открыть в браузере',
@@ -90,8 +74,7 @@ class LegalScene extends Phaser.Scene {
     });
 
     const note = [
-      'Поддержка: сообщество VK и email.',
-      support.responseHint || 'Ответ в течение 7 дней.',
+      'Поддержка — кнопка «ПОДДЕРЖКА» в меню.',
       'Прогресс синхронизируется через VK Storage.'
     ].join('\n');
 
