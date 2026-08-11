@@ -146,7 +146,12 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: window.GAME_W,
-    height: window.GAME_H
+    height: window.GAME_H,
+    expandParent: true
+  },
+  render: {
+    roundPixels: true,
+    antialias: true
   },
   input: {
     activePointers: 3,
@@ -178,8 +183,37 @@ window.gameData = {
 };
 
 const game = new Phaser.Game(config);
+window.game = game;
 
-if (game.canvas) game.canvas.style.cursor = 'default';
+function centerCanvas() {
+  if (!game || !game.canvas) return;
+  const canvas = game.canvas;
+  canvas.style.cursor = 'default';
+  canvas.style.display = 'block';
+  canvas.style.margin = '0 auto';
+  // Snap CSS size to whole pixels (cleaner center on desktop)
+  try {
+    const sw = parseFloat(canvas.style.width) || canvas.clientWidth;
+    const sh = parseFloat(canvas.style.height) || canvas.clientHeight;
+    if (sw > 0) canvas.style.width = Math.round(sw) + 'px';
+    if (sh > 0) canvas.style.height = Math.round(sh) + 'px';
+  } catch (e) {}
+  const parent = canvas.parentElement;
+  if (parent) {
+    parent.style.display = 'flex';
+    parent.style.justifyContent = 'center';
+    parent.style.alignItems = 'center';
+  }
+}
+
+if (game.canvas) {
+  game.events.once('ready', () => {
+    if (game.scale) game.scale.refresh();
+    centerCanvas();
+    setTimeout(centerCanvas, 50);
+    setTimeout(centerCanvas, 200);
+  });
+}
 
 let lastLandscape = window.isLandscapeLayout;
 function checkOrientation() {
@@ -189,6 +223,7 @@ function checkOrientation() {
     window.location.reload();
   } else if (game && game.scale) {
     game.scale.refresh();
+    centerCanvas();
   }
 }
 

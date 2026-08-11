@@ -42,19 +42,13 @@ class GameScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const wide = width >= height;
-    // Enough top/bottom padding so HUD never sits on the grid or each other
-    const topPad = wide ? 64 : 148;
-    const bottomPad = wide ? 72 : 108;
-    const headerY = wide ? 22 : 40;
-    // Stats on a separate row from the title (avoids text-on-text overlap)
-    const statsY = wide ? 48 : 98;
+    // HUD + buttons zones (symmetric)
+    const topPad = wide ? 70 : 148;
+    const bottomPad = wide ? 78 : 108;
+    const headerY = wide ? 24 : 40;
+    const statsY = wide ? 50 : 98;
 
-    const panel = this.add.graphics();
-    panel.fillStyle(0x12121e, 0.95);
-    panel.fillRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
-    panel.lineStyle(2, 0x2e2e48, 0.7);
-    panel.strokeRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
-
+    // Title centered
     this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '20px' : '26px',
@@ -67,31 +61,49 @@ class GameScene extends Phaser.Scene {
       line.lineBetween(width / 2 - 50, 64, width / 2 + 50, 64);
     }
 
-    // Fixed side padding so labels never collide with title or each other
-    this.movesText = this.add.text(wide ? 24 : width * 0.28, statsY, `Ошибки: 0/${this.maxMistakes}`, {
+    // Stats row centered as a pair under the title
+    this.movesText = this.add.text(width / 2 - (wide ? 70 : 90), statsY, `Ошибки: 0/${this.maxMistakes}`, {
       fontFamily: 'Arial',
       fontSize: wide ? '15px' : '17px',
       color: '#6e6e8a'
-    }).setOrigin(wide ? 0 : 0.5, 0.5);
+    }).setOrigin(1, 0.5);
 
     this.timeLimit = this.calcTimeLimit();
     this.timeLeft = this.timeLimit;
 
-    this.timerText = this.add.text(wide ? width - 24 : width * 0.72, statsY, this.formatTime(this.timeLeft), {
+    this.timerText = this.add.text(width / 2 + (wide ? 70 : 90), statsY, this.formatTime(this.timeLeft), {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '16px' : '19px',
       color: '#00e8c8'
-    }).setOrigin(wide ? 1 : 0.5, 0.5);
+    }).setOrigin(0, 0.5);
 
+    // Grid sized to free area, then panel hugs the grid and is centered
     const size = this.levelData.size;
-    const maxGridW = width - (wide ? 120 : 64);
-    const maxGridH = height - topPad - bottomPad - 24;
-    this.cellSize = Math.floor(Math.min(maxGridW / size, maxGridH / size));
+    const sideMargin = wide ? 48 : 40;
+    const maxGridW = width - sideMargin * 2;
+    const maxGridH = height - topPad - bottomPad - 20;
+    this.cellSize = Math.max(28, Math.floor(Math.min(maxGridW / size, maxGridH / size)));
     const gridW = this.cellSize * size;
     const gridH = this.cellSize * size;
-    this.offsetX = (width - gridW) / 2;
-    this.offsetY = topPad + (height - topPad - bottomPad - gridH) / 2;
+
+    const panelPad = wide ? 28 : 22;
+    const panelW = gridW + panelPad * 2;
+    const panelH = gridH + panelPad * 2;
+    const panelX = Math.round((width - panelW) / 2);
+    const freeH = height - topPad - bottomPad;
+    const panelY = Math.round(topPad + (freeH - panelH) / 2);
+
+    const panel = this.add.graphics();
+    panel.fillStyle(0x12121e, 1);
+    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 16);
+    panel.lineStyle(1, 0x2e2e48, 1);
+    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 16);
+
+    // Field origin = center of screen area
+    this.offsetX = panelX + panelPad;
+    this.offsetY = panelY + panelPad;
     this.gridH = gridH;
+    this.panelBounds = { x: panelX, y: panelY, w: panelW, h: panelH };
 
     this.drawGrid(size);
     this.drawWalls();
@@ -765,8 +777,9 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
     const wide = width >= height;
-    // Keep buttons in reserved bottom zone, clear of the board
-    const by = height - (wide ? 36 : 54);
+    // Bottom buttons centered as a pair under the field
+    const by = height - (wide ? 38 : 54);
+    const gap = wide ? 160 : 140;
     const makeBtn = (x, label, cb) => {
       const t = this.add.text(x, by, label, {
         fontFamily: 'Arial',
@@ -779,10 +792,10 @@ class GameScene extends Phaser.Scene {
       t.on('pointerdown', cb);
       return t;
     };
-    makeBtn(width * 0.28, '↺ ЗАНОВО', () => this.scene.restart());
-    makeBtn(width * 0.72, 'МЕНЮ', () => this.scene.start('Menu'));
+    makeBtn(width / 2 - gap / 2, '↺ ЗАНОВО', () => this.scene.restart());
+    makeBtn(width / 2 + gap / 2, 'МЕНЮ', () => this.scene.start('Menu'));
 
-    // Sound toggle — top-right corner of Game
+    // Sound toggle — top-right (doesn't shift field center)
     if (window.createSoundToggle) {
       window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
         size: wide ? 36 : 40,
