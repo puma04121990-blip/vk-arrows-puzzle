@@ -330,15 +330,60 @@ function getRotateCount(levelIndex) {
   return 2;
 }
 
-const LEVELS = [];
+/**
+ * Fixed levels for cross-platform progress (VK 2.3.8).
+ * Prefer pre-baked window.LEVELS_DATA (js/levels-data.js).
+ * Fallback: deterministic seed by index (same content if data file missing).
+ */
+function normalizeBakedLevel(raw, index) {
+  if (!raw || typeof raw !== 'object') return null;
+  const size = raw.size || 4;
+  const walls = Array.isArray(raw.walls) ? raw.walls.map(w => ({ x: w.x | 0, y: w.y | 0 })) : [];
+  const arrows = Array.isArray(raw.arrows)
+    ? raw.arrows.map(a => {
+        const o = { x: a.x | 0, y: a.y | 0, dir: a.dir | 0 };
+        if (a.lockId != null) o.lockId = a.lockId;
+        if (a.keyId != null) o.keyId = a.keyId;
+        if (a.lockColor != null) o.lockColor = a.lockColor;
+        if (a.rotates) o.rotates = true;
+        return o;
+      })
+    : [];
+  return { size: size, arrows: arrows, walls: walls, index: index };
+}
 
-for (let i = 0; i < 50; i++) {
-  const size = getSizeForLevel(i);
-  const count = getArrowCount(i, size);
-  const wallsN = getWallCount(i);
-  const locksN = getLockPairs(i);
-  const rotN = getRotateCount(i);
-  // Stable seed per level index — identical on all platforms
-  const seed = 0xA770 + i * 7919;
-  LEVELS.push(generateLevel(size, count, wallsN, locksN, rotN, seed));
+function bakeLevelsFromSeed() {
+  const out = [];
+  for (let i = 0; i < 50; i++) {
+    const size = getSizeForLevel(i);
+    const count = getArrowCount(i, size);
+    const wallsN = getWallCount(i);
+    const locksN = getLockPairs(i);
+    const rotN = getRotateCount(i);
+    const seed = 0xA770 + i * 7919;
+    const lv = generateLevel(size, count, wallsN, locksN, rotN, seed);
+    lv.index = i;
+    out.push(lv);
+  }
+  return out;
+}
+
+const LEVELS = (function buildFixedLevels() {
+  const baked = (typeof window !== 'undefined' && window.LEVELS_DATA) || null;
+  if (Array.isArray(baked) && baked.length >= 50) {
+    const list = [];
+    for (let i = 0; i < 50; i++) {
+      const n = normalizeBakedLevel(baked[i], i);
+      list.push(n || bakeLevelsFromSeed()[i]);
+    }
+    return list;
+  }
+  console.warn('[ArrowPulse] LEVELS_DATA missing — using seeded generator fallback');
+  return bakeLevelsFromSeed();
+})();
+
+// Expose for debugging / tools
+if (typeof window !== 'undefined') {
+  window.LEVELS = LEVELS;
+  window.regenerateLevelsSeeded = bakeLevelsFromSeed;
 }
