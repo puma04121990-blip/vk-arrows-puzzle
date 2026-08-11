@@ -9,7 +9,7 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Title lower (red rect) — fully below browser/VK chrome, no glow
+    // Title
     const titleY = wide ? 64 : Math.max(100, Math.round(height * 0.12));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
@@ -18,29 +18,29 @@ class MenuScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
 
-    // Circle lower (red circle + arrow) — gap under title, above buttons
+    // Subtitle — red rectangle: right under the title (not inside the circle)
+    const greetY = titleY + (wide ? 36 : 42);
+    let greeting = 'Головоломка со стрелками';
+    if (window.vkUser && window.vkUser.first_name) {
+      greeting = `Привет, ${window.vkUser.first_name}!`;
+    }
+    this.add.text(width / 2, greetY, greeting, {
+      fontFamily: 'Arial',
+      fontSize: wide ? '15px' : '16px',
+      color: '#8a8aa8',
+      align: 'center',
+      wordWrap: { width: width - 48 }
+    }).setOrigin(0.5);
+
+    // Circle — red circle: lower, between subtitle and buttons
     const circleR = wide ? 80 : 92;
-    const circleY = titleY + circleR + (wide ? 56 : 72);
+    const circleY = greetY + circleR + (wide ? 40 : 52);
 
     const circle = this.add.graphics();
     circle.fillStyle(0x12121e, 1);
     circle.fillCircle(width / 2, circleY, circleR);
     circle.lineStyle(1, 0x2a2a40, 1);
     circle.strokeCircle(width / 2, circleY, circleR);
-
-    let greeting = 'Головоломка со стрелками';
-    if (window.vkUser && window.vkUser.first_name) {
-      greeting = `Привет, ${window.vkUser.first_name}!`;
-    }
-
-    // Subtitle centered inside the circle
-    this.add.text(width / 2, circleY, greeting, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '14px' : '15px',
-      color: '#8a8aa8',
-      align: 'center',
-      wordWrap: { width: circleR * 1.6 }
-    }).setOrigin(0.5);
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
