@@ -165,6 +165,7 @@ const config = {
     AchievementsScene,
     SkinsScene,
     HelpScene,
+    SupportScene,
     LegalScene,
     GameScene,
     WinScene

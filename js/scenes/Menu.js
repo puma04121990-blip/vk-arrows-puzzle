@@ -99,12 +99,7 @@ class MenuScene extends Phaser.Scene {
         label: 'ПОДДЕРЖКА',
         color: 0x1e2a38,
         secondary: true,
-        cb: () => {
-          if (window.openSupportCommunity) window.openSupportCommunity();
-          else if (window.APP_SUPPORT && window.APP_SUPPORT.communityUrl) {
-            try { window.open(window.APP_SUPPORT.communityUrl, '_blank'); } catch (e) {}
-          }
-        }
+        cb: () => this.scene.start('Support')
       },
       { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
     );
