@@ -9,32 +9,30 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Header: title (no glow) + dark circle with subtitle centered inside
-    const circleR = wide ? 88 : 100;
-    const circleY = wide ? 118 : Math.max(150, height * 0.16);
-    const titleY = circleY - circleR - (wide ? 28 : 32);
+    // Title — original top position (no glow), clear of VK chrome
+    const titleY = wide ? 36 : Math.max(40, height * 0.07);
+    this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
+      fontFamily: 'Arial Black, Arial',
+      fontSize: wide ? '34px' : '30px',
+      color: '#00e8c8',
+      align: 'center'
+    }).setOrigin(0.5);
 
-    // Flat circle (no glow / blur)
+    // Dark circle below title; subtitle centered inside it
+    const circleR = wide ? 88 : 100;
+    const circleY = titleY + (wide ? 100 : 120);
+
     const circle = this.add.graphics();
     circle.fillStyle(0x12121e, 1);
     circle.fillCircle(width / 2, circleY, circleR);
     circle.lineStyle(1, 0x2a2a40, 1);
     circle.strokeCircle(width / 2, circleY, circleR);
 
-    // Title — crisp, no shadow / glow
-    this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '32px' : '28px',
-      color: '#00e8c8',
-      align: 'center'
-    }).setOrigin(0.5);
-
     let greeting = 'Головоломка со стрелками';
     if (window.vkUser && window.vkUser.first_name) {
       greeting = `Привет, ${window.vkUser.first_name}!`;
     }
 
-    // Subtitle exactly in the center of the circle
     this.add.text(width / 2, circleY, greeting, {
       fontFamily: 'Arial',
       fontSize: wide ? '14px' : '15px',
