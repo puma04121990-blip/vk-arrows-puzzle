@@ -17,7 +17,8 @@ class BootScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const title = this.add.text(width / 2, height * 0.42, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: '28px',
       color: '#00e8c8',
       align: 'center'

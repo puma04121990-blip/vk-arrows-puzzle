@@ -18,27 +18,28 @@ class AchievementsScene extends Phaser.Scene {
     const footerH = wide ? 56 : 72;
     const sidePad = 20;
     const cardW = Math.min(width - sidePad * 2, 560);
-    const rowH = wide ? 70 : 78;
+    const rowH = wide ? 72 : 80;
     const rowGap = 12;
 
     // Fixed header
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1).setDepth(50);
     this.add.text(width / 2, wide ? 22 : 32, 'ДОСТИЖЕНИЯ', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '24px' : '28px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);
 
     this.add.text(width / 2, wide ? 50 : 68, `${done} / ${list.length}`, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '15px' : '17px',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontSize: wide ? '16px' : '18px',
       color: '#ffd166'
     }).setOrigin(0.5).setDepth(51);
 
     // Fixed footer
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1).setDepth(50);
     const back = this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
-      fontFamily: 'Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
       fontSize: wide ? '18px' : '20px',
       color: '#9a9ab8',
       backgroundColor: '#181828',
@@ -52,62 +53,58 @@ class AchievementsScene extends Phaser.Scene {
     let y = headerH + 16 + rowH / 2;
     list.forEach((a) => {
       const isOn = !!unlocked[a.id];
-      this.createRow(width / 2, y, a, isOn, cardW, rowH, wide);
+      this.createRow(Math.round(width / 2), Math.round(y), a, isOn, cardW, rowH, wide);
       y += rowH + rowGap;
     });
 
-    // Mask so rows never draw over header/footer (overlap fix)
+    // Mask so rows never draw over header/footer
     const maskG = this.make.graphics({ x: 0, y: 0, add: false });
     maskG.fillStyle(0xffffff);
     maskG.fillRect(0, headerH, width, height - headerH - footerH);
-    const mask = maskG.createGeometryMask();
-    this.listContainer.setMask(mask);
+    this.listContainer.setMask(maskG.createGeometryMask());
 
     this.setupScroll(y + rowH / 2, height, headerH, footerH);
   }
 
   createRow(x, y, a, isOn, cardW, rowH, wide) {
     const half = cardW / 2;
-    const leftPad = 16;
-    const rightPad = 40; // reserved for ✓ / 🔒
-    const iconW = 36;
-    const textMaxW = cardW - leftPad - rightPad - iconW - 8;
+    const leftPad = 14;
+    const rightPad = 36;
+    const iconW = 32;
+    const textMaxW = Math.floor(cardW - leftPad - rightPad - iconW - 10);
 
     const g = this.add.graphics();
     g.fillStyle(isOn ? 0x14352f : 0x1a1a28, 1);
-    g.fillRoundedRect(x - half, y - rowH / 2, cardW, rowH, 12);
+    g.fillRoundedRect(x - half, y - rowH / 2, cardW, rowH, 10);
     g.lineStyle(1, isOn ? 0x00e8c8 : 0x2a2a40, 1);
-    g.strokeRoundedRect(x - half, y - rowH / 2, cardW, rowH, 12);
+    g.strokeRoundedRect(x - half, y - rowH / 2, cardW, rowH, 10);
     this.listContainer.add(g);
 
-    const iconX = x - half + leftPad + iconW / 2;
-    const textX = x - half + leftPad + iconW + 8;
-    const markX = x + half - rightPad / 2;
+    const iconX = Math.round(x - half + leftPad + iconW / 2);
+    const textX = Math.round(x - half + leftPad + iconW + 8);
+    const markX = Math.round(x + half - rightPad / 2);
 
     const icon = this.add.text(iconX, y, a.icon || '🏅', {
       fontSize: wide ? '22px' : '24px'
     }).setOrigin(0.5);
     this.listContainer.add(icon);
 
-    // Single-line title + desc with hard width so they never cover the mark
+    // Bold Arial (not Arial Black) — cleaner at small sizes. NO setScale.
     const title = this.add.text(textX, y - 12, a.title, {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '15px' : '16px',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
+      fontSize: wide ? '16px' : '17px',
       color: isOn ? '#e8e8ff' : '#6a6a82'
     }).setOrigin(0, 0.5);
-    if (title.width > textMaxW) {
-      title.setScale(textMaxW / title.width);
-    }
+    if (window.fitTextWidth) window.fitTextWidth(title, textMaxW);
     this.listContainer.add(title);
 
     const desc = this.add.text(textX, y + 12, a.desc, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '12px' : '13px',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontSize: wide ? '13px' : '14px',
       color: isOn ? '#9a9ab4' : '#4a4a60'
     }).setOrigin(0, 0.5);
-    if (desc.width > textMaxW) {
-      desc.setScale(textMaxW / desc.width);
-    }
+    if (window.fitTextWidth) window.fitTextWidth(desc, textMaxW);
     this.listContainer.add(desc);
 
     const mark = this.add.text(markX, y, isOn ? '✓' : '🔒', {
@@ -125,6 +122,11 @@ class AchievementsScene extends Phaser.Scene {
     let dragging = false;
     let lastY = 0;
 
+    const applyScroll = () => {
+      // Integer Y keeps text on pixel grid → no subpixel blur while scrolling
+      this.listContainer.y = Math.round(this.scrollY);
+    };
+
     this.input.on('pointerdown', (p) => {
       if (p.y < headerH || p.y > height - footerH) return;
       dragging = true;
@@ -136,13 +138,13 @@ class AchievementsScene extends Phaser.Scene {
       const dy = p.y - lastY;
       lastY = p.y;
       this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
-      this.listContainer.y = this.scrollY;
+      applyScroll();
     });
 
     this.input.on('wheel', (pointer, over, dx, dy) => {
       if (maxScroll <= 0) return;
       this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.45, -maxScroll, 0);
-      this.listContainer.y = this.scrollY;
+      applyScroll();
     });
   }
 }

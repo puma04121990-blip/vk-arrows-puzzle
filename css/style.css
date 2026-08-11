@@ -45,5 +45,7 @@ html, body {
   padding: 0;
   touch-action: none;
   outline: none;
+  /* Let browser smooth-scale the whole frame; glyphs are oversampled via Text.setResolution */
   image-rendering: auto;
+  -ms-interpolation-mode: bicubic;
 }

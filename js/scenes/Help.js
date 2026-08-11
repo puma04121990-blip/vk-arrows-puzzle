@@ -14,7 +14,8 @@ class HelpScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1).setDepth(50);
     this.add.text(width / 2, headerH / 2, 'КАК ИГРАТЬ', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '22px' : '28px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);

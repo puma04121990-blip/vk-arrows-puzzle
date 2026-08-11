@@ -19,7 +19,8 @@ class LevelsMapScene extends Phaser.Scene {
     headerBg.setDepth(50);
 
     this.add.text(width / 2, wide ? 22 : 32, 'УРОВНИ', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '26px' : '30px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);
@@ -64,7 +65,8 @@ class LevelsMapScene extends Phaser.Scene {
       else if (stage.needStars > 0) title += `  ·  ★${stage.needStars}+`;
 
       const header = this.add.text(width / 2, y, title, {
-        fontFamily: 'Arial Black, Arial',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
         fontSize: wide ? '16px' : '17px',
         color: titleColor,
         wordWrap: { width: width - 40 },
@@ -137,7 +139,8 @@ class LevelsMapScene extends Phaser.Scene {
     this.mapContainer.add(g);
 
     const num = this.add.text(x, y - 10, String(index + 1), {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: '22px',
       color: playable ? '#e8e8ff' : '#4a4a60'
     }).setOrigin(0.5);

@@ -33,7 +33,8 @@ class WinScene extends Phaser.Scene {
     const phrase = stars >= 3 ? phrases[0] : stars === 2 ? phrases[1] : phrases[2];
 
     const title = this.add.text(width / 2, height * 0.14, phrase, {
-      fontFamily: 'Arial Black',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: '36px',
       color: '#00e8c8',
       align: 'center'
@@ -156,7 +157,8 @@ class WinScene extends Phaser.Scene {
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-120, -28, 240, 56, 28);
     const text = this.add.text(0, 0, label, {
-      fontFamily: 'Arial Black',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: '22px',
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);

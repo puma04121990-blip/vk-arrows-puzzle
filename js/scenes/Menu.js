@@ -12,7 +12,8 @@ class MenuScene extends Phaser.Scene {
     // Title zone — crisp text, no shadow/blur (moderation: «избыточное размытие»)
     const titleY = wide ? 40 : Math.max(48, Math.round(height * 0.06));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '32px' : '28px',
       color: '#00e8c8',
       align: 'center'
@@ -113,16 +114,14 @@ class MenuScene extends Phaser.Scene {
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
 
     const text = this.add.text(0, 0, label, {
-      fontFamily: 'Arial Black',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: secondary ? (wide ? '15px' : '16px') : (wide ? '18px' : '20px'),
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
-    // Guard: shrink label if wider than button
-    const maxTextW = bw - 28;
-    if (text.width > maxTextW) {
-      text.setScale(maxTextW / text.width);
-    }
+    // Never setScale text (blurs glyphs) — truncate if needed
+    if (window.fitTextWidth) window.fitTextWidth(text, bw - 28);
 
     btn.add([bg, text]);
     btn.setSize(bw, bh);

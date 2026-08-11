@@ -15,7 +15,8 @@ class ConsentScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     this.add.text(width / 2, wide ? 40 : 56, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '26px' : '28px',
       color: '#00e8c8'
     }).setOrigin(0.5);
@@ -68,7 +69,8 @@ class ConsentScene extends Phaser.Scene {
     const acceptBg = this.add.rectangle(width / 2, y, acceptW, acceptH, 0x00e8c8)
       .setInteractive({ useHandCursor: true });
     this.add.text(width / 2, y, 'ПРИНИМАЮ', {
-      fontFamily: 'Arial Black',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '18px' : '20px',
       color: '#0b0b14'
     }).setOrigin(0.5);
@@ -89,7 +91,7 @@ class ConsentScene extends Phaser.Scene {
       fontSize: wide ? '14px' : '15px',
       color: '#e0e0f0'
     }).setOrigin(0, 0.5);
-    if (t.width > labelMax) t.setScale(labelMax / t.width);
+    if (window.fitTextWidth) window.fitTextWidth(t, labelMax);
 
     this.add.text(x + w / 2 - 16, y, '→', {
       fontSize: '16px',

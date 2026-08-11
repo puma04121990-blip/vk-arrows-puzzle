@@ -21,7 +21,8 @@ class SkinsScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1).setDepth(50);
     this.add.text(width / 2, wide ? 20 : 28, 'СТИЛИ', {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '24px' : '30px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);
@@ -97,7 +98,8 @@ class SkinsScene extends Phaser.Scene {
     const maxTextW = w - (wide ? 190 : 220);
 
     const title = this.add.text(textX, y - (wide ? 18 : 20), `${skin.icon}  ${skin.name}`, {
-      fontFamily: 'Arial Black, Arial',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontStyle: 'bold',
       fontSize: wide ? '14px' : '17px',
       color: '#c8c8e0',
       wordWrap: { width: maxTextW }

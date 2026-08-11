@@ -176,15 +176,64 @@ setupLifecycle();
 const progressInitPromise = initVK();
 window.progressInitPromise = progressInitPromise;
 
-const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+/**
+ * Internal glyph resolution for Phaser.Text.
+ * When FIT scales the canvas down, low-res text looks "размазанным".
+ * resolution:1 on the game + higher text resolution = sharp UI.
+ */
+window.TEXT_RES = Math.min(3, Math.max(2, Math.round(window.devicePixelRatio || 2)));
+
+/** Never scale text with setScale — that blurs glyphs. Truncate instead. */
+window.fitTextWidth = function (textObj, maxW) {
+  if (!textObj || !maxW || maxW <= 0) return textObj;
+  const raw = textObj.text || '';
+  if (textObj.width <= maxW) return textObj;
+  // Binary shrink by characters (keeps 1:1 pixel glyphs)
+  let lo = 1;
+  let hi = raw.length;
+  let best = '…';
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const candidate = raw.slice(0, mid) + '…';
+    textObj.setText(candidate);
+    if (textObj.width <= maxW) {
+      best = candidate;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  textObj.setText(best);
+  return textObj;
+};
+
+/** Patch Text factory: integer coords + high glyph resolution. */
+(function patchPhaserText() {
+  if (typeof Phaser === 'undefined' || !Phaser.GameObjects || !Phaser.GameObjects.GameObjectFactory) return;
+  const proto = Phaser.GameObjects.GameObjectFactory.prototype;
+  if (proto.__arrowPulseTextPatched) return;
+  const original = proto.text;
+  proto.text = function (x, y, content, style) {
+    const t = original.call(this, Math.round(x), Math.round(y), content, style);
+    try {
+      if (typeof t.setResolution === 'function') {
+        t.setResolution(window.TEXT_RES || 2);
+      }
+    } catch (e) {}
+    return t;
+  };
+  proto.__arrowPulseTextPatched = true;
+})();
 
 const config = {
-  type: Phaser.AUTO,
+  // CANVAS often renders UI text sharper than WebGL when FIT-scaled in WebViews
+  type: Phaser.CANVAS,
   parent: 'game-container',
   width: window.GAME_W,
   height: window.GAME_H,
   backgroundColor: '#0b0b14',
-  resolution: dpr,
+  // Keep game buffer 1:1; crispness comes from Text.setResolution, not game.resolution
+  resolution: 1,
   render: {
     antialias: true,
     roundPixels: true,
@@ -233,7 +282,11 @@ window.game = game;
 
 if (game.canvas) {
   game.canvas.style.cursor = 'default';
-  // Center + snap after first layout
+  // Prefer crisp downscale of the whole canvas
+  try {
+    game.canvas.style.imageRendering = 'auto';
+  } catch (e) {}
+
   game.events.once('ready', () => {
     snapCanvasPixels(game);
     if (game.scale) game.scale.refresh();
