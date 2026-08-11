@@ -9,14 +9,20 @@ class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    // Title zone — crisp text, no shadow/blur (moderation: «избыточное размытие»)
-    const titleY = wide ? 40 : Math.max(48, Math.round(height * 0.06));
+    const glow = this.add.graphics();
+    glow.fillStyle(0x00e8c8, 0.045);
+    glow.fillCircle(width / 2, height * (wide ? 0.16 : 0.12), wide ? 100 : 120);
+
+    // Title zone — fixed top band so nothing overlaps
+    const titleY = wide ? 36 : Math.max(40, height * 0.07);
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
-      fontSize: wide ? '32px' : '28px',
+      fontFamily: 'Arial Black, Arial',
+      fontSize: wide ? '34px' : '30px',
       color: '#00e8c8',
-      align: 'center'
+      align: 'center',
+      stroke: '#0b0b14',
+      strokeThickness: 4,
+      shadow: { offsetX: 0, offsetY: 0, color: '#00e8c8', blur: 14, fill: true }
     }).setOrigin(0.5);
 
     let greeting = 'Головоломка со стрелками';
@@ -79,20 +85,18 @@ class MenuScene extends Phaser.Scene {
       { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
     );
 
-    const zoneTop = greetY + (wide ? 32 : 40);
-    const zoneBottom = footerY - footerH / 2 - 12;
-    const bh = wide ? 40 : 46;
+    const zoneTop = greetY + (wide ? 28 : 36);
+    const zoneBottom = footerY - footerH / 2 - 10;
+    const bh = wide ? 42 : 48;
     const n = buttons.length;
-    const progressLine = hasProgress ? (wide ? 24 : 28) : 0;
+    const progressLine = hasProgress ? (wide ? 22 : 26) : 0;
     const freeH = Math.max(0, zoneBottom - zoneTop - progressLine);
-    // Fixed min gap so buttons never overlap each other or labels
-    const minStep = bh + (wide ? 8 : 10);
-    const step = Math.max(minStep, Math.min(wide ? 54 : 60, freeH / n));
+    const step = Math.min(wide ? 52 : 58, freeH / n);
     const totalH = step * (n - 1);
-    let y = zoneTop + progressLine + Math.max(0, (freeH - totalH) / 2);
+    let y = zoneTop + progressLine + (freeH - totalH) / 2;
 
     if (hasProgress) {
-      this.add.text(width / 2, zoneTop + 2, `Прогресс: уровень ${maxLevel + 1}`, {
+      this.add.text(width / 2, zoneTop + 4, `Прогресс: уровень ${maxLevel + 1}`, {
         fontFamily: 'Arial',
         fontSize: '13px',
         color: '#6a6a82'
@@ -100,29 +104,29 @@ class MenuScene extends Phaser.Scene {
     }
 
     buttons.forEach((b) => {
-      this.createButton(width / 2, Math.round(y), b.label, b.color, b.cb, b.secondary, wide, bh);
+      this.createButton(width / 2, y, b.label, b.color, b.cb, b.secondary, wide, bh);
       y += step;
     });
+
+    this.createDecorArrows(width, height);
   }
 
   createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
     const btn = this.add.container(x, y);
-    // Wider so «ПРОДОЛЖИТЬ» fits without aggressive shrink
-    const bw = wide ? 320 : 300;
+    const bw = wide ? 300 : 280;
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
 
     const text = this.add.text(0, 0, label, {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black',
       fontSize: secondary ? (wide ? '15px' : '16px') : (wide ? '18px' : '20px'),
       color: color === 0x00e8c8 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
 
-    // Full label: scale down only if needed (no "…")
-    const maxTextW = bw - 36;
+    // Guard: shrink label if wider than button
+    const maxTextW = bw - 28;
     if (text.width > maxTextW) {
       text.setScale(maxTextW / text.width);
     }
@@ -144,4 +148,44 @@ class MenuScene extends Phaser.Scene {
     return btn;
   }
 
+  createDecorArrows(width, height) {
+    const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0, 0xf72585];
+    for (let i = 0; i < 5; i++) {
+      const x = Phaser.Math.Between(40, Math.max(80, width - 40));
+      const y = Phaser.Math.Between(40, Math.max(80, height - 40));
+      const color = Phaser.Utils.Array.GetRandom(colors);
+      const arrow = this.add.graphics();
+      this.drawMiniArrow(arrow, Phaser.Math.Between(0, 3), color);
+      arrow.setPosition(x, y);
+      arrow.setAlpha(0.08);
+      arrow.setDepth(-1);
+
+      this.tweens.add({
+        targets: arrow,
+        y: y + Phaser.Math.Between(-25, 25),
+        duration: Phaser.Math.Between(2800, 4800),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
+  }
+
+  drawMiniArrow(g, dir, color) {
+    g.fillStyle(color, 1);
+    const s = 14;
+    if (dir === 0) {
+      g.fillTriangle(0, -s, -s * 0.55, s * 0.25, s * 0.55, s * 0.25);
+      g.fillRect(-3, 0, 6, s * 0.6);
+    } else if (dir === 1) {
+      g.fillTriangle(s, 0, -s * 0.25, -s * 0.55, -s * 0.25, s * 0.55);
+      g.fillRect(-s * 0.6, -3, s * 0.6, 6);
+    } else if (dir === 2) {
+      g.fillTriangle(0, s, -s * 0.55, -s * 0.25, s * 0.55, -s * 0.25);
+      g.fillRect(-3, -s * 0.6, 6, s * 0.6);
+    } else {
+      g.fillTriangle(-s, 0, s * 0.25, -s * 0.55, s * 0.25, s * 0.55);
+      g.fillRect(0, -3, s * 0.6, 6);
+    }
+  }
 }

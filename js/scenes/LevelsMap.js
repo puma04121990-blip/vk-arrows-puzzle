@@ -19,8 +19,7 @@ class LevelsMapScene extends Phaser.Scene {
     headerBg.setDepth(50);
 
     this.add.text(width / 2, wide ? 22 : 32, 'УРОВНИ', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '26px' : '30px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);
@@ -65,8 +64,7 @@ class LevelsMapScene extends Phaser.Scene {
       else if (stage.needStars > 0) title += `  ·  ★${stage.needStars}+`;
 
       const header = this.add.text(width / 2, y, title, {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+        fontFamily: 'Arial Black, Arial',
         fontSize: wide ? '16px' : '17px',
         color: titleColor,
         wordWrap: { width: width - 40 },
@@ -105,12 +103,6 @@ class LevelsMapScene extends Phaser.Scene {
       y += (rows - 1) * cellH + btnHalfH + 32;
     });
 
-    // Clip content so it never overlaps fixed header/footer
-    const maskG = this.make.graphics({ x: 0, y: 0, add: false });
-    maskG.fillStyle(0xffffff);
-    maskG.fillRect(0, headerH, width, height - headerH - footerH);
-    this.mapContainer.setMask(maskG.createGeometryMask());
-
     this.setupScroll(y + 24, height, headerH, footerH);
   }
 
@@ -121,26 +113,25 @@ class LevelsMapScene extends Phaser.Scene {
 
     if (!stageUnlocked || !progressed) {
       g.fillStyle(0x1a1a28, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
-      g.lineStyle(1, 0x2a2a40, 1);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.lineStyle(2, 0x2a2a40, 1);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
     } else if (stars > 0) {
       g.fillStyle(0x14352f, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
-      g.lineStyle(1, 0x00e8c8, 1);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.lineStyle(2, 0x00e8c8, 0.85);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
     } else {
       g.fillStyle(0x1e1e32, 1);
-      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
-      g.lineStyle(1, 0x3a3a58, 1);
-      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 10);
+      g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
+      g.lineStyle(2, 0x3a3a58, 1);
+      g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, 12);
     }
 
     this.mapContainer.add(g);
 
     const num = this.add.text(x, y - 10, String(index + 1), {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black, Arial',
       fontSize: '22px',
       color: playable ? '#e8e8ff' : '#4a4a60'
     }).setOrigin(0.5);

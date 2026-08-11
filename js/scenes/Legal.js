@@ -15,8 +15,7 @@ class LegalScene extends Phaser.Scene {
     };
 
     this.add.text(width / 2, wide ? 36 : 48, 'ПРАВОВАЯ ИНФОРМАЦИЯ', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '20px' : '24px',
       color: '#00e8c8'
     }).setOrigin(0.5);
@@ -46,17 +45,14 @@ class LegalScene extends Phaser.Scene {
 
     items.forEach((item) => {
       const bg = this.add.rectangle(width / 2, y, cardW, cardH, 0x161622)
-        .setStrokeStyle(1, 0x2a2a40)
+        .setStrokeStyle(2, 0x2a2a40)
         .setInteractive({ useHandCursor: true });
 
-      const titleT = this.add.text(width / 2 - cardW / 2 + 18, y - 12, item.title, {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
-        fontSize: wide ? '14px' : '15px',
+      this.add.text(width / 2 - cardW / 2 + 18, y - 12, item.title, {
+        fontFamily: 'Arial Black, Arial',
+        fontSize: wide ? '15px' : '16px',
         color: '#e0e0f0'
       }).setOrigin(0, 0.5);
-      const maxTW = cardW - 56;
-      if (titleT.width > maxTW) titleT.setScale(maxTW / titleT.width);
 
       this.add.text(width / 2 - cardW / 2 + 18, y + 14, item.desc, {
         fontFamily: 'Arial',
@@ -64,7 +60,7 @@ class LegalScene extends Phaser.Scene {
         color: '#6a6a82'
       }).setOrigin(0, 0.5);
 
-      this.add.text(width / 2 + cardW / 2 - 18, y, '→', {
+      this.add.text(width / 2 + cardW / 2 - 18, y, '↗', {
         fontSize: '18px',
         color: '#00e8c8'
       }).setOrigin(0.5);

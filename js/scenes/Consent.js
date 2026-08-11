@@ -15,9 +15,8 @@ class ConsentScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     this.add.text(width / 2, wide ? 40 : 56, 'ПУЛЬС СТРЕЛОК', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
-      fontSize: wide ? '26px' : '28px',
+      fontFamily: 'Arial Black, Arial',
+      fontSize: wide ? '28px' : '30px',
       color: '#00e8c8'
     }).setOrigin(0.5);
 
@@ -69,8 +68,7 @@ class ConsentScene extends Phaser.Scene {
     const acceptBg = this.add.rectangle(width / 2, y, acceptW, acceptH, 0x00e8c8)
       .setInteractive({ useHandCursor: true });
     this.add.text(width / 2, y, 'ПРИНИМАЮ', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black',
       fontSize: wide ? '18px' : '20px',
       color: '#0b0b14'
     }).setOrigin(0.5);
@@ -82,18 +80,16 @@ class ConsentScene extends Phaser.Scene {
 
   makeDocButton(x, y, w, h, label, cb, wide) {
     const bg = this.add.rectangle(x, y, w, h, 0x161622)
-      .setStrokeStyle(1, 0x2a2a40)
+      .setStrokeStyle(2, 0x2a2a40)
       .setInteractive({ useHandCursor: true });
 
-    const labelMax = w - 48;
-    const t = this.add.text(x - w / 2 + 16, y, label, {
+    this.add.text(x - w / 2 + 16, y, label, {
       fontFamily: 'Arial',
-      fontSize: wide ? '14px' : '15px',
+      fontSize: wide ? '15px' : '16px',
       color: '#e0e0f0'
     }).setOrigin(0, 0.5);
-    if (t.width > labelMax) t.setScale(labelMax / t.width);
 
-    this.add.text(x + w / 2 - 16, y, '→', {
+    this.add.text(x + w / 2 - 16, y, '↗', {
       fontSize: '16px',
       color: '#00e8c8'
     }).setOrigin(0.5);

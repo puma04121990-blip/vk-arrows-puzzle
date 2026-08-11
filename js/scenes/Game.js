@@ -50,14 +50,13 @@ class GameScene extends Phaser.Scene {
     const statsY = wide ? 48 : 98;
 
     const panel = this.add.graphics();
-    panel.fillStyle(0x12121e, 1);
-    panel.fillRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 16);
-    panel.lineStyle(1, 0x2e2e48, 1);
-    panel.strokeRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 16);
+    panel.fillStyle(0x12121e, 0.95);
+    panel.fillRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
+    panel.lineStyle(2, 0x2e2e48, 0.7);
+    panel.strokeRoundedRect(16, topPad, width - 32, height - topPad - bottomPad, 20);
 
     this.add.text(width / 2, headerY, `УРОВЕНЬ ${this.levelIndex + 1}`, {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '20px' : '26px',
       color: '#00e8c8'
     }).setOrigin(0.5);
@@ -79,8 +78,7 @@ class GameScene extends Phaser.Scene {
     this.timeLeft = this.timeLimit;
 
     this.timerText = this.add.text(wide ? width - 24 : width * 0.72, statsY, this.formatTime(this.timeLeft), {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '16px' : '19px',
       color: '#00e8c8'
     }).setOrigin(wide ? 1 : 0.5, 0.5);
@@ -168,8 +166,7 @@ class GameScene extends Phaser.Scene {
     box.setDepth(101);
 
     this.add.text(width / 2, height / 2 - 75, titleText, {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black',
       fontSize: titleText.length > 14 ? '22px' : '26px',
       color: '#ff6b6b',
       align: 'center',
@@ -183,8 +180,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(102);
 
     const again = this.add.text(width / 2, height / 2 + 45, '↺ ЗАНОВО', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontStyle: 'bold',
+      fontFamily: 'Arial Black',
       fontSize: '22px',
       color: '#0b0b14',
       backgroundColor: '#00e8c8',
