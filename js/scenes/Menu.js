@@ -92,9 +92,9 @@ class MenuScene extends Phaser.Scene {
     const hints = window.getHints ? window.getHints() : 0;
     const dailyBest = window.getDailyBest ? window.getDailyBest() : null;
     const dailyInfo = dailyBest && dailyBest.bestStars
-      ? ('Daily ' + dailyBest.bestStars + '★')
-      : 'Daily —';
-    this.add.text(width / 2, infoY, 'Серия ' + streak + ' дн.  ·  ' + dailyInfo + '  ·  💡' + hints, {
+      ? ('Ежедн. ' + dailyBest.bestStars + '★')
+      : 'Ежедн. —';
+    this.add.text(width / 2, infoY, 'Серия ' + streak + ' дн.  ·  ' + dailyInfo + '  ·  Подсказки: ' + hints, {
       fontFamily: 'Arial',
       fontSize: '12px',
       color: '#6a6a82',

@@ -224,7 +224,7 @@ window.getNextGoalText = function () {
   const today = window.getTodayKey();
 
   if (window.canClaimDailyReward()) {
-    return 'Цель: забери награду дня (серия ' + (p.loginStreak || 1) + ')';
+    return 'Цель: забери награду дня (серия ' + (p.loginStreak || 1) + ' дн.)';
   }
 
   const daily = window.getDailyBest();
@@ -237,15 +237,16 @@ window.getNextGoalText = function () {
   const total = (typeof LEVELS !== 'undefined' && LEVELS.length) ? LEVELS.length : 50;
   if (maxLevel < total) {
     const next = Math.min(maxLevel, total - 1) + 1;
-    return 'Цель: пройти уровень ' + next + ' · ★' + (window.getTotalStars ? window.getTotalStars() : 0);
+    const starsNow = window.getTotalStars ? window.getTotalStars() : 0;
+    return 'Цель: пройти уровень ' + next + ' · звёзд: ' + starsNow;
   }
 
   const stars = window.getTotalStars ? window.getTotalStars() : 0;
   if (stars < total * 3) {
-    return 'Цель: собери все ★ (' + stars + '/' + (total * 3) + ')';
+    return 'Цель: собери все звёзды (' + stars + '/' + (total * 3) + ')';
   }
 
-  return 'Цель: улучшай рекорд daily · серия ' + (p.loginStreak || 0) + ' дн.';
+  return 'Цель: улучшай рекорд дня · серия ' + (p.loginStreak || 0) + ' дн.';
 };
 
 /** Apply double-stars buff if set (campaign only). Returns final stars. */
