@@ -73,7 +73,6 @@ class GameScene extends Phaser.Scene {
       line.lineBetween(width / 2 - 50, 64, width / 2 + 50, 64);
     }
 
-    // Stats as HUD chips
     this.timeLimit = this.calcTimeLimit();
     this.timeLeft = this.timeLimit;
 
@@ -125,7 +124,6 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(0, 0.5);
     }
 
-    // Grid + centered panel
     const size = this.levelData.size;
     const sideMargin = wide ? 48 : 40;
     const maxGridW = width - sideMargin * 2;
@@ -142,14 +140,12 @@ class GameScene extends Phaser.Scene {
     const panelY = Math.round(topPad + (freeH - panelH) / 2);
 
     const panel = this.add.graphics();
-    // Panel body + soft outer glow
     panel.fillStyle(0x00e8c8, 0.06);
     panel.fillRoundedRect(panelX - 6, panelY - 6, panelW + 12, panelH + 12, 20);
     panel.fillStyle(0x141422, 1);
     panel.fillRoundedRect(panelX, panelY, panelW, panelH, 16);
     panel.lineStyle(2, 0x3a3a58, 1);
     panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 16);
-    // Inner rim
     panel.lineStyle(1, 0x00e8c8, 0.12);
     panel.strokeRoundedRect(panelX + 4, panelY + 4, panelW - 8, panelH - 8, 12);
 
@@ -275,11 +271,9 @@ class GameScene extends Phaser.Scene {
         if (this.wallSet.has(x + ',' + y)) continue;
         const px = this.offsetX + x * cell;
         const py = this.offsetY + y * cell;
-        // Soft cell plate
         const odd = (x + y) % 2 === 0;
         g.fillStyle(odd ? 0x1a1a2c : 0x161624, 0.95);
         g.fillRoundedRect(px + 2, py + 2, cell - 4, cell - 4, 6);
-        // Center marker
         const cx = px + cell / 2;
         const cy = py + cell / 2;
         g.fillStyle(0x3a3a55, 0.9);
@@ -399,102 +393,11 @@ class GameScene extends Phaser.Scene {
       zone.on('pointerdown', () => {
         if (data.removed || this.completed || this.failed) return;
         this.unlockAudio();
-        this.tweens.add({ targets: g, scaleX: 0.88, scaleY: 0.88, duration: 30, yoyo: true });
         this.handleArrowTap(data);
       });
 
-      this.applySkinAnim(data, i);
       this.arrows.push(data);
     });
-  }
-
-  applySkinAnim(data, index) {
-    const g = data.graphics;
-    const skin = this.skinId || 'neon';
-    const delay = (index % 7) * 70;
-
-    if (skin === 'block') {
-      this.tweens.add({
-        targets: g,
-        scaleX: 1.06,
-        scaleY: 0.96,
-        duration: 700,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    } else if (skin === 'triangle') {
-      this.tweens.add({
-        targets: g,
-        angle: { from: -4, to: 4 },
-        duration: 900,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    } else if (skin === 'chevron') {
-      const baseX = g.x;
-      const baseY = g.y;
-      let ox = 0, oy = 0;
-      if (data.dir === 0) oy = -3;
-      else if (data.dir === 1) ox = 3;
-      else if (data.dir === 2) oy = 3;
-      else ox = -3;
-      this.tweens.add({
-        targets: g,
-        x: baseX + ox,
-        y: baseY + oy,
-        duration: 550,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    } else if (skin === 'thin') {
-      this.tweens.add({
-        targets: g,
-        scaleX: 1.04,
-        scaleY: 0.97,
-        duration: 320,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    } else if (skin === 'feather') {
-      this.tweens.add({
-        targets: g,
-        angle: { from: -5, to: 5 },
-        duration: 1100,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-      this.tweens.add({
-        targets: g,
-        y: g.y - 2,
-        duration: 1100,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    } else {
-      this.tweens.add({
-        targets: g,
-        alpha: { from: 0.78, to: 1 },
-        scaleX: 1.05,
-        scaleY: 1.05,
-        duration: 800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: delay
-      });
-    }
   }
 
   drawArrow(g, dir, color) {
@@ -558,23 +461,22 @@ class GameScene extends Phaser.Scene {
       try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
       data.graphics.setScale(1);
       data.graphics.setAlpha(1);
+      data.graphics.angle = 0;
       this.drawArrow(data.graphics, data.dir, data.color);
+      // Quick 90° spin feedback — single tween, no re-apply idle anim
+      data.graphics.angle = -90;
       this.tweens.add({
         targets: data.graphics,
-        angle: data.graphics.angle + 90,
-        duration: 120,
-        onComplete: () => {
-          data.graphics.angle = 0;
-          this.drawArrow(data.graphics, data.dir, data.color);
-          this.applySkinAnim(data, 0);
-        }
+        angle: 0,
+        duration: 100,
+        ease: 'Cubic.easeOut'
       });
       if (data.rotBadge) {
         this.tweens.add({
           targets: data.rotBadge,
           alpha: 0.35,
           scale: 0.85,
-          duration: 120
+          duration: 100
         });
       }
       this.playTone(400, 0.05, 'sine', 0.08);
@@ -615,6 +517,10 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Lightweight exit animation: one tween + 2 trail dots.
+   * No nested yoyo chains, no per-skin multi-step sequences.
+   */
   flyAway(data) {
     if (data.removed) return;
 
@@ -623,38 +529,73 @@ class GameScene extends Phaser.Scene {
     this.moves++;
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
-    data.graphics.setScale(1);
-    data.graphics.setAlpha(1);
-    data.graphics.angle = 0;
+
+    const g = data.graphics;
+    g.setScale(1);
+    g.setAlpha(1);
+    g.angle = 0;
 
     if (data.keyId != null) {
-      this.arrows.forEach(a => {
+      for (let i = 0; i < this.arrows.length; i++) {
+        const a = this.arrows[i];
         if (!a.removed && a.lockId === data.keyId && a.badge) {
           this.tweens.add({
             targets: a.badge,
             alpha: 0,
-            scale: 1.5,
-            duration: 200,
+            scale: 1.4,
+            duration: 160,
             onComplete: () => {
               try { a.badge.destroy(); } catch (e) {}
               a.badge = null;
             }
           });
         }
-      });
+      }
     }
 
-    let dx = 0, dy = 0;
+    let dx = 0;
+    let dy = 0;
     if (data.dir === 0) dy = -1;
     else if (data.dir === 1) dx = 1;
     else if (data.dir === 2) dy = 1;
     else dx = -1;
 
-    const g = data.graphics;
     const gx = g.x;
     const gy = g.y;
+    const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
     const skin = this.skinId || 'neon';
-    const dist = Math.max(this.scale.width, this.scale.height) * 1.2;
+
+    // Light trail: only 2 dots
+    for (let i = 0; i < 2; i++) {
+      const dot = this.add.circle(
+        gx - dx * (i + 1) * 8,
+        gy - dy * (i + 1) * 8,
+        3 - i,
+        data.color,
+        0.7
+      );
+      dot.setDepth(20);
+      this.tweens.add({
+        targets: dot,
+        x: dot.x + dx * 60,
+        y: dot.y + dy * 60,
+        alpha: 0,
+        scale: 0,
+        duration: 180,
+        ease: 'Quad.easeOut',
+        onComplete: () => { try { dot.destroy(); } catch (e) {} }
+      });
+    }
+
+    // Per-skin angle/scale flavor, still ONE tween
+    let endAngle = 0;
+    let endScale = 0.2;
+    if (skin === 'triangle') endAngle = 270;
+    else if (skin === 'block') endScale = 0.35;
+    else if (skin === 'chevron') endScale = 0.25;
+    else if (skin === 'thin') endScale = 0.15;
+    else if (skin === 'feather') endAngle = dx !== 0 ? dx * 18 : (dy < 0 ? -12 : 12);
+    else endAngle = dx !== 0 ? dx * 10 : 0;
 
     const finish = () => {
       try {
@@ -668,172 +609,47 @@ class GameScene extends Phaser.Scene {
         if (this.timerEvent) {
           try { this.timerEvent.remove(false); } catch (e) {}
         }
-        this.time.delayedCall(80, () => this.levelComplete());
+        this.time.delayedCall(60, () => this.levelComplete());
       }
     };
 
-    this.spawnExitTrail(gx, gy, dx, dy, data.color, skin);
+    this.tweens.add({
+      targets: g,
+      x: gx + dx * dist,
+      y: gy + dy * dist,
+      alpha: 0,
+      scale: endScale,
+      angle: endAngle,
+      duration: 240,
+      ease: 'Cubic.easeIn',
+      onComplete: finish
+    });
 
-    if (skin === 'block') {
+    if (data.badge) {
       this.tweens.add({
-        targets: g,
-        scaleX: 1.35,
-        scaleY: 0.55,
-        duration: 70,
-        yoyo: true,
-        onComplete: () => {
-          this.tweens.add({
-            targets: g,
-            x: gx + dx * dist,
-            y: gy + dy * dist,
-            angle: dx !== 0 ? 0 : (dy < 0 ? -20 : 20),
-            alpha: 0,
-            scale: 0.3,
-            duration: 280,
-            ease: 'Back.easeIn',
-            onComplete: finish
-          });
-        }
-      });
-    } else if (skin === 'triangle') {
-      this.tweens.add({
-        targets: g,
-        x: gx + dx * dist,
-        y: gy + dy * dist,
-        angle: 360,
+        targets: data.badge,
+        x: data.badge.x + dx * dist,
+        y: data.badge.y + dy * dist,
         alpha: 0,
         scale: 0.2,
-        duration: 320,
-        ease: 'Cubic.easeIn',
-        onComplete: finish
-      });
-    } else if (skin === 'chevron') {
-      this.tweens.add({
-        targets: g,
-        x: gx + dx * 40,
-        y: gy + dy * 40,
-        scale: 1.15,
-        duration: 60,
-        onComplete: () => {
-          this.tweens.add({
-            targets: g,
-            x: gx + dx * dist,
-            y: gy + dy * dist,
-            alpha: 0,
-            scaleX: 1.6,
-            scaleY: 0.4,
-            duration: 240,
-            ease: 'Expo.easeIn',
-            onComplete: finish
-          });
-        }
-      });
-    } else if (skin === 'thin') {
-      this.tweens.add({
-        targets: g,
-        scaleX: dx !== 0 ? 1.8 : 0.5,
-        scaleY: dy !== 0 ? 1.8 : 0.5,
-        duration: 80,
-        onComplete: () => {
-          this.tweens.add({
-            targets: g,
-            x: gx + dx * dist,
-            y: gy + dy * dist,
-            alpha: 0,
-            scale: 0.15,
-            duration: 220,
-            ease: 'Quad.easeIn',
-            onComplete: finish
-          });
-        }
-      });
-    } else if (skin === 'feather') {
-      this.tweens.add({
-        targets: g,
-        x: gx + dx * dist * 0.35 + (dy !== 0 ? 30 : 0),
-        y: gy + dy * dist * 0.35 + (dx !== 0 ? -20 : 0),
-        angle: 25,
-        duration: 140,
-        ease: 'Sine.easeOut',
-        onComplete: () => {
-          this.tweens.add({
-            targets: g,
-            x: gx + dx * dist,
-            y: gy + dy * dist,
-            angle: -15,
-            alpha: 0,
-            scale: 0.35,
-            duration: 260,
-            ease: 'Cubic.easeIn',
-            onComplete: finish
-          });
-        }
-      });
-    } else {
-      this.tweens.add({
-        targets: g,
-        scale: 1.25,
-        alpha: 1,
-        duration: 50,
-        yoyo: true,
-        onComplete: () => {
-          this.tweens.add({
-            targets: g,
-            x: gx + dx * dist,
-            y: gy + dy * dist,
-            alpha: 0,
-            scale: 0.25,
-            angle: dx !== 0 ? (dx * 12) : 0,
-            duration: 300,
-            ease: 'Cubic.easeIn',
-            onComplete: finish
-          });
-        }
+        duration: 220
       });
     }
-
-    const flyBadge = (obj) => {
-      if (!obj) return;
+    if (data.rotBadge) {
       this.tweens.add({
-        targets: obj,
-        x: obj.x + dx * dist,
-        y: obj.y + dy * dist,
+        targets: data.rotBadge,
+        x: data.rotBadge.x + dx * dist,
+        y: data.rotBadge.y + dy * dist,
         alpha: 0,
-        scale: 0.3,
-        duration: 280
-      });
-    };
-    flyBadge(data.badge);
-    flyBadge(data.rotBadge);
-  }
-
-  spawnExitTrail(x, y, dx, dy, color, skin) {
-    const n = skin === 'neon' ? 8 : (skin === 'feather' ? 6 : 5);
-    for (let i = 0; i < n; i++) {
-      const dot = this.add.circle(
-        x - dx * i * 6 + Phaser.Math.Between(-4, 4),
-        y - dy * i * 6 + Phaser.Math.Between(-4, 4),
-        Phaser.Math.Between(2, 5),
-        color,
-        0.85
-      );
-      dot.setDepth(20);
-      this.tweens.add({
-        targets: dot,
-        x: dot.x + dx * Phaser.Math.Between(40, 120),
-        y: dot.y + dy * Phaser.Math.Between(40, 120),
-        alpha: 0,
-        scale: 0,
-        duration: 200 + i * 30,
-        ease: 'Quad.easeOut',
-        onComplete: () => { try { dot.destroy(); } catch (e) {} }
+        scale: 0.2,
+        duration: 220
       });
     }
   }
 
   failFeedback(data) {
     const g = data.graphics;
-    this.tweens.add({ targets: g, x: g.x + 5, duration: 22, yoyo: true, repeat: 3 });
+    this.tweens.add({ targets: g, x: g.x + 5, duration: 22, yoyo: true, repeat: 2 });
     this.drawArrow(g, data.dir, 0xff4444);
     this.time.delayedCall(100, () => {
       if (!data.removed) this.drawArrow(g, data.dir, data.color);
