@@ -139,7 +139,6 @@ window.buyWithVotes = function (itemId) {
     return Promise.resolve({ ok: false, reason: 'item_not_found' });
   }
 
-  // Уже куплено «навсегда»
   if (itemId === 'remove_ads' && window.hasNoAds()) {
     return Promise.resolve({ ok: false, reason: 'already_owned' });
   }
@@ -155,7 +154,6 @@ window.buyWithVotes = function (itemId) {
 
   const isVK = typeof vkBridge !== 'undefined' && typeof vkBridge.send === 'function' && window.isVK;
 
-  // Вне VK — тестовая выдача (для локальной проверки)
   if (!isVK) {
     window.grantShopItem(itemId);
     return Promise.resolve({ ok: true, reason: 'test_mode' });
@@ -187,4 +185,27 @@ window.formatVotesPrice = function (n) {
   if (v === 1) return '1 голос';
   if (v >= 2 && v <= 4) return v + ' голоса';
   return v + ' голосов';
+};
+
+/** Списать одну подсказку. true если списана. */
+window.spendHint = function () {
+  if (!window.gameProgress) window.gameProgress = {};
+  const n = window.gameProgress.hints || 0;
+  if (n <= 0) return false;
+  window.gameProgress.hints = n - 1;
+  if (window.persistProgress) {
+    try { window.persistProgress(); } catch (e) {}
+  }
+  return true;
+};
+
+/** Добавить подсказки (магазин / награда). */
+window.addHints = function (count) {
+  if (!window.gameProgress) window.gameProgress = {};
+  const n = Math.max(0, count | 0);
+  window.gameProgress.hints = (window.gameProgress.hints || 0) + n;
+  if (window.persistProgress) {
+    try { window.persistProgress(); } catch (e) {}
+  }
+  return window.gameProgress.hints;
 };
