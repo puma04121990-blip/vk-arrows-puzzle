@@ -28,13 +28,13 @@ window.drawAppBackground = function (scene, width, height, opts) {
   edge.fillRect(0, 0, width, Math.max(24, height * 0.04));
   edge.fillRect(0, height - Math.max(24, height * 0.05), width, Math.max(24, height * 0.05));
 
-  // Dot grid texture
+  // Dot grid texture (sparse for mobile)
   const dots = scene.add.graphics().setDepth(-17);
   dots.fillStyle(0xffffff, 0.03);
-  const step = opts.dotStep || 28;
+  const step = opts.dotStep || 40;
   for (let y = step; y < height; y += step) {
     for (let x = step; x < width; x += step) {
-      dots.fillCircle(x, y, 1.2);
+      dots.fillCircle(x, y, 1.1);
     }
   }
 
