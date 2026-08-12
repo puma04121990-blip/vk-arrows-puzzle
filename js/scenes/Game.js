@@ -456,10 +456,16 @@ class GameScene extends Phaser.Scene {
       data.rotated = true;
       data.dir = (data.dir + 1) % 4;
       try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
-      data.graphics.setScale(1);
       data.graphics.setAlpha(1);
       data.graphics.angle = 0;
       this.drawArrow(data.graphics, data.dir, data.color);
+      data.graphics.setScale(1.15);
+      this.tweens.add({
+        targets: data.graphics,
+        scale: 1,
+        duration: 90,
+        ease: 'Quad.easeOut'
+      });
       if (data.rotBadge) {
         data.rotBadge.setAlpha(0.35);
         data.rotBadge.setScale(0.85);
@@ -503,7 +509,7 @@ class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Instant remove — no flight tween, no particles (smooth on mobile).
+   * Light exit: one short tween (~160ms), short distance, no particles, no badge tweens.
    */
   flyAway(data) {
     if (data.removed) return;
@@ -514,6 +520,7 @@ class GameScene extends Phaser.Scene {
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
 
+    // Unlock locks + drop badges immediately (no extra tweens)
     if (data.keyId != null) {
       for (let i = 0; i < this.arrows.length; i++) {
         const a = this.arrows[i];
@@ -523,21 +530,48 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
-
     try {
-      data.graphics.destroy();
       data.zone.destroy();
-      if (data.badge) data.badge.destroy();
-      if (data.rotBadge) data.rotBadge.destroy();
+      if (data.badge) { data.badge.destroy(); data.badge = null; }
+      if (data.rotBadge) { data.rotBadge.destroy(); data.rotBadge = null; }
     } catch (e) {}
 
-    if (this.remaining <= 0 && !this.completed && !this.failed) {
-      this.completed = true;
-      if (this.timerEvent) {
-        try { this.timerEvent.remove(false); } catch (e) {}
+    const g = data.graphics;
+    g.setScale(1);
+    g.setAlpha(1);
+    g.angle = 0;
+
+    let dx = 0;
+    let dy = 0;
+    if (data.dir === 0) dy = -1;
+    else if (data.dir === 1) dx = 1;
+    else if (data.dir === 2) dy = 1;
+    else dx = -1;
+
+    // Short hop (2.2 cells) — cheaper than full-screen flight
+    const dist = this.cellSize * 2.2;
+
+    const finish = () => {
+      try { g.destroy(); } catch (e) {}
+      if (this.remaining <= 0 && !this.completed && !this.failed) {
+        this.completed = true;
+        if (this.timerEvent) {
+          try { this.timerEvent.remove(false); } catch (e) {}
+        }
+        this.time.delayedCall(30, () => this.levelComplete());
       }
-      this.time.delayedCall(40, () => this.levelComplete());
-    }
+    };
+
+    this.tweens.add({
+      targets: g,
+      x: g.x + dx * dist,
+      y: g.y + dy * dist,
+      alpha: 0,
+      scale: 0.5,
+      duration: 160,
+      ease: 'Cubic.easeIn',
+      onComplete: finish
+    });
   }
 
   failFeedback(data) {
