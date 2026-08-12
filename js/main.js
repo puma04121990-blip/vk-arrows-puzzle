@@ -75,60 +75,20 @@ function initVK() {
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
     .then((user) => { if (user) window.vkUser = user; })
     .then(() => {
-      // Preload ads — never show at launch
-      if (window.preloadVKAds) return window.preloadVKAds().catch(() => {});
+      if (window.preloadVKAds) return window.preloadVKAds().catch(() => null);
     })
-    .catch((err) => console.warn('[ArrowPulse] VK Bridge error:', err))
-    .then(() => load());
+    .catch((err) => {
+      console.warn('[ArrowPulse] VK init error:', err);
+    })
+    .then(load);
 }
 
 function setupLifecycle() {
-  const onHide = () => {
-    if (window.suspendGameAudio) window.suspendGameAudio();
-    else if (window.gameAudioCtx && window.gameAudioCtx.state === 'running') {
-      window.gameAudioCtx.suspend().catch(() => {});
-    }
-    if (window.persistProgress) window.persistProgress();
-  };
-
-  const onShow = () => {
-    // Resume only if sound is enabled
-    if (window.resumeGameAudio) window.resumeGameAudio();
-    else if (window.isSoundOn && window.isSoundOn() &&
-      window.gameAudioCtx && window.gameAudioCtx.state === 'suspended') {
-      window.gameAudioCtx.resume().catch(() => {});
-    }
-    if (window.loadProgress) window.loadProgress().catch(() => {});
-  };
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) onHide();
-    else onShow();
-  });
-
-  window.addEventListener('pagehide', onHide);
-  window.addEventListener('blur', () => {
-    // Extra safety for some WebViews
-    if (document.hidden) onHide();
-  });
-
-  // VK Bridge: mute when mini-app is closed / covered (rule 2.2.5)
-  if (typeof vkBridge !== 'undefined' && typeof vkBridge.subscribe === 'function') {
-    try {
-      vkBridge.subscribe((e) => {
-        const t = e && e.detail && e.detail.type;
-        if (t === 'VKWebAppViewHide') onHide();
-        else if (t === 'VKWebAppViewRestore') onShow();
-      });
-    } catch (err) {
-      console.warn('[ArrowPulse] VK bridge subscribe failed:', err);
-    }
-  }
-
-  document.addEventListener('contextmenu', (e) => e.preventDefault());
-  document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-  }, { passive: false });
+  try {
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+  } catch (e) {}
 }
 
 setupLifecycle();
@@ -164,6 +124,7 @@ const config = {
     LevelsMapScene,
     AchievementsScene,
     SkinsScene,
+    ShopScene,
     HelpScene,
     SupportScene,
     LegalScene,
@@ -192,7 +153,6 @@ function centerCanvas() {
   canvas.style.cursor = 'default';
   canvas.style.display = 'block';
   canvas.style.margin = '0 auto';
-  // Snap CSS size to whole pixels (cleaner center on desktop)
   try {
     const sw = parseFloat(canvas.style.width) || canvas.clientWidth;
     const sh = parseFloat(canvas.style.height) || canvas.clientHeight;

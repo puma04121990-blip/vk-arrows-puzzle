@@ -63,6 +63,8 @@ window.showRewardedAd = function () {
  */
 window.showInterstitialAd = function (force) {
   if (!adsIsVK()) return Promise.resolve(false);
+  // Куплено «Без рекламы»
+  if (window.hasNoAds && window.hasNoAds()) return Promise.resolve(false);
 
   const now = Date.now();
   if (!force) {
