@@ -13,12 +13,10 @@ class MenuScene extends Phaser.Scene {
       this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
     }
 
-    // Refresh login streak on every menu open
     if (window.refreshLoginStreak) {
       try { window.refreshLoginStreak(); } catch (e) {}
     }
 
-    // Sound toggle (top-right)
     if (window.createSoundToggle) {
       window.createSoundToggle(this, width - (wide ? 36 : 40), wide ? 28 : 36, {
         size: wide ? 40 : 44,
@@ -27,7 +25,6 @@ class MenuScene extends Phaser.Scene {
       });
     }
 
-    // Title
     const titleY = wide ? 48 : Math.max(72, Math.round(height * 0.08));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
@@ -49,7 +46,6 @@ class MenuScene extends Phaser.Scene {
       wordWrap: { width: width - 48 }
     }).setOrigin(0.5);
 
-    // Compact logo
     const circleR = wide ? 64 : 72;
     const circleY = greetY + circleR + (wide ? 28 : 34);
     const cx = width / 2;
@@ -74,7 +70,6 @@ class MenuScene extends Phaser.Scene {
       ring.strokeCircle(cx, circleY, circleR - 1);
     }
 
-    // Next goal + streak line
     let infoY = circleY + circleR + (wide ? 12 : 16);
     const goal = window.getNextGoalText ? window.getNextGoalText() : '';
     if (goal) {
@@ -117,13 +112,11 @@ class MenuScene extends Phaser.Scene {
 
     const buttons = [];
 
-    // Claim daily reward first if available
     if (window.canClaimDailyReward && window.canClaimDailyReward()) {
       buttons.push({
         label: '🎁 НАГРАДА ДНЯ',
         color: 0xffd166,
         secondary: false,
-        claim: true,
         cb: () => this.onClaimReward()
       });
     }
@@ -134,12 +127,15 @@ class MenuScene extends Phaser.Scene {
         color: 0x00e8c8,
         secondary: false,
         cb: () => {
-          if (window.startCampaignLevel) {
-            window.startCampaignLevel(Math.min(maxLevel, LEVELS.length - 1));
-          } else {
-            window.gameData.mode = 'campaign';
-            window.gameData.currentLevel = Math.min(maxLevel, LEVELS.length - 1);
-          }
+          try {
+            if (window.startCampaignLevel) {
+              window.startCampaignLevel(Math.min(maxLevel, (LEVELS && LEVELS.length ? LEVELS.length : 50) - 1));
+            } else {
+              window.gameData = window.gameData || {};
+              window.gameData.mode = 'campaign';
+              window.gameData.currentLevel = Math.min(maxLevel, 49);
+            }
+          } catch (e) {}
           this.scene.start('Game');
         }
       });
@@ -149,11 +145,14 @@ class MenuScene extends Phaser.Scene {
         color: 0x00e8c8,
         secondary: false,
         cb: () => {
-          if (window.startCampaignLevel) window.startCampaignLevel(0);
-          else {
-            window.gameData.mode = 'campaign';
-            window.gameData.currentLevel = 0;
-          }
+          try {
+            if (window.startCampaignLevel) window.startCampaignLevel(0);
+            else {
+              window.gameData = window.gameData || {};
+              window.gameData.mode = 'campaign';
+              window.gameData.currentLevel = 0;
+            }
+          } catch (e) {}
           this.scene.start('Game');
         }
       });
@@ -163,10 +162,7 @@ class MenuScene extends Phaser.Scene {
       label: 'ЕЖЕДНЕВНЫЙ',
       color: 0x2a4a5a,
       secondary: true,
-      cb: () => {
-        if (window.startDailyPuzzle) window.startDailyPuzzle();
-        this.scene.start('Game');
-      }
+      cb: () => this.onDaily()
     });
 
     buttons.push(
@@ -188,14 +184,13 @@ class MenuScene extends Phaser.Scene {
     let y = zoneTop + Math.max(0, (freeH - totalH) / 2);
 
     buttons.forEach((b) => {
-      const isPrimary = !b.secondary;
       this.createButton(
         width / 2,
         Math.round(y),
         b.label,
         b.color,
         b.cb,
-        !isPrimary,
+        !!b.secondary,
         wide,
         bh
       );
@@ -203,10 +198,42 @@ class MenuScene extends Phaser.Scene {
     });
   }
 
+  onDaily() {
+    if (this._busy) return;
+    this._busy = true;
+    try {
+      if (window.startDailyPuzzle) window.startDailyPuzzle();
+      else {
+        window.gameData = window.gameData || {};
+        window.gameData.mode = 'campaign';
+        window.gameData.currentLevel = 0;
+      }
+    } catch (e) {
+      console.warn('[ArrowPulse] daily start failed:', e);
+      window.gameData = window.gameData || {};
+      window.gameData.mode = 'campaign';
+      window.gameData.currentLevel = 0;
+    }
+    this.scene.start('Game');
+  }
+
   onClaimReward() {
-    if (!window.claimDailyReward) return;
-    const res = window.claimDailyReward();
-    if (!res || !res.ok) return;
+    if (this._busy) return;
+    this._busy = true;
+
+    let res = null;
+    try {
+      res = window.claimDailyReward ? window.claimDailyReward() : null;
+    } catch (e) {
+      console.warn('[ArrowPulse] claim error:', e);
+      this._busy = false;
+      return;
+    }
+
+    if (!res || !res.ok) {
+      this._busy = false;
+      return;
+    }
 
     const { width, height } = this.scale;
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
@@ -234,15 +261,25 @@ class MenuScene extends Phaser.Scene {
       wordWrap: { width: bw - 32 }
     }).setOrigin(0.5).setDepth(102);
 
-    this.add.text(width / 2, height / 2 + 48, 'ТАП — ОКРЫТЬ', {
+    this.add.text(width / 2, height / 2 + 48, 'ТАП — ЗАКРЫТЬ', {
       fontFamily: 'Arial',
       fontSize: '13px',
       color: '#6a6a82'
     }).setOrigin(0.5).setDepth(102);
 
-    overlay.once('pointerup', () => {
-      this.scene.restart();
-    });
+    const close = () => {
+      if (this._closedReward) return;
+      this._closedReward = true;
+      this.time.delayedCall(30, () => {
+        try { this.scene.restart(); } catch (e) {
+          this.scene.start('Menu');
+        }
+      });
+    };
+
+    overlay.once('pointerup', close);
+    // Auto-close after 4s if user doesn't tap
+    this.time.delayedCall(4000, close);
   }
 
   createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
@@ -270,9 +307,7 @@ class MenuScene extends Phaser.Scene {
     btn.add([bg, text]);
     btn.setSize(bw, bh);
     btn.setInteractive({ useHandCursor: true });
-    btn.on('pointerdown', () => {
-      this.tweens.add({ targets: btn, scale: 0.94, duration: 70, yoyo: true, onComplete: callback });
-    });
+    btn.on('pointerup', () => { if (callback) callback(); });
     return btn;
   }
 }
