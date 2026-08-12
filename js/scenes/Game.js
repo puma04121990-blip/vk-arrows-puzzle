@@ -185,11 +185,11 @@ class GameScene extends Phaser.Scene {
 
   startTimer() {
     this.timerEvent = this.time.addEvent({
-      delay: 100,
+      delay: 200,
       loop: true,
       callback: () => {
         if (this.completed || this.failed) return;
-        this.timeLeft -= 0.1;
+        this.timeLeft -= 0.2;
         this.elapsed = this.timeLimit - this.timeLeft;
         if (this.timeLeft <= 10) this.timerText.setColor('#ff6b6b');
         else if (this.timeLeft <= 20) this.timerText.setColor('#ffd166');
@@ -323,6 +323,7 @@ class GameScene extends Phaser.Scene {
     const gridBottom = this.offsetY + this.levelData.size * this.cellSize - 4;
     const gridLeft = this.offsetX + 4;
     const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
+    const texSize = Math.ceil(this.cellSize * 1.5);
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -333,9 +334,18 @@ class GameScene extends Phaser.Scene {
       const cx = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
       const cy = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
 
-      const g = this.add.graphics();
-      this.drawArrow(g, a.dir, color);
-      g.setPosition(cx, cy);
+      // Bake vector arrow into a texture once -> Image is GPU-cheap to tween
+      const texKey = 'arw_' + this.skinId + '_' + a.dir + '_' + (color >>> 0).toString(16) + '_' + this.cellSize;
+      if (!this.textures.exists(texKey)) {
+        const tmp = this.make.graphics({ x: 0, y: 0, add: false });
+        this.drawArrow(tmp, a.dir, color);
+        const rt = this.make.renderTexture({ width: texSize, height: texSize, add: false });
+        rt.draw(tmp, texSize / 2, texSize / 2);
+        rt.saveTexture(texKey);
+        tmp.destroy();
+        rt.destroy();
+      }
+      const g = this.add.image(cx, cy, texKey).setDepth(5);
 
       let badge = null;
       let rotBadge = null;
@@ -387,7 +397,8 @@ class GameScene extends Phaser.Scene {
         rotated: false,
         lockId: a.lockId != null ? a.lockId : null,
         keyId: a.keyId != null ? a.keyId : null,
-        lockColor: a.lockColor != null ? a.lockColor : null
+        lockColor: a.lockColor != null ? a.lockColor : null,
+        baseAngle: 0
       };
 
       zone.on('pointerdown', () => {
@@ -457,13 +468,15 @@ class GameScene extends Phaser.Scene {
       data.dir = (data.dir + 1) % 4;
       try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
       data.graphics.setAlpha(1);
-      data.graphics.angle = 0;
-      this.drawArrow(data.graphics, data.dir, data.color);
-      data.graphics.setScale(1.15);
+      data.graphics.setScale(1);
+      // Image: rotate sprite 90 deg (texture already baked for original dir)
+      data.baseAngle = (data.baseAngle || 0) + 90;
+      data.graphics.angle = data.baseAngle;
       this.tweens.add({
         targets: data.graphics,
-        scale: 1,
-        duration: 90,
+        scale: 1.12,
+        duration: 70,
+        yoyo: true,
         ease: 'Quad.easeOut'
       });
       if (data.rotBadge) {
@@ -509,7 +522,8 @@ class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Light exit: one short tween (~160ms), short distance, no particles, no badge tweens.
+   * Full per-skin exit animation on Image (texture) — GPU cheap.
+   * No idle loops. Trail capped at 4 dots.
    */
   flyAway(data) {
     if (data.removed) return;
@@ -520,26 +534,27 @@ class GameScene extends Phaser.Scene {
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
 
-    // Unlock locks + drop badges immediately (no extra tweens)
+    const g = data.graphics;
+    g.setScale(1);
+    g.setAlpha(1);
+
     if (data.keyId != null) {
       for (let i = 0; i < this.arrows.length; i++) {
         const a = this.arrows[i];
         if (!a.removed && a.lockId === data.keyId && a.badge) {
-          try { a.badge.destroy(); } catch (e) {}
-          a.badge = null;
+          this.tweens.add({
+            targets: a.badge,
+            alpha: 0,
+            scale: 1.4,
+            duration: 160,
+            onComplete: () => {
+              try { a.badge.destroy(); } catch (e) {}
+              a.badge = null;
+            }
+          });
         }
       }
     }
-    try {
-      data.zone.destroy();
-      if (data.badge) { data.badge.destroy(); data.badge = null; }
-      if (data.rotBadge) { data.rotBadge.destroy(); data.rotBadge = null; }
-    } catch (e) {}
-
-    const g = data.graphics;
-    g.setScale(1);
-    g.setAlpha(1);
-    g.angle = 0;
 
     let dx = 0;
     let dy = 0;
@@ -548,38 +563,202 @@ class GameScene extends Phaser.Scene {
     else if (data.dir === 2) dy = 1;
     else dx = -1;
 
-    // Short hop (2.2 cells) — cheaper than full-screen flight
-    const dist = this.cellSize * 2.2;
+    const gx = g.x;
+    const gy = g.y;
+    const skin = this.skinId || 'neon';
+    const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
+    const baseAng = data.baseAngle || 0;
 
     const finish = () => {
-      try { g.destroy(); } catch (e) {}
+      try {
+        g.destroy();
+        data.zone.destroy();
+        if (data.badge) data.badge.destroy();
+        if (data.rotBadge) data.rotBadge.destroy();
+      } catch (e) {}
       if (this.remaining <= 0 && !this.completed && !this.failed) {
         this.completed = true;
         if (this.timerEvent) {
           try { this.timerEvent.remove(false); } catch (e) {}
         }
-        this.time.delayedCall(30, () => this.levelComplete());
+        this.time.delayedCall(50, () => this.levelComplete());
       }
     };
 
-    this.tweens.add({
-      targets: g,
-      x: g.x + dx * dist,
-      y: g.y + dy * dist,
-      alpha: 0,
-      scale: 0.5,
-      duration: 160,
-      ease: 'Cubic.easeIn',
-      onComplete: finish
-    });
+    this.spawnExitTrail(gx, gy, dx, dy, data.color, skin);
+
+    if (skin === 'block') {
+      this.tweens.add({
+        targets: g,
+        scaleX: 1.35,
+        scaleY: 0.55,
+        duration: 70,
+        yoyo: true,
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            x: gx + dx * dist,
+            y: gy + dy * dist,
+            angle: baseAng + (dx !== 0 ? 0 : (dy < 0 ? -20 : 20)),
+            alpha: 0,
+            scale: 0.3,
+            duration: 280,
+            ease: 'Back.easeIn',
+            onComplete: finish
+          });
+        }
+      });
+    } else if (skin === 'triangle') {
+      this.tweens.add({
+        targets: g,
+        x: gx + dx * dist,
+        y: gy + dy * dist,
+        angle: baseAng + 360,
+        alpha: 0,
+        scale: 0.2,
+        duration: 300,
+        ease: 'Cubic.easeIn',
+        onComplete: finish
+      });
+    } else if (skin === 'chevron') {
+      this.tweens.add({
+        targets: g,
+        x: gx + dx * 36,
+        y: gy + dy * 36,
+        scale: 1.12,
+        duration: 55,
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            x: gx + dx * dist,
+            y: gy + dy * dist,
+            alpha: 0,
+            scaleX: 1.55,
+            scaleY: 0.4,
+            duration: 230,
+            ease: 'Expo.easeIn',
+            onComplete: finish
+          });
+        }
+      });
+    } else if (skin === 'thin') {
+      this.tweens.add({
+        targets: g,
+        scaleX: dx !== 0 ? 1.7 : 0.55,
+        scaleY: dy !== 0 ? 1.7 : 0.55,
+        duration: 70,
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            x: gx + dx * dist,
+            y: gy + dy * dist,
+            alpha: 0,
+            scale: 0.15,
+            duration: 210,
+            ease: 'Quad.easeIn',
+            onComplete: finish
+          });
+        }
+      });
+    } else if (skin === 'feather') {
+      this.tweens.add({
+        targets: g,
+        x: gx + dx * dist * 0.35 + (dy !== 0 ? 28 : 0),
+        y: gy + dy * dist * 0.35 + (dx !== 0 ? -18 : 0),
+        angle: baseAng + 22,
+        duration: 130,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            x: gx + dx * dist,
+            y: gy + dy * dist,
+            angle: baseAng - 12,
+            alpha: 0,
+            scale: 0.35,
+            duration: 250,
+            ease: 'Cubic.easeIn',
+            onComplete: finish
+          });
+        }
+      });
+    } else {
+      // neon / classic
+      this.tweens.add({
+        targets: g,
+        scale: 1.22,
+        duration: 45,
+        yoyo: true,
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            x: gx + dx * dist,
+            y: gy + dy * dist,
+            alpha: 0,
+            scale: 0.22,
+            angle: baseAng + (dx !== 0 ? dx * 12 : 0),
+            duration: 280,
+            ease: 'Cubic.easeIn',
+            onComplete: finish
+          });
+        }
+      });
+    }
+
+    const flyBadge = (obj) => {
+      if (!obj) return;
+      this.tweens.add({
+        targets: obj,
+        x: obj.x + dx * dist,
+        y: obj.y + dy * dist,
+        alpha: 0,
+        scale: 0.25,
+        duration: 240
+      });
+    };
+    flyBadge(data.badge);
+    flyBadge(data.rotBadge);
+  }
+
+  spawnExitTrail(x, y, dx, dy, color, skin) {
+    // Cap particles — main lag source of old version was 5–8 dots × many taps
+    const n = skin === 'neon' ? 4 : 3;
+    for (let i = 0; i < n; i++) {
+      const dot = this.add.circle(
+        x - dx * i * 7,
+        y - dy * i * 7,
+        4 - i * 0.6,
+        color,
+        0.8
+      );
+      dot.setDepth(20);
+      this.tweens.add({
+        targets: dot,
+        x: dot.x + dx * (50 + i * 18),
+        y: dot.y + dy * (50 + i * 18),
+        alpha: 0,
+        scale: 0,
+        duration: 180 + i * 25,
+        ease: 'Quad.easeOut',
+        onComplete: () => { try { dot.destroy(); } catch (e) {} }
+      });
+    }
   }
 
   failFeedback(data) {
     const g = data.graphics;
-    this.drawArrow(g, data.dir, 0xff4444);
-    this.time.delayedCall(90, () => {
-      if (!data.removed) this.drawArrow(g, data.dir, data.color);
-    });
+    // Image path: tint is cheap. Graphics fallback: redraw.
+    if (g && g.setTint) {
+      g.setTint(0xff4444);
+      this.time.delayedCall(100, () => {
+        if (!data.removed && g.clearTint) g.clearTint();
+      });
+    } else if (g) {
+      this.drawArrow(g, data.dir, 0xff4444);
+      this.time.delayedCall(100, () => {
+        if (!data.removed) this.drawArrow(g, data.dir, data.color);
+      });
+    }
   }
 
   calcStars() {
