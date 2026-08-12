@@ -1,7 +1,6 @@
 // ============================================
 // Retention: Daily streak + Daily puzzle + Next goal
-// Daily puzzle uses baked LEVELS (no runtime generateLevel)
-// to avoid main-thread freeze on mobile.
+// Daily = max 9x9 full board (deterministic peel, no freeze)
 // ============================================
 
 function pad2(n) {
@@ -135,20 +134,37 @@ window.claimDailyReward = function () {
 };
 
 /**
- * Daily puzzle — same for everyone today.
- * Uses baked LEVELS only (no generateLevel) so mobile never freezes.
+ * Daily puzzle — max difficulty for everyone today:
+ * 9x9 field, every cell is an arrow (full board).
+ * Deterministic peel layout (fast, always solvable, no mobile freeze).
  */
 window.getDailyPuzzleLevel = function () {
-  const list = (typeof LEVELS !== 'undefined' && LEVELS.length)
-    ? LEVELS
-    : (window.LEVELS || []);
-  const n = list.length || 50;
-  // Mid-range levels for daily variety (avoid tutorial + extreme end)
-  const base = 8 + (dayOfYear() % Math.max(1, Math.min(30, n - 10)));
-  const idx = ((base % n) + n) % n;
-  const src = list[idx] || list[0] || { size: 4, arrows: [{ x: 0, y: 0, dir: 1 }], walls: [] };
+  const seed = (window.getTodaySeedInt && window.getTodaySeedInt()) || dayOfYear() * 10007;
+  let src;
+  try {
+    if (typeof window.generateDailyMaxLevel === 'function') {
+      src = window.generateDailyMaxLevel(seed);
+    }
+  } catch (e) {
+    console.warn('[ArrowPulse] daily max gen failed:', e);
+    src = null;
+  }
+  if (!src || !src.arrows || !src.arrows.length) {
+    const size = 9;
+    const arrows = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dUp = y, dRight = size - 1 - x, dDown = size - 1 - y, dLeft = x;
+        let dir = 0, best = dUp;
+        if (dRight < best) { best = dRight; dir = 1; }
+        if (dDown < best) { best = dDown; dir = 2; }
+        if (dLeft < best) { dir = 3; }
+        arrows.push({ x: x, y: y, dir: dir });
+      }
+    }
+    src = { size: size, arrows: arrows, walls: [] };
+  }
 
-  // Shallow clone so daily mode never mutates campaign data
   const arrows = (src.arrows || []).map(a => {
     const o = { x: a.x | 0, y: a.y | 0, dir: a.dir | 0 };
     if (a.lockId != null) o.lockId = a.lockId;
@@ -160,13 +176,13 @@ window.getDailyPuzzleLevel = function () {
   const walls = (src.walls || []).map(w => ({ x: w.x | 0, y: w.y | 0 }));
 
   return {
-    size: src.size || 4,
+    size: src.size || 9,
     arrows: arrows,
     walls: walls,
     index: -1,
     isDaily: true,
     dailyKey: window.getTodayKey(),
-    sourceIndex: idx
+    sourceIndex: -1
   };
 };
 
