@@ -448,9 +448,6 @@ class GameScene extends Phaser.Scene {
       this.updateMistakesUI();
       this.playFailSound();
       this.failFeedback(data);
-      if (data.badge) {
-        this.tweens.add({ targets: data.badge, scale: 1.3, duration: 80, yoyo: true });
-      }
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
       return;
     }
@@ -463,21 +460,9 @@ class GameScene extends Phaser.Scene {
       data.graphics.setAlpha(1);
       data.graphics.angle = 0;
       this.drawArrow(data.graphics, data.dir, data.color);
-      // Quick 90° spin feedback — single tween, no re-apply idle anim
-      data.graphics.angle = -90;
-      this.tweens.add({
-        targets: data.graphics,
-        angle: 0,
-        duration: 100,
-        ease: 'Cubic.easeOut'
-      });
       if (data.rotBadge) {
-        this.tweens.add({
-          targets: data.rotBadge,
-          alpha: 0.35,
-          scale: 0.85,
-          duration: 100
-        });
+        data.rotBadge.setAlpha(0.35);
+        data.rotBadge.setScale(0.85);
       }
       this.playTone(400, 0.05, 'sine', 0.08);
       this.time.delayedCall(40, () => this.playTone(520, 0.05, 'sine', 0.08));
@@ -518,8 +503,7 @@ class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Lightweight exit animation: one tween + 2 trail dots.
-   * No nested yoyo chains, no per-skin multi-step sequences.
+   * Instant remove — no flight tween, no particles (smooth on mobile).
    */
   flyAway(data) {
     if (data.removed) return;
@@ -530,128 +514,36 @@ class GameScene extends Phaser.Scene {
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
 
-    const g = data.graphics;
-    g.setScale(1);
-    g.setAlpha(1);
-    g.angle = 0;
-
     if (data.keyId != null) {
       for (let i = 0; i < this.arrows.length; i++) {
         const a = this.arrows[i];
         if (!a.removed && a.lockId === data.keyId && a.badge) {
-          this.tweens.add({
-            targets: a.badge,
-            alpha: 0,
-            scale: 1.4,
-            duration: 160,
-            onComplete: () => {
-              try { a.badge.destroy(); } catch (e) {}
-              a.badge = null;
-            }
-          });
+          try { a.badge.destroy(); } catch (e) {}
+          a.badge = null;
         }
       }
     }
 
-    let dx = 0;
-    let dy = 0;
-    if (data.dir === 0) dy = -1;
-    else if (data.dir === 1) dx = 1;
-    else if (data.dir === 2) dy = 1;
-    else dx = -1;
+    try {
+      data.graphics.destroy();
+      data.zone.destroy();
+      if (data.badge) data.badge.destroy();
+      if (data.rotBadge) data.rotBadge.destroy();
+    } catch (e) {}
 
-    const gx = g.x;
-    const gy = g.y;
-    const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
-    const skin = this.skinId || 'neon';
-
-    // Light trail: only 2 dots
-    for (let i = 0; i < 2; i++) {
-      const dot = this.add.circle(
-        gx - dx * (i + 1) * 8,
-        gy - dy * (i + 1) * 8,
-        3 - i,
-        data.color,
-        0.7
-      );
-      dot.setDepth(20);
-      this.tweens.add({
-        targets: dot,
-        x: dot.x + dx * 60,
-        y: dot.y + dy * 60,
-        alpha: 0,
-        scale: 0,
-        duration: 180,
-        ease: 'Quad.easeOut',
-        onComplete: () => { try { dot.destroy(); } catch (e) {} }
-      });
-    }
-
-    // Per-skin angle/scale flavor, still ONE tween
-    let endAngle = 0;
-    let endScale = 0.2;
-    if (skin === 'triangle') endAngle = 270;
-    else if (skin === 'block') endScale = 0.35;
-    else if (skin === 'chevron') endScale = 0.25;
-    else if (skin === 'thin') endScale = 0.15;
-    else if (skin === 'feather') endAngle = dx !== 0 ? dx * 18 : (dy < 0 ? -12 : 12);
-    else endAngle = dx !== 0 ? dx * 10 : 0;
-
-    const finish = () => {
-      try {
-        g.destroy();
-        data.zone.destroy();
-        if (data.badge) data.badge.destroy();
-        if (data.rotBadge) data.rotBadge.destroy();
-      } catch (e) {}
-      if (this.remaining <= 0 && !this.completed && !this.failed) {
-        this.completed = true;
-        if (this.timerEvent) {
-          try { this.timerEvent.remove(false); } catch (e) {}
-        }
-        this.time.delayedCall(60, () => this.levelComplete());
+    if (this.remaining <= 0 && !this.completed && !this.failed) {
+      this.completed = true;
+      if (this.timerEvent) {
+        try { this.timerEvent.remove(false); } catch (e) {}
       }
-    };
-
-    this.tweens.add({
-      targets: g,
-      x: gx + dx * dist,
-      y: gy + dy * dist,
-      alpha: 0,
-      scale: endScale,
-      angle: endAngle,
-      duration: 240,
-      ease: 'Cubic.easeIn',
-      onComplete: finish
-    });
-
-    if (data.badge) {
-      this.tweens.add({
-        targets: data.badge,
-        x: data.badge.x + dx * dist,
-        y: data.badge.y + dy * dist,
-        alpha: 0,
-        scale: 0.2,
-        duration: 220
-      });
-    }
-    if (data.rotBadge) {
-      this.tweens.add({
-        targets: data.rotBadge,
-        x: data.rotBadge.x + dx * dist,
-        y: data.rotBadge.y + dy * dist,
-        alpha: 0,
-        scale: 0.2,
-        duration: 220
-      });
+      this.time.delayedCall(40, () => this.levelComplete());
     }
   }
 
   failFeedback(data) {
     const g = data.graphics;
-    this.tweens.add({ targets: g, x: g.x + 5, duration: 22, yoyo: true, repeat: 2 });
     this.drawArrow(g, data.dir, 0xff4444);
-    this.time.delayedCall(100, () => {
+    this.time.delayedCall(90, () => {
       if (!data.removed) this.drawArrow(g, data.dir, data.color);
     });
   }
