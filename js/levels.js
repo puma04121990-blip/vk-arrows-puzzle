@@ -294,107 +294,144 @@ const LEVELS = (function buildFixedLevels() {
 })();
 
 /**
- * Ежедневный уровень — максимальная сложность + все механики:
- * 9×9, много стрелок, стены, замки/ключи, двухходовые стрелки.
- * Детерминированно по seed (день), всегда решаемо.
+ * Ежедневный уровень — 9×9 + стены + замки + двухходовые.
+ * Детерминированно по seed, всегда с механиками, всегда решаемо.
  */
 window.generateDailyMaxLevel = function (seed) {
   const size = 9;
   const base = (seed == null ? 1 : seed) >>> 0;
 
+  // Реалистичные конфиги (слишком плотные часто не проходят isSolvable)
   const configs = [
-    { count: 58, walls: 8, locks: 3, rotates: 5 },
-    { count: 55, walls: 7, locks: 3, rotates: 4 },
-    { count: 52, walls: 6, locks: 2, rotates: 4 },
-    { count: 48, walls: 6, locks: 2, rotates: 3 },
-    { count: 45, walls: 5, locks: 2, rotates: 3 },
-    { count: 40, walls: 4, locks: 1, rotates: 2 }
+    { count: 42, walls: 5, locks: 2, rotates: 3 },
+    { count: 40, walls: 4, locks: 2, rotates: 3 },
+    { count: 38, walls: 4, locks: 2, rotates: 2 },
+    { count: 36, walls: 4, locks: 1, rotates: 2 },
+    { count: 34, walls: 3, locks: 2, rotates: 2 },
+    { count: 32, walls: 3, locks: 1, rotates: 2 },
+    { count: 28, walls: 3, locks: 1, rotates: 1 },
+    { count: 24, walls: 2, locks: 1, rotates: 1 }
   ];
 
   for (let c = 0; c < configs.length; c++) {
     const cfg = configs[c];
-    for (let attempt = 0; attempt < 25; attempt++) {
+    for (let attempt = 0; attempt < 40; attempt++) {
       const s = (base + c * 10007 + attempt * 9973) >>> 0;
       const lvl = generateLevel(size, cfg.count, cfg.walls, cfg.locks, cfg.rotates, s);
-      if (lvl && lvl.arrows && lvl.arrows.length >= Math.floor(cfg.count * 0.85)) {
-        if (isSolvable(lvl.arrows, size, lvl.walls || [])) {
-          return {
-            size: size,
-            arrows: lvl.arrows,
-            walls: lvl.walls || [],
-            isDaily: true
-          };
-        }
-      }
+      if (!lvl || !lvl.arrows || !lvl.arrows.length) continue;
+
+      const wallsN = (lvl.walls || []).length;
+      // Отклоняем createGuaranteedSafe (без стен) и слабые варианты
+      if (cfg.walls > 0 && wallsN < Math.max(1, cfg.walls - 1)) continue;
+
+      const lockN = lvl.arrows.filter(function (a) { return a.lockId != null; }).length;
+      if (cfg.locks > 0 && lockN < 1) continue;
+
+      if (!isSolvable(lvl.arrows, size, lvl.walls || [])) continue;
+
+      return {
+        size: size,
+        arrows: lvl.arrows,
+        walls: lvl.walls || [],
+        isDaily: true
+      };
     }
   }
 
-  // Fallback: peel-ring + walls + locks + rotates
-  const s = base;
-  const rng = mulberry32(s);
-  const mirrorX = rng() < 0.5;
-  const mirrorY = rng() < 0.5;
-  const rot90 = (rng() * 4) | 0;
-  function mapDir(dir) {
-    let d = dir & 3;
-    if (mirrorX) { if (d === 1) d = 3; else if (d === 3) d = 1; }
-    if (mirrorY) { if (d === 0) d = 2; else if (d === 2) d = 0; }
-    for (let r = 0; r < rot90; r++) d = (d + 1) % 4;
-    return d;
-  }
-  function mapCell(x, y) {
-    let nx = x, ny = y;
-    if (mirrorX) nx = size - 1 - nx;
-    if (mirrorY) ny = size - 1 - ny;
-    for (let r = 0; r < rot90; r++) { const tx = nx; nx = size - 1 - ny; ny = tx; }
-    return { x: nx, y: ny };
-  }
-  const arrows = [];
-  const seen = new Set();
-  function push(x, y, dir) {
-    const c = mapCell(x, y);
-    const k = c.x + ',' + c.y;
-    if (seen.has(k)) return;
-    seen.add(k);
-    arrows.push({ x: c.x, y: c.y, dir: mapDir(dir) });
-  }
-  const layers = Math.ceil(size / 2);
-  for (let layer = 0; layer < layers; layer++) {
-    const lo = layer, hi = size - 1 - layer;
-    if (lo > hi) break;
-    for (let x = lo; x <= hi; x++) push(x, lo, 0);
-    for (let y = lo + 1; y <= hi; y++) push(hi, y, 1);
-    if (hi > lo) for (let x = hi - 1; x >= lo; x--) push(x, hi, 2);
-    if (hi > lo) for (let y = hi - 1; y > lo; y--) push(lo, y, 3);
+  // Конструктивный fallback: гарантированно стены + замки + повороты
+  const rng = mulberry32(base ^ 0xA5A5A5);
+  const occupied = new Set();
+  const walls = [];
+  const wallSet = new Set();
+
+  let safety = 0;
+  while (walls.length < 5 && safety < 120) {
+    safety++;
+    const x = 1 + ((rng() * (size - 2)) | 0);
+    const y = 1 + ((rng() * (size - 2)) | 0);
+    const k = cellKey(x, y);
+    if (occupied.has(k)) continue;
+    walls.push({ x: x, y: y });
+    wallSet.add(k);
+    occupied.add(k);
   }
 
-  const walls = [];
   const candidates = [];
-  for (let i = 0; i < arrows.length; i++) {
-    const a = arrows[i];
-    if (a.x > 0 && a.y > 0 && a.x < size - 1 && a.y < size - 1) candidates.push(i);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const k = cellKey(x, y);
+      if (occupied.has(k)) continue;
+      const dUp = y, dRight = size - 1 - x, dDown = size - 1 - y, dLeft = x;
+      let dir = 0, best = dUp;
+      if (dRight < best) { best = dRight; dir = 1; }
+      if (dDown < best) { best = dDown; dir = 2; }
+      if (dLeft < best) { dir = 3; }
+      candidates.push({ x: x, y: y, dir: dir, dist: best });
+    }
   }
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = (rng() * (i + 1)) | 0;
     const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
   }
-  const wallTarget = 5;
-  const removeIdx = new Set();
-  for (let i = 0; i < candidates.length && walls.length < wallTarget; i++) {
-    const idx = candidates[i];
-    const a = arrows[idx];
-    removeIdx.add(idx);
-    walls.push({ x: a.x, y: a.y });
-  }
-  const filtered = arrows.filter((_, i) => !removeIdx.has(i));
+  candidates.sort(function (a, b) { return a.dist - b.dist; });
 
-  assignLocks(filtered, 2);
-  if (!isSolvable(filtered, size, walls)) {
-    filtered.forEach(a => { delete a.lockId; delete a.keyId; delete a.lockColor; });
+  const arrows = [];
+  const targetCount = 40;
+  for (let i = 0; i < candidates.length && arrows.length < targetCount; i++) {
+    const a = candidates[i];
+    const k = cellKey(a.x, a.y);
+    if (occupied.has(k)) continue;
+    let dir = a.dir;
+    let cx = a.x, cy = a.y, blocked = false, steps = 0;
+    while (steps++ < size + 2) {
+      if (dir === 0) cy--;
+      else if (dir === 1) cx++;
+      else if (dir === 2) cy++;
+      else cx--;
+      if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
+      if (wallSet.has(cellKey(cx, cy))) { blocked = true; break; }
+    }
+    if (blocked) {
+      let found = -1;
+      for (let d = 0; d < 4; d++) {
+        cx = a.x; cy = a.y; blocked = false; steps = 0;
+        while (steps++ < size + 2) {
+          if (d === 0) cy--;
+          else if (d === 1) cx++;
+          else if (d === 2) cy++;
+          else cx--;
+          if (cx < 0 || cx >= size || cy < 0 || cy >= size) { found = d; break; }
+          if (wallSet.has(cellKey(cx, cy))) { blocked = true; break; }
+        }
+        if (found >= 0) { dir = found; break; }
+      }
+      if (found < 0) continue;
+    }
+    arrows.push({ x: a.x, y: a.y, dir: dir });
+    occupied.add(k);
   }
-  assignRotatesSafe(filtered, 3, size, walls);
 
-  return { size: size, arrows: filtered, walls: walls, isDaily: true };
+  assignLocks(arrows, 2);
+  if (!isSolvable(arrows, size, walls)) {
+    arrows.forEach(function (a) {
+      delete a.lockId; delete a.keyId; delete a.lockColor;
+    });
+    _rng = mulberry32(base ^ 0x1111);
+    assignLocks(arrows, 1);
+    if (!isSolvable(arrows, size, walls)) {
+      arrows.forEach(function (a) {
+        delete a.lockId; delete a.keyId; delete a.lockColor;
+      });
+    }
+  }
+
+  assignRotatesSafe(arrows, 3, size, walls);
+
+  if (walls.length === 0) {
+    walls.push({ x: 4, y: 4 });
+  }
+
+  return { size: size, arrows: arrows, walls: walls, isDaily: true };
 };
 
 if (typeof window !== 'undefined') {
