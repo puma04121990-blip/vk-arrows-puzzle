@@ -237,32 +237,70 @@ class MenuScene extends Phaser.Scene {
     }
 
     const { width, height } = this.scale;
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
+    const rewards = res.rewards || [];
+    const lines = Math.max(1, rewards.length);
+    const bw = Math.min(width - 40, 360);
+    const bh = Math.min(height * 0.7, 180 + lines * 28 + (res.nextItems && res.nextItems.length ? 56 : 20));
+
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75)
       .setDepth(100)
       .setInteractive();
     const box = this.add.graphics().setDepth(101);
-    const bw = Math.min(width - 48, 340);
-    const bh = 160;
     box.fillStyle(0x161622, 1);
-    box.fillRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 16);
-    box.lineStyle(2, 0xffd166, 0.8);
-    box.strokeRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 16);
+    box.fillRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 18);
+    box.lineStyle(2, 0xffd166, 0.9);
+    box.strokeRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 18);
 
-    this.add.text(width / 2, height / 2 - 40, 'День ' + res.day + ' · серия ' + res.streak, {
+    let y = height / 2 - bh / 2 + 28;
+
+    this.add.text(width / 2, y, (res.icon || '🎁') + ' НАГРАДА ДНЯ', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '18px',
+      fontSize: '20px',
       color: '#ffd166'
     }).setOrigin(0.5).setDepth(102);
+    y += 28;
 
-    this.add.text(width / 2, height / 2, res.message || 'Награда получена', {
+    this.add.text(width / 2, y, 'День ' + res.day + ' из 7 · серия ' + res.streak + ' дн.', {
       fontFamily: 'Arial',
-      fontSize: '16px',
-      color: '#e0e0f0',
-      align: 'center',
-      wordWrap: { width: bw - 32 }
+      fontSize: '14px',
+      color: '#8a8aa8'
     }).setOrigin(0.5).setDepth(102);
+    y += 22;
 
-    this.add.text(width / 2, height / 2 + 48, 'ТАП — ЗАКРЫТЬ', {
+    this.add.text(width / 2, y, res.title || 'Награда получена', {
+      fontFamily: 'Arial Black, Arial',
+      fontSize: '16px',
+      color: '#00e8c8'
+    }).setOrigin(0.5).setDepth(102);
+    y += 26;
+
+    rewards.forEach((r) => {
+      this.add.text(width / 2, y, (r.icon || '•') + '  ' + (r.text || ''), {
+        fontFamily: 'Arial',
+        fontSize: '15px',
+        color: '#e8e8f8'
+      }).setOrigin(0.5).setDepth(102);
+      y += 24;
+    });
+
+    if (res.nextItems && res.nextItems.length) {
+      y += 8;
+      this.add.text(width / 2, y, 'Завтра: ' + (res.nextTitle || ('день ' + res.nextDay)), {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: '#6a6a82'
+      }).setOrigin(0.5).setDepth(102);
+      y += 18;
+      this.add.text(width / 2, y, res.nextItems.join(' · '), {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: '#5a5a72',
+        align: 'center',
+        wordWrap: { width: bw - 36 }
+      }).setOrigin(0.5).setDepth(102);
+    }
+
+    this.add.text(width / 2, height / 2 + bh / 2 - 22, 'ТАП — ЗАКРЫТЬ', {
       fontFamily: 'Arial',
       fontSize: '13px',
       color: '#6a6a82'
@@ -279,7 +317,7 @@ class MenuScene extends Phaser.Scene {
     };
 
     overlay.once('pointerup', close);
-    this.time.delayedCall(4000, close);
+    this.time.delayedCall(6000, close);
   }
 
   createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
