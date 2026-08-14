@@ -81,6 +81,36 @@ window.getHints = function () {
   return ensureDailyFields().hints || 0;
 };
 
+/** Таблица 7-дневного цикла наград (день серии 1..7). */
+window.DAILY_REWARD_TABLE = [
+  { day: 1, icon: '💡', title: 'Старт серии', items: [{ type: 'hints', amount: 2, label: '+2 подсказки' }] },
+  { day: 2, icon: '💡', title: 'Продолжаем', items: [{ type: 'hints', amount: 3, label: '+3 подсказки' }] },
+  { day: 3, icon: '❤️', title: 'Запас прочности', items: [
+    { type: 'hints', amount: 2, label: '+2 подсказки' },
+    { type: 'error', amount: 1, label: '+1 ошибка навсегда' }
+  ]},
+  { day: 4, icon: '⭐', title: 'Удвоение', items: [
+    { type: 'double', amount: 1, label: '×2 ★ на след. уровень' },
+    { type: 'hints', amount: 2, label: '+2 подсказки' }
+  ]},
+  { day: 5, icon: '💡', title: 'Запас подсказок', items: [{ type: 'hints', amount: 4, label: '+4 подсказки' }] },
+  { day: 6, icon: '🔥', title: 'Почти неделя', items: [
+    { type: 'hints', amount: 5, label: '+5 подсказок' },
+    { type: 'double', amount: 1, label: '×2 ★ на след. уровень' }
+  ]},
+  { day: 7, icon: '🏆', title: 'Неделя!', items: [
+    { type: 'hints', amount: 5, label: '+5 подсказок' },
+    { type: 'error', amount: 1, label: '+1 ошибка навсегда' },
+    { type: 'skin', amount: 1, label: 'Новый стиль' },
+    { type: 'double', amount: 1, label: '×2 ★ на след. уровень' }
+  ]}
+];
+
+window.getDailyRewardPreview = function (day) {
+  const d = ((Math.max(1, day | 0) - 1) % 7);
+  return window.DAILY_REWARD_TABLE[d];
+};
+
 window.claimDailyReward = function () {
   try {
     if (!window.canClaimDailyReward()) {
@@ -90,28 +120,39 @@ window.claimDailyReward = function () {
     window.refreshLoginStreak();
     const streak = p.loginStreak || 1;
     const day = ((streak - 1) % 7) + 1;
-    let message = '';
+    const table = window.getDailyRewardPreview(day);
+    const rewards = [];
     let hintsGain = 0;
+    let errorGain = 0;
+    let skinName = null;
+    let gotDouble = false;
 
-    if (day === 1) { hintsGain = 1; message = '+1 подсказка'; }
-    else if (day === 2) { hintsGain = 1; message = '+1 подсказка'; }
-    else if (day === 3) { hintsGain = 2; message = '+2 подсказки'; }
-    else if (day === 4) {
-      p.doubleStarsNext = true;
-      message = 'x2 ★ на следующий уровень кампании';
-    } else if (day === 5) { hintsGain = 2; message = '+2 подсказки'; }
-    else if (day === 6) { hintsGain = 3; message = '+3 подсказки'; }
-    else {
-      hintsGain = 5;
-      message = 'Неделя! +5 подсказок';
-      if (window.ARROW_SKINS && window.unlockSkin && window.isSkinUnlocked) {
-        const locked = window.ARROW_SKINS.find(s => !s.free && !window.isSkinUnlocked(s.id));
-        if (locked) {
-          try { window.unlockSkin(locked.id); } catch (e) {}
-          message += ' · стиль «' + locked.name + '»';
+    (table.items || []).forEach((it) => {
+      if (it.type === 'hints') {
+        hintsGain += it.amount || 0;
+        rewards.push({ icon: '💡', text: it.label });
+      } else if (it.type === 'double') {
+        p.doubleStarsNext = true;
+        gotDouble = true;
+        rewards.push({ icon: '⭐', text: it.label });
+      } else if (it.type === 'error') {
+        p.bonusMaxMistakes = (p.bonusMaxMistakes || 0) + (it.amount || 1);
+        errorGain += it.amount || 1;
+        rewards.push({ icon: '❤️', text: it.label });
+      } else if (it.type === 'skin') {
+        if (window.ARROW_SKINS && window.unlockSkin && window.isSkinUnlocked) {
+          const locked = window.ARROW_SKINS.find(s => !s.free && !window.isSkinUnlocked(s.id));
+          if (locked) {
+            try { window.unlockSkin(locked.id); } catch (e) {}
+            skinName = locked.name;
+            rewards.push({ icon: '🎨', text: 'Стиль «' + locked.name + '»' });
+          } else {
+            hintsGain += 3;
+            rewards.push({ icon: '💡', text: '+3 подсказки (все стили открыты)' });
+          }
         }
       }
-    }
+    });
 
     p.hints = (p.hints || 0) + hintsGain;
     p.lastClaimDate = window.getTodayKey();
@@ -119,13 +160,26 @@ window.claimDailyReward = function () {
       try { window.persistProgress(); } catch (e) {}
     }
 
+    const message = rewards.map(r => r.text).join(' · ');
+    const nextDay = (day % 7) + 1;
+    const nextPreview = window.getDailyRewardPreview(nextDay);
+
     return {
       ok: true,
       day: day,
       streak: streak,
+      title: table.title || 'Награда дня',
+      icon: table.icon || '🎁',
       hintsGain: hintsGain,
+      errorGain: errorGain,
+      skinName: skinName,
+      doubleStars: gotDouble,
+      rewards: rewards,
       message: message,
-      hints: p.hints
+      hints: p.hints,
+      nextDay: nextDay,
+      nextTitle: nextPreview ? nextPreview.title : '',
+      nextItems: nextPreview ? (nextPreview.items || []).map(i => i.label) : []
     };
   } catch (e) {
     console.warn('[ArrowPulse] claimDailyReward error:', e);
