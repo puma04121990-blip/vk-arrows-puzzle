@@ -79,85 +79,79 @@ function isSolvable(arrows, size, walls) {
     if (progress) continue;
     for (let i = 0; i < remaining.length; i++) {
       const a = remaining[i];
-      if (!a.rotates || a.rotated) continue;
-      if (isLockedSim(a, remaining)) continue;
-      a.dir = (a.dir + 1) % 4; a.rotated = true; progress = true; break;
+      if (a.rotates && !a.rotated && !isLockedSim(a, remaining)) {
+        a.rotated = true;
+        a.dir = (a.dir + 1) % 4;
+        progress = true;
+        break;
+      }
     }
     if (!progress) return false;
   }
   return remaining.length === 0;
 }
 
-function validDirs(x, y, size, wallSet) {
-  const dirs = [];
-  for (let d = 0; d < 4; d++) {
-    let cx = x, cy = y, ok = true, guard = 0;
-    while (guard++ < 40) {
-      if (d === 0) cy--; else if (d === 1) cx++; else if (d === 2) cy++; else cx--;
-      if (cx < 0 || cx >= size || cy < 0 || cy >= size) break;
-      if (wallSet.has(cellKey(cx, cy))) { ok = false; break; }
-    }
-    if (ok) dirs.push(d);
-  }
-  return dirs;
-}
-
 function pickDir(x, y, size, wallSet) {
-  const dirs = validDirs(x, y, size, wallSet);
-  if (dirs.length === 0) return -1;
-  const dist = [y, size - 1 - x, size - 1 - y, x];
-  dirs.sort((a, b) => dist[a] - dist[b]);
-  if (rnd() < 0.7) return dirs[0];
-  return dirs[rndInt(dirs.length)];
+  const dirs = [0, 1, 2, 3];
+  for (let i = dirs.length - 1; i > 0; i--) {
+    const j = rndInt(i + 1);
+    const t = dirs[i]; dirs[i] = dirs[j]; dirs[j] = t;
+  }
+  for (let d = 0; d < 4; d++) {
+    const dir = dirs[d];
+    let cx = x, cy = y, ok = true, steps = 0;
+    while (steps++ < size + 2) {
+      if (dir === 0) cy--;
+      else if (dir === 1) cx++;
+      else if (dir === 2) cy++;
+      else cx--;
+      if (cx < 0 || cx >= size || cy < 0 || cy >= size) return dir;
+      if (wallSet && wallSet.has(cellKey(cx, cy))) { ok = false; break; }
+    }
+    if (ok) return dir;
+  }
+  return rndInt(4);
 }
 
-function createGuaranteedSafe(size) {
-  const arrows = [];
-  for (let y = 0; y < size; y++) {
-    if (y % 2 === 0) arrows.push({ x: 0, y: y, dir: 3 });
-    else arrows.push({ x: size - 1, y: y, dir: 1 });
+function assignLocks(arrows, pairs) {
+  if (!pairs || pairs < 1 || arrows.length < pairs * 2) return;
+  const idxs = arrows.map((_, i) => i);
+  for (let i = idxs.length - 1; i > 0; i--) {
+    const j = rndInt(i + 1);
+    const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
   }
-  return { size: size, arrows: arrows, walls: [] };
-}
-
-function assignLocks(arrows, pairCount) {
-  if (pairCount <= 0 || arrows.length < 2) return;
-  const idx = [];
-  for (let i = 0; i < arrows.length; i++) idx.push(i);
-  for (let i = idx.length - 1; i > 0; i--) {
-    const j = rndInt(i + 1); const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
-  }
-  let pairs = 0, p = 0;
-  while (pairs < pairCount && p + 1 < idx.length) {
-    const iKey = idx[p], iLock = idx[p + 1]; p += 2;
-    if (arrows[iKey].keyId != null || arrows[iKey].lockId != null) continue;
-    if (arrows[iLock].keyId != null || arrows[iLock].lockId != null) continue;
-    const id = pairs + 1, color = pairs % 3;
+  let used = 0;
+  for (let p = 0; p < pairs && used + 1 < idxs.length; p++) {
+    const iKey = idxs[used++];
+    const iLock = idxs[used++];
+    const id = p + 1;
+    const color = p % 3;
+    if (arrows[iKey].lockId != null || arrows[iLock].lockId != null) continue;
+    if (arrows[iKey].keyId != null || arrows[iLock].keyId != null) continue;
     arrows[iKey].keyId = id; arrows[iKey].lockColor = color;
     arrows[iLock].lockId = id; arrows[iLock].lockColor = color;
-    pairs++;
   }
 }
 
 function getRotateCandidates(arrows) {
-  const candidates = [];
+  const out = [];
   for (let i = 0; i < arrows.length; i++) {
     const a = arrows[i];
     if (a.lockId != null || a.keyId != null || a.rotates) continue;
-    candidates.push(i);
+    out.push(i);
   }
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = rndInt(i + 1); const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
-  }
-  return candidates;
+  return out;
 }
 
 function assignRotatesSafe(arrows, count, size, walls) {
-  if (count <= 0) return 0;
-  const candidates = getRotateCandidates(arrows);
+  const cand = getRotateCandidates(arrows);
+  for (let i = cand.length - 1; i > 0; i--) {
+    const j = rndInt(i + 1);
+    const t = cand[i]; cand[i] = cand[j]; cand[j] = t;
+  }
   let added = 0;
-  for (let c = 0; c < candidates.length && added < count; c++) {
-    const i = candidates[c];
+  for (let c = 0; c < cand.length && added < count; c++) {
+    const i = cand[c];
     arrows[i].rotates = true;
     if (isSolvable(arrows, size, walls)) added++;
     else delete arrows[i].rotates;
@@ -206,6 +200,22 @@ function generateLevel(size, count, wallCount, lockPairs, rotateCount, seed) {
   return createGuaranteedSafe(size);
 }
 
+function createGuaranteedSafe(size) {
+  const arrows = [];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if ((x + y) % 3 === 0) continue;
+      const dUp = y, dRight = size - 1 - x, dDown = size - 1 - y, dLeft = x;
+      let dir = 0, best = dUp;
+      if (dRight < best) { best = dRight; dir = 1; }
+      if (dDown < best) { best = dDown; dir = 2; }
+      if (dLeft < best) { dir = 3; }
+      arrows.push({ x: x, y: y, dir: dir });
+    }
+  }
+  return { size: size, arrows: arrows, walls: [] };
+}
+
 function getSizeForLevel(levelIndex) {
   if (levelIndex < 5) return 4;
   if (levelIndex < 15) return 5;
@@ -248,47 +258,79 @@ function getRotateCount(levelIndex) {
 }
 
 function normalizeBakedLevel(raw, index) {
-  if (!raw || typeof raw !== 'object') return null;
-  const size = raw.size || 4;
+  if (!raw) return null;
+  const size = raw.size | 0;
   const walls = Array.isArray(raw.walls) ? raw.walls.map(w => ({ x: w.x | 0, y: w.y | 0 })) : [];
-  const arrows = Array.isArray(raw.arrows) ? raw.arrows.map(a => {
+  const arrows = (raw.arrows || []).map(a => {
     const o = { x: a.x | 0, y: a.y | 0, dir: a.dir | 0 };
     if (a.lockId != null) o.lockId = a.lockId;
     if (a.keyId != null) o.keyId = a.keyId;
     if (a.lockColor != null) o.lockColor = a.lockColor;
     if (a.rotates) o.rotates = true;
     return o;
-  }) : [];
+  });
   return { size: size, arrows: arrows, walls: walls, index: index };
 }
 
 function bakeLevelsFromSeed() {
-  const out = [];
-  for (let i = 0; i < 50; i++) {
-    const size = getSizeForLevel(i);
-    const lv = generateLevel(size, getArrowCount(i, size), getWallCount(i), getLockPairs(i), getRotateCount(i), 0xA770 + i * 7919);
-    lv.index = i; out.push(lv);
-  }
-  return out;
+  return null;
 }
 
 const LEVELS = (function buildFixedLevels() {
-  const baked = (typeof window !== 'undefined' && window.LEVELS_DATA) || null;
-  if (Array.isArray(baked) && baked.length >= 50) {
-    const list = [];
-    for (let i = 0; i < 50; i++) {
-      const n = normalizeBakedLevel(baked[i], i);
-      list.push(n || bakeLevelsFromSeed()[i]);
-    }
-    return list;
+  if (typeof window !== 'undefined' && window.LEVELS_DATA && Array.isArray(window.LEVELS_DATA) && window.LEVELS_DATA.length) {
+    return window.LEVELS_DATA.map((raw, i) => normalizeBakedLevel(raw, i)).filter(Boolean);
   }
-  console.warn('[ArrowPulse] LEVELS_DATA missing');
-  return bakeLevelsFromSeed();
+  const out = [];
+  for (let i = 0; i < 50; i++) {
+    const size = getSizeForLevel(i);
+    const wallsN = getWallCount(i);
+    const count = getArrowCount(i, size);
+    const locks = getLockPairs(i);
+    const rotates = getRotateCount(i);
+    const lvl = generateLevel(size, count, wallsN, locks, rotates, 1000 + i * 7919);
+    out.push(Object.assign({ index: i }, lvl));
+  }
+  return out;
 })();
 
+/**
+ * Ежедневный уровень — максимальная сложность + все механики:
+ * 9×9, много стрелок, стены, замки/ключи, двухходовые стрелки.
+ * Детерминированно по seed (день), всегда решаемо.
+ */
 window.generateDailyMaxLevel = function (seed) {
   const size = 9;
-  const s = (seed == null ? 1 : seed) >>> 0;
+  const base = (seed == null ? 1 : seed) >>> 0;
+
+  const configs = [
+    { count: 58, walls: 8, locks: 3, rotates: 5 },
+    { count: 55, walls: 7, locks: 3, rotates: 4 },
+    { count: 52, walls: 6, locks: 2, rotates: 4 },
+    { count: 48, walls: 6, locks: 2, rotates: 3 },
+    { count: 45, walls: 5, locks: 2, rotates: 3 },
+    { count: 40, walls: 4, locks: 1, rotates: 2 }
+  ];
+
+  for (let c = 0; c < configs.length; c++) {
+    const cfg = configs[c];
+    for (let attempt = 0; attempt < 25; attempt++) {
+      const s = (base + c * 10007 + attempt * 9973) >>> 0;
+      const lvl = generateLevel(size, cfg.count, cfg.walls, cfg.locks, cfg.rotates, s);
+      if (lvl && lvl.arrows && lvl.arrows.length >= Math.floor(cfg.count * 0.85)) {
+        if (isSolvable(lvl.arrows, size, lvl.walls || [])) {
+          return {
+            size: size,
+            arrows: lvl.arrows,
+            walls: lvl.walls || [],
+            isDaily: true
+          };
+        }
+      }
+    }
+  }
+
+  // Fallback: peel-ring + walls + locks + rotates
+  const s = base;
   const rng = mulberry32(s);
   const mirrorX = rng() < 0.5;
   const mirrorY = rng() < 0.5;
@@ -325,7 +367,34 @@ window.generateDailyMaxLevel = function (seed) {
     if (hi > lo) for (let x = hi - 1; x >= lo; x--) push(x, hi, 2);
     if (hi > lo) for (let y = hi - 1; y > lo; y--) push(lo, y, 3);
   }
-  return { size: size, arrows: arrows, walls: [], isDaily: true };
+
+  const walls = [];
+  const candidates = [];
+  for (let i = 0; i < arrows.length; i++) {
+    const a = arrows[i];
+    if (a.x > 0 && a.y > 0 && a.x < size - 1 && a.y < size - 1) candidates.push(i);
+  }
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = (rng() * (i + 1)) | 0;
+    const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
+  }
+  const wallTarget = 5;
+  const removeIdx = new Set();
+  for (let i = 0; i < candidates.length && walls.length < wallTarget; i++) {
+    const idx = candidates[i];
+    const a = arrows[idx];
+    removeIdx.add(idx);
+    walls.push({ x: a.x, y: a.y });
+  }
+  const filtered = arrows.filter((_, i) => !removeIdx.has(i));
+
+  assignLocks(filtered, 2);
+  if (!isSolvable(filtered, size, walls)) {
+    filtered.forEach(a => { delete a.lockId; delete a.keyId; delete a.lockColor; });
+  }
+  assignRotatesSafe(filtered, 3, size, walls);
+
+  return { size: size, arrows: filtered, walls: walls, isDaily: true };
 };
 
 if (typeof window !== 'undefined') {
