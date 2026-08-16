@@ -6,7 +6,8 @@ class WinScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const isDaily = !!(window.gameData && window.gameData.mode === 'daily');
-    let stars = window.gameData.stars || 1;
+    let stars = (window.gameData && typeof window.gameData.stars === 'number')
+      ? Math.max(0, Math.min(3, window.gameData.stars)) : 0;
     let doubleStarsResult = null;
     const mistakes = window.gameData.mistakes || 0;
     const levelIndex = window.gameData.currentLevel;
@@ -14,6 +15,9 @@ class WinScene extends Phaser.Scene {
     const combo = window.gameData.combo || 0;
     const chainTarget = window.gameData.chainTarget || 3;
     const level = isDaily ? 0 : (levelIndex + 1);
+    const levelRetries = (!isDaily && window.gameData && window.gameData.retryLevelIndex === levelIndex)
+      ? Math.max(0, window.gameData.levelRetries | 0) : 0;
+    const attemptNumber = levelRetries + 1;
 
     if (!isDaily && window.applyDoubleStarsIfNeeded) {
       stars = window.applyDoubleStarsIfNeeded(stars);
@@ -63,7 +67,7 @@ class WinScene extends Phaser.Scene {
 
     this.add.text(width / 2, height * 0.23, isDaily
       ? 'Ежедневный уровень пройден'
-      : ('Уровень ' + level + ' пройден'), {
+      : ('Уровень ' + level + ' пройден · попытка ' + attemptNumber), {
       fontFamily: 'Arial',
       fontSize: '20px',
       color: '#9a9ab8'

@@ -10,6 +10,15 @@ class GameScene extends Phaser.Scene {
       this.isDaily = false;
       this.levelIndex = window.gameData.currentLevel || 0;
       this.levelData = LEVELS[this.levelIndex] || LEVELS[0];
+      window.gameData.retryLevelIndex = Number.isInteger(window.gameData.retryLevelIndex)
+        ? window.gameData.retryLevelIndex : this.levelIndex;
+      if (window.gameData.retryLevelIndex !== this.levelIndex) {
+        window.gameData.retryLevelIndex = this.levelIndex;
+        window.gameData.levelRetries = 0;
+      }
+      if (!Number.isInteger(window.gameData.levelRetries) || window.gameData.levelRetries < 0) {
+        window.gameData.levelRetries = 0;
+      }
     }
     this.arrows = [];
     this.wallSet = new Set();
@@ -210,7 +219,7 @@ class GameScene extends Phaser.Scene {
       fontFamily: 'Arial Black', fontSize: '22px', color: '#0b0b14',
       backgroundColor: '#00e8c8', padding: { x: 24, y: 12 }
     }).setOrigin(0.5).setDepth(102).setInteractive({ useHandCursor: true });
-    again.on('pointerdown', () => this.scene.restart());
+    again.on('pointerdown', () => this.restartAfterFailure());
     const menu = this.add.text(width / 2, height / 2 + 100, 'МЕНЮ', {
       fontFamily: 'Arial', fontSize: '18px', color: '#9a9ab8'
     }).setOrigin(0.5).setDepth(102).setInteractive({ useHandCursor: true });
@@ -503,7 +512,7 @@ class GameScene extends Phaser.Scene {
     this.mistakesSideText = this.add.text(rightX, height / 2 - 4, '0/' + this.maxMistakes, {
       fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: '30px', color: '#9a9ab4'
     }).setOrigin(0.5).setDepth(19);
-    this.add.text(rightX, height / 2 + 38, 'Три — и заново', { fontFamily: 'Manrope, Arial, sans-serif', fontSize: '11px', color: '#6a6a82' }).setOrigin(0.5).setDepth(19);
+    this.add.text(rightX, height / 2 + 38, 'Ошибки уменьшают ★', { fontFamily: 'Manrope, Arial, sans-serif', fontSize: '11px', color: '#6a6a82' }).setOrigin(0.5).setDepth(19);
   }
 
   canEscape(data) {
@@ -675,10 +684,25 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  restartAfterFailure() {
+    if (this.isDaily) {
+      this.scene.restart();
+      return;
+    }
+    const data = window.gameData || (window.gameData = {});
+    if (data.retryLevelIndex !== this.levelIndex) {
+      data.retryLevelIndex = this.levelIndex;
+      data.levelRetries = 0;
+    }
+    data.levelRetries = Math.max(0, data.levelRetries | 0) + 1;
+    this.scene.restart();
+  }
+
   calcStars() {
-    if (this.mistakes === 0) return 3;
-    if (this.mistakes === 1) return 2;
-    return 1;
+    const retries = (!this.isDaily && window.gameData && window.gameData.retryLevelIndex === this.levelIndex)
+      ? Math.max(0, window.gameData.levelRetries | 0) : 0;
+    // Every failed replay and every current-run mistake costs one star.
+    return Math.max(0, 3 - retries - Math.max(0, this.mistakes | 0));
   }
 
   levelComplete() {
@@ -700,7 +724,7 @@ class GameScene extends Phaser.Scene {
     const by = height - (wide ? 38 : 54);
     const gap = wide ? 170 : 150;
     if (window.createNiceButton) {
-      window.createNiceButton(this, width / 2 - gap / 2, by, '↺ ЗАНОВО', () => this.scene.restart(), {
+      window.createNiceButton(this, width / 2 - gap / 2, by, '↺ ЗАНОВО', () => this.restartAfterFailure(), {
         w: wide ? 130 : 140, h: wide ? 40 : 46, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
       });
       window.createNiceButton(this, width / 2 + gap / 2, by, 'МЕНЮ', () => this.scene.start('Menu'), {

@@ -267,9 +267,13 @@ window.startDailyPuzzle = function () {
 
 window.startCampaignLevel = function (levelIndex) {
   window.gameData = window.gameData || {};
+  const nextLevel = Math.max(0, levelIndex | 0);
   window.gameData.mode = 'campaign';
   window.gameData.dailyLevel = null;
-  window.gameData.currentLevel = levelIndex || 0;
+  window.gameData.currentLevel = nextLevel;
+  // A newly selected level starts a fresh star-attempt chain.
+  window.gameData.retryLevelIndex = nextLevel;
+  window.gameData.levelRetries = 0;
 };
 
 window.saveDailyResult = function (stars, mistakes, elapsed) {

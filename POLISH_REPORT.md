@@ -90,3 +90,11 @@ Browser assertion passed against the local game: `base = 1`, `bonusMaxMistakes =
 The `×2 звёзды` card now states the exact behavior: it doubles the next level's stars up to the game's 3★ maximum. The old special case that silently added two hints when a 3★ level was completed has been removed. The new runtime result records the original and final values and the one-time flag is consumed exactly once.
 
 Browser assertion passed with `daily.js?v=102` and `payments.js?v=102`: purchase activated the flag, 1★ became 2★ with `from: 1, to: 2`, a 3★ result remained 3★ with `capped: true`, `doubleStarsNext` was consumed, and hints remained 0.
+
+## Star scoring by retries
+
+The initial v103 runtime check exposed that retry count was combined with current-run mistakes using `Math.max`, which would incorrectly preserve 3★ after a failed replay followed by a clean attempt. The intended rule is cumulative: `stars = max(0, 3 - failed_replays - current_run_mistakes)`. This is being corrected before publication.
+
+The first v104 console check was run while the currently mounted Phaser scene still had its daily-mode flag from onboarding, so it correctly ignored campaign retries. The next assertion explicitly mounts the campaign state before checking the formula.
+
+The campaign v104 assertion passed: clean completion after 0, 1, 2, and 3 failed replays returned 3★, 2★, 1★, and 0★; one failed replay plus 0, 1, and 2 current-run mistakes returned 2★, 1★, and 0★. The progress assertion also passed: 2★ was saved, 3★ improved it, and a later 1★ did not overwrite the 3★ record.
