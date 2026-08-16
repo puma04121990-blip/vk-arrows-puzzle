@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -14,8 +16,10 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0b0b14;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #080811;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  color: #eef0ff;
+  text-rendering: optimizeLegibility;
   position: fixed;
   inset: 0;
   touch-action: manipulation;
@@ -31,7 +35,8 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #0b0b14;
+  background: #080811;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -44,6 +49,17 @@ html, body {
   /* Do not fight Phaser scale with max-width/height */
   touch-action: none;
   outline: none;
+  image-rendering: auto;
+}
+
+:focus-visible { outline: 3px solid #00e8c8; outline-offset: 3px; }
+
+@media (orientation: landscape) and (max-height: 560px) {
+  #game-container { padding-top: 4px; padding-bottom: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
 @media (min-width: 900px) and (orientation: landscape) {

@@ -195,7 +195,7 @@ window.createNiceButton = function (scene, x, y, label, callback, opts) {
     : '#0b0b14';
 
   const text = scene.add.text(0, 0, label, {
-    fontFamily: 'Arial Black, Arial',
+    fontFamily: 'Manrope, Arial Black, Arial, sans-serif',
     fontSize: fontSize,
     color: textColor
   }).setOrigin(0.5);
@@ -208,11 +208,14 @@ window.createNiceButton = function (scene, x, y, label, callback, opts) {
   btn.setInteractive({ useHandCursor: true });
 
   btn.on('pointerover', () => {
+    if (window.playUiTone) window.playUiTone(300, 0.025, 'sine', 0.018);
     if (secondary) drawBg(0x262640, 0x4a4a6a);
     else drawBg(color, 0xffffff);
   });
   btn.on('pointerout', () => drawBg(fill, stroke));
   btn.on('pointerdown', () => {
+    if (window.ensureGameAudio) window.ensureGameAudio();
+    if (window.playUiTone) window.playUiTone(420, 0.045, 'sine', 0.045);
     scene.tweens.add({
       targets: btn,
       scale: 0.94,
@@ -237,7 +240,7 @@ window.createHudChip = function (scene, x, y, label, opts) {
   const depth = opts.depth != null ? opts.depth : 20;
 
   const text = scene.add.text(0, 0, label, {
-    fontFamily: opts.fontFamily || 'Arial',
+    fontFamily: opts.fontFamily || 'Manrope, Arial, sans-serif',
     fontSize: opts.fontSize || '16px',
     color: opts.color || '#8a8aa8'
   }).setOrigin(0.5);

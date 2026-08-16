@@ -244,6 +244,9 @@
         window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
           size: wide ? 36 : 40, fontSize: wide ? '18px' : '20px', depth: 80
         });
+        if (window.createMusicToggle) window.createMusicToggle(this, width - (wide ? 72 : 82), wide ? 22 : 36, {
+          size: wide ? 36 : 40, fontSize: wide ? '20px' : '22px', depth: 80
+        });
       }
     };
 

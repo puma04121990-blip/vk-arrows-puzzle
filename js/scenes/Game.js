@@ -26,6 +26,11 @@ class GameScene extends Phaser.Scene {
     this.timeLimit = 0;
     this.elapsed = 0;
     this.skinId = (window.gameProgress && window.gameProgress.skin) || 'neon';
+    this.combo = 0;
+    this.bestCombo = 0;
+    this.chainTarget = Math.max(3, Math.min(7, 3 + Math.floor(this.levelIndex / 10)));
+    this.comboWindow = 3.4;
+    this.lastSafeMoveAt = -999;
   }
 
   calcTimeLimit() {
@@ -74,6 +79,7 @@ class GameScene extends Phaser.Scene {
         setText: (t) => { this._timerStr = t; if (this.timerChip) this.timerChip.setLabel(t, this._timerColor); },
         setColor: (c) => { this._timerColor = c; if (this.timerChip) this.timerChip.setLabel(this._timerStr, c); }
       };
+      this.comboChip = window.createHudChip(this, width / 2, statsY + (wide ? 38 : 42), 'ЦЕПОЧКА · 0', { fontSize: wide ? '12px' : '13px', color: '#ffd166', fill: 0x151524, stroke: 0x4a3d2a });
     } else {
       this.movesText = this.add.text(width / 2 - 90, statsY, `Ошибки: 0/${this.maxMistakes}`, { fontFamily: 'Arial', fontSize: '17px', color: '#6e6e8a' }).setOrigin(1, 0.5);
       this.timerText = this.add.text(width / 2 + 90, statsY, this.formatTime(this.timeLeft), { fontFamily: 'Arial Black, Arial', fontSize: '19px', color: '#00e8c8' }).setOrigin(0, 0.5);
@@ -109,6 +115,7 @@ class GameScene extends Phaser.Scene {
     this.createArrows();
     this.createUI();
     this.initAudio();
+    if (window.startAmbientMusic && window.isMusicOn && window.isMusicOn()) window.startAmbientMusic();
     this.startTimer();
   }
 
@@ -136,6 +143,10 @@ class GameScene extends Phaser.Scene {
         if (this.completed || this.failed) return;
         this.timeLeft -= 0.2;
         this.elapsed = this.timeLimit - this.timeLeft;
+        if (this.combo > 0 && this.elapsed - this.lastSafeMoveAt > this.comboWindow) {
+          this.combo = 0;
+          this.updateComboUI();
+        }
         if (this.timeLeft <= 10) this.timerText.setColor('#ff6b6b');
         else if (this.timeLeft <= 20) this.timerText.setColor('#ffd166');
         else this.timerText.setColor('#00e8c8');
@@ -340,6 +351,7 @@ class GameScene extends Phaser.Scene {
   handleArrowTap(data) {
     if (data.removed || this.completed || this.failed) return;
     if (this.isLocked(data)) {
+      this.combo = 0; this.updateComboUI();
       this.mistakes++; this.updateMistakesUI(); this.playFailSound(); this.failFeedback(data);
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
       return;
@@ -359,9 +371,18 @@ class GameScene extends Phaser.Scene {
     }
     if (this.canEscape(data)) { this.playSuccessSound(); this.flyAway(data); }
     else {
+      this.combo = 0; this.updateComboUI();
       this.mistakes++; this.updateMistakesUI(); this.playFailSound(); this.failFeedback(data);
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
     }
+  }
+
+  updateComboUI() {
+    if (!this.comboChip) return;
+    const goal = this.chainTarget || 3;
+    const label = this.combo >= goal ? 'МАСТЕРСТВО · ' + this.combo : 'ЦЕПОЧКА · ' + this.combo + '/' + goal;
+    this.comboChip.setLabel(label, this.combo >= goal ? '#00e8c8' : '#ffd166');
+    if (this.combo >= goal && this.comboChip.setScale) this.tweens.add({ targets: this.comboChip, scale: 1.08, duration: 80, yoyo: true });
   }
 
   canEscape(data) {
@@ -384,6 +405,16 @@ class GameScene extends Phaser.Scene {
   flyAway(data) {
     if (data.removed) return;
     data.removed = true;
+    if (this.elapsed - this.lastSafeMoveAt > this.comboWindow) this.combo = 0;
+    this.combo++;
+    this.lastSafeMoveAt = this.elapsed;
+    this.bestCombo = Math.max(this.bestCombo, this.combo);
+    this.updateComboUI();
+    if (this.combo >= (this.chainTarget || 3)) {
+      this.timeLeft = Math.min(this.timeLimit, this.timeLeft + 1.5);
+      this.elapsed = this.timeLimit - this.timeLeft;
+      this.playTone(760 + Math.min(220, this.combo * 12), 0.08, 'triangle', 0.07);
+    }
     this.remaining--;
     this.moves++;
     data.zone.disableInteractive();
@@ -520,6 +551,8 @@ class GameScene extends Phaser.Scene {
     window.gameData.timeLeft = Math.max(0, this.timeLeft);
     window.gameData.timeLimit = this.timeLimit;
     window.gameData.elapsed = Math.max(0, this.elapsed);
+    window.gameData.combo = this.bestCombo;
+    window.gameData.chainTarget = this.chainTarget;
     this.scene.start('Win');
   }
 
@@ -539,6 +572,9 @@ class GameScene extends Phaser.Scene {
     if (window.createSoundToggle) {
       window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
         size: wide ? 36 : 40, fontSize: wide ? '18px' : '20px', depth: 80
+      });
+      if (window.createMusicToggle) window.createMusicToggle(this, width - (wide ? 72 : 82), wide ? 22 : 36, {
+        size: wide ? 36 : 40, fontSize: wide ? '20px' : '22px', depth: 80
       });
     }
   }

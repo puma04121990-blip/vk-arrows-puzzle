@@ -15,7 +15,10 @@ window.gameProgress = {
     perfectStreak: 0,
     bestStreak: 0,
     unlocked: {},
-    newlyUnlocked: []
+    newlyUnlocked: [],
+    bestCombo: 0,
+    chainsCompleted: 0,
+    mastery: {}
   },
   // Retention Phase A
   loginStreak: 0,
@@ -64,7 +67,10 @@ function defaultStats() {
     perfectStreak: 0,
     bestStreak: 0,
     unlocked: {},
-    newlyUnlocked: []
+    newlyUnlocked: [],
+    bestCombo: 0,
+    chainsCompleted: 0,
+    mastery: {}
   };
 }
 
@@ -85,7 +91,10 @@ function snapshotProgress() {
       levelsCleared: st.levelsCleared || 0,
       perfectStreak: st.perfectStreak || 0,
       bestStreak: st.bestStreak || 0,
-      unlocked: st.unlocked || {}
+      unlocked: st.unlocked || {},
+      bestCombo: st.bestCombo || 0,
+      chainsCompleted: st.chainsCompleted || 0,
+      mastery: st.mastery || {}
     },
     loginStreak: window.gameProgress.loginStreak || 0,
     lastLoginDate: window.gameProgress.lastLoginDate || '',
@@ -157,6 +166,12 @@ function mergeProgress(base, incoming) {
     bs.levelsCleared = Math.max(bs.levelsCleared || 0, is.levelsCleared || 0);
     bs.bestStreak = Math.max(bs.bestStreak || 0, is.bestStreak || 0);
     bs.perfectStreak = Math.max(bs.perfectStreak || 0, is.perfectStreak || 0);
+    bs.bestCombo = Math.max(bs.bestCombo || 0, is.bestCombo || 0);
+    bs.chainsCompleted = Math.max(bs.chainsCompleted || 0, is.chainsCompleted || 0);
+    if (!bs.mastery) bs.mastery = {};
+    if (is.mastery && typeof is.mastery === 'object') {
+      for (const id in is.mastery) bs.mastery[id] = Math.max(bs.mastery[id] || 0, is.mastery[id] || 0);
+    }
     if (!bs.unlocked) bs.unlocked = {};
     if (is.unlocked && typeof is.unlocked === 'object') {
       for (const id in is.unlocked) {
@@ -279,6 +294,9 @@ function buildVkPayloads() {
       lc: snap.stats.levelsCleared || 0,
       ps: snap.stats.perfectStreak || 0,
       bs: snap.stats.bestStreak || 0,
+      bc: snap.stats.bestCombo || 0,
+      cc: snap.stats.chainsCompleted || 0,
+      ma: snap.stats.mastery || {},
       u: snap.stats.unlocked || {}
     },
     // daily retention compact
@@ -309,6 +327,9 @@ function buildVkPayloads() {
     lc: snap.stats.levelsCleared || 0,
     ps: snap.stats.perfectStreak || 0,
     bs: snap.stats.bestStreak || 0,
+    bc: snap.stats.bestCombo || 0,
+    cc: snap.stats.chainsCompleted || 0,
+    ma: snap.stats.mastery || {},
     u: snap.stats.unlocked || {}
   });
   return { full, core, stars, stats };
@@ -332,6 +353,9 @@ function parseVkFull(raw) {
       levelsCleared: st.lc || st.levelsCleared || 0,
       perfectStreak: st.ps || st.perfectStreak || 0,
       bestStreak: st.bs || st.bestStreak || 0,
+      bestCombo: st.bc || st.bestCombo || 0,
+      chainsCompleted: st.cc || st.chainsCompleted || 0,
+      mastery: st.ma || st.mastery || {},
       unlocked: st.u || st.unlocked || {},
       newlyUnlocked: []
     },

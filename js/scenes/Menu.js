@@ -23,6 +23,11 @@ class MenuScene extends Phaser.Scene {
         fontSize: wide ? '20px' : '22px',
         depth: 80
       });
+      if (window.createMusicToggle) window.createMusicToggle(this, width - (wide ? 84 : 94), wide ? 28 : 36, {
+        size: wide ? 40 : 44,
+        fontSize: wide ? '22px' : '24px',
+        depth: 80
+      });
     }
 
     const titleY = wide ? 48 : Math.max(72, Math.round(height * 0.08));

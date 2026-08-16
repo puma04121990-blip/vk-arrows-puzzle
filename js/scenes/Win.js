@@ -10,6 +10,8 @@ class WinScene extends Phaser.Scene {
     const mistakes = window.gameData.mistakes || 0;
     const levelIndex = window.gameData.currentLevel;
     const elapsed = window.gameData.elapsed || 0;
+    const combo = window.gameData.combo || 0;
+    const chainTarget = window.gameData.chainTarget || 3;
     const level = isDaily ? 0 : (levelIndex + 1);
 
     if (!isDaily && window.applyDoubleStarsIfNeeded) {
@@ -30,7 +32,7 @@ class WinScene extends Phaser.Scene {
         catch (e) { savePromise = Promise.resolve(false); }
       }
       if (window.trackLevelResult) {
-        try { window.trackLevelResult(levelIndex, stars, mistakes, elapsed); } catch (e) {}
+        try { window.trackLevelResult(levelIndex, stars, mistakes, elapsed, combo); } catch (e) {}
       }
     }
 
@@ -93,10 +95,18 @@ class WinScene extends Phaser.Scene {
 
     const timeStr = this.formatTime(elapsed);
     this.add.text(width / 2, height * 0.44, 'Ошибок: ' + mistakes + '   ·   Время: ' + timeStr, {
-      fontFamily: 'Arial',
+      fontFamily: 'Manrope, Arial, sans-serif',
       fontSize: '17px',
       color: '#8a8aa8'
     }).setOrigin(0.5);
+
+    if (combo > 0) {
+      const comboText = combo >= chainTarget ? 'МАСТЕРСТВО: цепочка ' + combo + ' · +время' : 'Лучшая цепочка: ' + combo + '/' + chainTarget;
+      this.add.text(width / 2, height * 0.49, comboText, {
+        fontFamily: 'Manrope, Arial, sans-serif', fontSize: '15px',
+        color: combo >= chainTarget ? '#00e8c8' : '#ffd166', align: 'center', wordWrap: { width: width - 48 }
+      }).setOrigin(0.5);
+    }
 
     const news = window.popNewAchievements ? window.popNewAchievements() : [];
     if (news.length && !isDaily) {
@@ -158,6 +168,7 @@ class WinScene extends Phaser.Scene {
     }
 
     this.playWinMelody();
+    if (window.startAmbientMusic && window.isMusicOn && window.isMusicOn()) window.startAmbientMusic();
 
     this.time.delayedCall(400, () => {
       const go = () => {

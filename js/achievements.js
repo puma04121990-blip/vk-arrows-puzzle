@@ -110,6 +110,18 @@ window.ACHIEVEMENTS = [
     title: 'Хладнокровие',
     desc: 'Пройти уровень с 2 ошибками (1★)',
     icon: '🧊'
+  },
+  {
+    id: 'combo_5',
+    title: 'Ритм поля',
+    desc: 'Собрать цепочку из 5 безопасных ходов',
+    icon: '〰️'
+  },
+  {
+    id: 'combo_10',
+    title: 'Пульс мастера',
+    desc: 'Собрать цепочку из 10 безопасных ходов',
+    icon: '◈'
   }
 ];
 
@@ -121,7 +133,10 @@ function ensureStats() {
       perfectStreak: 0,
       bestStreak: 0,
       unlocked: {}, // id -> timestamp
-      newlyUnlocked: []
+      newlyUnlocked: [],
+      bestCombo: 0,
+      chainsCompleted: 0,
+      mastery: {}
     };
   }
   if (!window.gameProgress.stats.unlocked) window.gameProgress.stats.unlocked = {};
@@ -151,9 +166,13 @@ function stageAllPerfect(stageId) {
  * Вызывать после прохождения уровня.
  * mistakes, stars, elapsed — за этот забег
  */
-window.trackLevelResult = function (levelIndex, stars, mistakes, elapsed) {
+window.trackLevelResult = function (levelIndex, stars, mistakes, elapsed, combo) {
   ensureStats();
   const st = window.gameProgress.stats;
+  st.bestCombo = Math.max(st.bestCombo || 0, combo || 0);
+  if (combo >= 3) st.chainsCompleted = (st.chainsCompleted || 0) + 1;
+  if (!st.mastery) st.mastery = {};
+  if (combo >= 3) st.mastery[String(levelIndex || 0)] = Math.max(st.mastery[String(levelIndex || 0)] || 0, combo || 0);
 
   st.totalMistakes += mistakes || 0;
   st.levelsCleared = Math.max(st.levelsCleared, (levelIndex || 0) + 1);
@@ -190,6 +209,8 @@ window.trackLevelResult = function (levelIndex, stars, mistakes, elapsed) {
 
   if (elapsed > 0 && elapsed < 15 && stars >= 1) unlockAchievement('speedster');
   if (stars === 1) unlockAchievement('no_hint_style');
+  if ((combo || 0) >= 5) unlockAchievement('combo_5');
+  if ((combo || 0) >= 10) unlockAchievement('combo_10');
 
   if (window.persistProgress) window.persistProgress();
   else if (typeof persist === 'function') { /* internal */ }
