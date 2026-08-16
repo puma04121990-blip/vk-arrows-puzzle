@@ -42,23 +42,6 @@ html, body {
   align-items: center;
 }
 
-@media (orientation: landscape) and (min-width: 760px) {
-  #game-container::before, #game-container::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 24vw;
-    pointer-events: none;
-    opacity: .72;
-    background:
-      radial-gradient(circle at 50% 30%, rgba(0,232,200,.08), transparent 42%),
-      linear-gradient(180deg, rgba(18,18,38,.74), rgba(8,8,17,.18));
-  }
-  #game-container::before { left: 0; border-right: 1px solid rgba(0,232,200,.06); }
-  #game-container::after { right: 0; transform: scaleX(-1); border-right: 1px solid rgba(0,232,200,.06); }
-}
-
 #game-container canvas {
   display: block;
   margin: 0 auto;
@@ -80,7 +63,5 @@ html, body {
 }
 
 @media (min-width: 900px) and (orientation: landscape) {
-  html, body, #game-container {
-    background: radial-gradient(ellipse at center, #12121e 0%, #0b0b14 70%);
-  }
+  html, body, #game-container { background: #080811; }
 }

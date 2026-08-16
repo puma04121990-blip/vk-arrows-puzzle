@@ -66,27 +66,40 @@ class ShopScene extends Phaser.Scene {
     const startX = (width - totalW) / 2 + cardW / 2;
 
     this.scrollRoot = this.add.container(0, 0);
+    this.scrollRoot.setDepth(10);
+    const listMask = this.make.graphics({ x: 0, y: 0, add: false });
+    listMask.fillStyle(0xffffff);
+    listMask.fillRect(0, headerH, width, height - headerH - footerH - 18);
+    this.scrollRoot.setMask(listMask.createGeometryMask());
 
     items.forEach((item, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = startX + col * (cardW + gapX);
+      const isLastSingleWide = wide && items.length % 2 === 1 && i === items.length - 1;
+      const itemW = isLastSingleWide ? totalW : cardW;
+      const x = isLastSingleWide ? width / 2 : startX + col * (cardW + gapX);
       const y = startY + row * (cardH + gapY);
-      this.cards.push(this.makeCard(x, y, cardW, cardH, item));
+      this.cards.push(this.makeCard(x, y, itemW, cardH, item));
     });
 
-    const contentBottom = startY + Math.ceil(items.length / cols) * (cardH + gapY);
-    if (contentBottom > height - footerH - 8) {
+    const rows = Math.ceil(items.length / cols);
+    const contentBottom = startY + (rows - 1) * (cardH + gapY) + cardH / 2 + 14;
+    const listBottom = height - footerH - 18;
+    const maxScroll = Math.max(0, contentBottom - listBottom);
+    if (maxScroll > 0) {
       this.input.on('wheel', (pointer, over, dx, dy) => {
-        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y - dy * 0.4, -(contentBottom - (height - footerH)), 0);
+        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y - dy * 0.4, -maxScroll, 0);
       });
       let dragY = null;
-      this.input.on('pointerdown', (p) => { dragY = p.y; });
+      this.input.on('pointerdown', (p) => {
+        if (p.y < headerH || p.y > listBottom) return;
+        dragY = p.y;
+      });
       this.input.on('pointermove', (p) => {
         if (dragY == null || !p.isDown) return;
         const dy = p.y - dragY;
         dragY = p.y;
-        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y + dy, -(contentBottom - (height - footerH)), 0);
+        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y + dy, -maxScroll, 0);
       });
       this.input.on('pointerup', () => { dragY = null; });
     }
@@ -110,13 +123,15 @@ class ShopScene extends Phaser.Scene {
 
   makeCard(x, y, w, h, item) {
     const owned = this.isOwned(item.id);
+    const active = this.isTemporarilyActive(item.id);
+    const unavailable = owned || active;
     const container = this.add.container(x, y);
     this.scrollRoot.add(container);
 
     const bg = this.add.graphics();
     bg.fillStyle(0x161622, 1);
     bg.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
-    bg.lineStyle(2, owned ? 0x2a5a48 : 0x2e2e48, 1);
+    bg.lineStyle(2, owned ? 0x2a5a48 : (active ? 0x5a4a22 : 0x2e2e48), 1);
     bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
 
     const icon = this.add.text(-w / 2 + 22, 0, item.icon || '•', {
@@ -129,36 +144,37 @@ class ShopScene extends Phaser.Scene {
       color: '#e8e8f8'
     }).setOrigin(0, 0.5);
 
+    const btnW = 136;
+    const btnH = 38;
     const desc = this.add.text(-w / 2 + 48, 8, item.desc, {
-      fontFamily: 'Arial',
+      fontFamily: 'Manrope, Arial, sans-serif',
       fontSize: '12px',
       color: '#7a7a92',
-      wordWrap: { width: w - 170 }
+      wordWrap: { width: w - btnW - 96 }
     }).setOrigin(0, 0.5);
 
     const priceLabel = owned
-      ? 'КУТО'
-      : (window.formatVotesPrice ? window.formatVotesPrice(item.price) : (item.price + ' гол.'));
+      ? 'КУПЛЕНО'
+      : (active ? 'АКТИВНО' : (window.formatVotesPrice ? window.formatVotesPrice(item.price) : (item.price + ' гол.')));
 
-    const btnW = 110;
-    const btnH = 36;
-    const btnX = w / 2 - btnW / 2 - 12;
+    const btnX = w / 2 - btnW / 2 - 14;
     const btnBg = this.add.graphics();
-    const btnColor = owned ? 0x2a3a34 : 0xffd166;
+    const btnColor = owned ? 0x2a3a34 : (active ? 0x4a4026 : 0xffd166);
     btnBg.fillStyle(btnColor, 1);
     btnBg.fillRoundedRect(btnX - btnW / 2, -btnH / 2, btnW, btnH, btnH / 2);
 
     const btnText = this.add.text(btnX, 0, priceLabel, {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: owned ? '12px' : '13px',
-      color: owned ? '#7a9a88' : '#0b0b14'
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif',
+      fontSize: unavailable ? '11px' : '13px',
+      color: owned ? '#7a9a88' : (active ? '#e0c878' : '#0b0b14')
     }).setOrigin(0.5);
 
     container.add([bg, icon, title, desc, btnBg, btnText]);
     container.setSize(w, h);
 
-    if (!owned) {
-      const hit = this.add.zone(0, 0, w, h).setInteractive({ useHandCursor: true });
+    let hit = null;
+    if (!unavailable) {
+      hit = this.add.zone(0, 0, w, h).setInteractive({ useHandCursor: true });
       container.add(hit);
       hit.on('pointerup', () => this.onBuy(item.id));
     }
@@ -170,6 +186,9 @@ class ShopScene extends Phaser.Scene {
     container.btnH = btnH;
     container.btnX = btnX;
     container.owned = owned;
+    container.active = active;
+    container.unavailable = unavailable;
+    container.hit = hit;
     return container;
   }
 
@@ -184,9 +203,17 @@ class ShopScene extends Phaser.Scene {
     return false;
   }
 
+  isTemporarilyActive(id) {
+    return id === 'double_stars' && !!(window.gameProgress && window.gameProgress.doubleStarsNext);
+  }
+
   onBuy(itemId) {
     if (this.busy) return;
     if (this.isOwned(itemId)) return;
+    if (this.isTemporarilyActive(itemId)) {
+      this.showTransientStatus('Бонус уже активен для следующего уровня', '#ffd166');
+      return;
+    }
 
     const item = window.getShopItem && window.getShopItem(itemId);
     if (!item) return;
@@ -212,8 +239,9 @@ class ShopScene extends Phaser.Scene {
       } else {
         let msg = 'Покупка отменена';
         if (res && res.reason === 'already_owned') msg = 'Уже куплено';
+        else if (res && res.reason === 'already_active') msg = 'Бонус уже активен для следующего уровня';
         else if (res && res.reason === 'payment_unavailable') {
-          msg = 'Оплата недоступна. Нужен callback-сервер в настройках ВК';
+          msg = 'Оплата временно недоступна. Попробуйте позже';
         } else if (res && res.reason === 'item_not_found') msg = 'Товар не найден';
         this.statusText.setText(msg);
         this.statusText.setColor('#ff8a8a');
@@ -233,23 +261,30 @@ class ShopScene extends Phaser.Scene {
     });
   }
 
+  showTransientStatus(text, color) {
+    this.statusText.setText(text);
+    this.statusText.setColor(color || '#8a8aa8');
+    this.time.delayedCall(1800, () => {
+      this.statusText.setText(this.buildStatusLine());
+      this.statusText.setColor('#8a8aa8');
+    });
+  }
+
   refreshOwnedState() {
     this.cards.forEach((card) => {
       const owned = this.isOwned(card.itemId);
-      if (owned && !card.owned) {
-        card.owned = true;
+      const active = this.isTemporarilyActive(card.itemId);
+      if ((owned || active) && !card.unavailable) {
+        card.owned = owned;
+        card.active = active;
+        card.unavailable = true;
+        if (card.hit) { try { card.hit.disableInteractive(); } catch (e) {} }
         card.btnBg.clear();
-        card.btnBg.fillStyle(0x2a3a34, 1);
-        card.btnBg.fillRoundedRect(
-          card.btnX - card.btnW / 2,
-          -card.btnH / 2,
-          card.btnW,
-          card.btnH,
-          card.btnH / 2
-        );
-        card.btnText.setText('КУТО');
-        card.btnText.setColor('#7a9a88');
-        card.btnText.setFontSize('12px');
+        card.btnBg.fillStyle(owned ? 0x2a3a34 : 0x4a4026, 1);
+        card.btnBg.fillRoundedRect(card.btnX - card.btnW / 2, -card.btnH / 2, card.btnW, card.btnH, card.btnH / 2);
+        card.btnText.setText(owned ? 'КУПЛЕНО' : 'АКТИВНО');
+        card.btnText.setColor(owned ? '#7a9a88' : '#e0c878');
+        card.btnText.setFontSize('11px');
       }
     });
   }

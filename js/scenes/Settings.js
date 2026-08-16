@@ -48,24 +48,6 @@ class SettingsScene extends Phaser.Scene {
       }
     });
 
-    const testY = centerY + cardH * 2 + (wide ? 46 : 54);
-    if (window.createNiceButton) {
-      window.createNiceButton(this, width / 2, testY, 'ПРОВЕРИТЬ ЗВУК', () => {
-        if (window.unlockGameAudio) window.unlockGameAudio();
-        if (window.isMusicOn && window.isMusicOn() && window.startAmbientMusic) window.startAmbientMusic();
-        if (window.isSoundOn && window.isSoundOn() && window.playUiTone) {
-          window.playUiTone(523, 0.08, 'sine', 0.07);
-          this.time.delayedCall(100, () => window.playUiTone && window.playUiTone(784, 0.1, 'sine', 0.07));
-        }
-        this.showStatus('Звук запущен. Если тишина — проверь системную громкость браузера.');
-      }, { w: Math.min(300, cardW), h: wide ? 42 : 48, color: 0x2a4a3a, secondary: true, fontSize: wide ? '14px' : '15px', depth: 10 });
-    }
-
-    this.status = this.add.text(width / 2, testY + (wide ? 38 : 46), '', {
-      fontFamily: 'Manrope, Arial, sans-serif', fontSize: wide ? '12px' : '13px', color: '#8a8aa8',
-      wordWrap: { width: cardW }, align: 'center'
-    }).setOrigin(0.5);
-
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.96).setDepth(20);
     const back = window.createNiceButton
       ? window.createNiceButton(this, width / 2, height - footerH / 2, '← МЕНЮ', () => this.scene.start('Menu'), {
@@ -129,10 +111,4 @@ class SettingsScene extends Phaser.Scene {
     if (this.effectsCard) this.paintToggle(this.effectsCard, false);
   }
 
-  showStatus(text) {
-    if (!this.status) return;
-    this.status.setText(text).setAlpha(1);
-    this.tweens.killTweensOf(this.status);
-    this.tweens.add({ targets: this.status, alpha: 0.15, delay: 2600, duration: 300 });
-  }
 }

@@ -151,6 +151,9 @@ window.buyWithVotes = function (itemId) {
       return Promise.resolve({ ok: false, reason: 'already_owned' });
     }
   }
+  if (itemId === 'double_stars' && window.gameProgress && window.gameProgress.doubleStarsNext) {
+    return Promise.resolve({ ok: false, reason: 'already_active' });
+  }
 
   const isVK = typeof vkBridge !== 'undefined' && typeof vkBridge.send === 'function' && window.isVK;
 
