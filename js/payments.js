@@ -83,7 +83,8 @@ window.getBonusMaxMistakes = function () {
 };
 
 window.getEffectiveMaxMistakes = function () {
-  return 3 + window.getBonusMaxMistakes();
+  // Базовый лимит — одна ошибка; покупки +1 и +3 добавляются сверху.
+  return 1 + window.getBonusMaxMistakes();
 };
 
 /** Выдача товара после успешной оплаты (или тестового режима). */

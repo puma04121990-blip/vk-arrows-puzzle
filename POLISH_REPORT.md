@@ -78,3 +78,9 @@ The client payment path now accepts the VK Bridge confirmation shape `{ status: 
 All seven products were tested in local Web test mode. The resulting state was 13 hints, 4 additional mistake slots, active double-stars, no-ads enabled, and one purchase count per item. Repeat attempts correctly returned `already_active` for double-stars and `already_owned` for no-ads and the skin pack. A mock VK response with `status: 'success'` granted 3 hints and stored `mock-order-1`; a `status: 'cancel'` response left the balance unchanged.
 
 A dependency-free callback server was added at `server/vk-payments-callback.js`. It handles signed `get_item` and `order_status_change` POSTs, test-mode suffixes, invalid signatures, and a persistent test/live order journal. Integration tests returned product metadata, order confirmation, and error 10 for an invalid signature.
+
+## Mistake limit v101 verification
+
+The base limit was changed from 3 to 1 in `getEffectiveMaxMistakes`; `bonusMaxMistakes` remains additive, so the expected totals are 1 without bonuses, 2 after +1, and 4 after +3. All asset URLs in `index.html` were bumped from `v=100` to `v=101`. The local game loaded successfully; an automated coordinate click landed on the linked terms page rather than the canvas consent button, so the remaining verification uses direct JavaScript state assertions and syntax checks.
+
+Browser assertion passed against the local game: `base = 1`, `bonusMaxMistakes = 1 -> 2`, `bonusMaxMistakes = 3 -> 4`; the loaded script URL was `js/payments.js?v=101`.
