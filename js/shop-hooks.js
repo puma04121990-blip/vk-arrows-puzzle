@@ -137,7 +137,11 @@
     };
 
     GameScene.prototype.useHint = function () {
-      if (this.completed || this.failed || this._hintBusy) return;
+      if (this.completed || this.failed) return;
+      const now = Date.now();
+      // Only debounce an accidental double-tap; the previous visual pulse must not lock hints.
+      if (this._hintLastTap && now - this._hintLastTap < 260) return;
+      this._hintLastTap = now;
 
       const have = window.getHints ? window.getHints() : 0;
       if (have <= 0) {
@@ -178,7 +182,12 @@
       this._hintBusy = true;
 
       const g = target.graphics;
-      if (this._hintRing) { try { this._hintRing.destroy(); } catch (e) {} }
+      if (this._hintRing) {
+        try { this._hintRing.destroy(); } catch (e) {}
+        this._hintRing = null;
+      }
+      // Stop the previous pulse so a second hint starts cleanly on every press.
+      try { if (this.tweens && this.tweens.killTweensOf) this.tweens.killTweensOf(g); } catch (e) {}
       const ring = this.add.circle(g.x, g.y, this.cellSize * 0.42, 0xffd166, 0);
       this._hintRing = ring;
       ring.setStrokeStyle(3, 0xffd166, 0.95);
@@ -205,6 +214,8 @@
           try { if (g && g.setScale) g.setScale(1); } catch (e) {}
         }
       });
+      // Keep the guard only as a state indicator; repeated hints are governed by _hintLastTap.
+      this.time.delayedCall(280, () => { this._hintBusy = false; });
 
       if (this.playTone) this.playTone(660, 0.06, 'sine', 0.1);
       this.showHintToast(freeCoachHint ? 'Обучение: нажми на подсвеченную стрелку' : 'Подсказка: нажми на подсвеченную стрелку');
