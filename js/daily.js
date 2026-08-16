@@ -332,17 +332,21 @@ window.getNextGoalText = function () {
 
 window.applyDoubleStarsIfNeeded = function (stars) {
   const p = ensureDailyFields();
-  if (!p.doubleStarsNext) return stars;
+  const baseStars = Math.max(0, Math.min(3, Number(stars) || 0));
+  window.lastDoubleStarsResult = null;
+
+  if (!p.doubleStarsNext) return baseStars;
+
   p.doubleStarsNext = false;
+  const doubledStars = Math.min(3, baseStars * 2);
+  window.lastDoubleStarsResult = {
+    from: baseStars,
+    to: doubledStars,
+    capped: doubledStars < baseStars * 2
+  };
+
   if (window.persistProgress) {
     try { window.persistProgress(); } catch (e) {}
   }
-  if (stars >= 3) {
-    p.hints = (p.hints || 0) + 2;
-    if (window.persistProgress) {
-      try { window.persistProgress(); } catch (e) {}
-    }
-    return stars;
-  }
-  return Math.min(3, stars * 2);
+  return doubledStars;
 };

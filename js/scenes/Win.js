@@ -7,6 +7,7 @@ class WinScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const isDaily = !!(window.gameData && window.gameData.mode === 'daily');
     let stars = window.gameData.stars || 1;
+    let doubleStarsResult = null;
     const mistakes = window.gameData.mistakes || 0;
     const levelIndex = window.gameData.currentLevel;
     const elapsed = window.gameData.elapsed || 0;
@@ -16,6 +17,7 @@ class WinScene extends Phaser.Scene {
 
     if (!isDaily && window.applyDoubleStarsIfNeeded) {
       stars = window.applyDoubleStarsIfNeeded(stars);
+      doubleStarsResult = window.lastDoubleStarsResult || null;
       window.gameData.stars = stars;
     }
 
@@ -94,7 +96,10 @@ class WinScene extends Phaser.Scene {
     }
 
     const timeStr = this.formatTime(elapsed);
-    this.add.text(width / 2, height * 0.44, 'Ошибок: ' + mistakes + '   ·   Время: ' + timeStr, {
+    const bonusLabel = doubleStarsResult
+      ? ('   ·   ×2: ' + doubleStarsResult.from + '★ → ' + doubleStarsResult.to + '★')
+      : '';
+    this.add.text(width / 2, height * 0.44, 'Ошибок: ' + mistakes + '   ·   Время: ' + timeStr + bonusLabel, {
       fontFamily: 'Manrope, Arial, sans-serif',
       fontSize: '17px',
       color: '#8a8aa8'

@@ -84,3 +84,9 @@ A dependency-free callback server was added at `server/vk-payments-callback.js`.
 The base limit was changed from 3 to 1 in `getEffectiveMaxMistakes`; `bonusMaxMistakes` remains additive, so the expected totals are 1 without bonuses, 2 after +1, and 4 after +3. All asset URLs in `index.html` were bumped from `v=100` to `v=101`. The local game loaded successfully; an automated coordinate click landed on the linked terms page rather than the canvas consent button, so the remaining verification uses direct JavaScript state assertions and syntax checks.
 
 Browser assertion passed against the local game: `base = 1`, `bonusMaxMistakes = 1 -> 2`, `bonusMaxMistakes = 3 -> 4`; the loaded script URL was `js/payments.js?v=101`.
+
+## Double-stars fix v102
+
+The `×2 звёзды` card now states the exact behavior: it doubles the next level's stars up to the game's 3★ maximum. The old special case that silently added two hints when a 3★ level was completed has been removed. The new runtime result records the original and final values and the one-time flag is consumed exactly once.
+
+Browser assertion passed with `daily.js?v=102` and `payments.js?v=102`: purchase activated the flag, 1★ became 2★ with `from: 1, to: 2`, a 3★ result remained 3★ with `capped: true`, `doubleStarsNext` was consumed, and hints remained 0.

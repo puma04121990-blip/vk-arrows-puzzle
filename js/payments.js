@@ -46,7 +46,7 @@ window.SHOP_ITEMS = [
   {
     id: 'double_stars',
     title: '×2 звёзды',
-    desc: 'На следующий пройденный уровень',
+    desc: 'Удвоит звёзды на следующем уровне (до 3★)',
     icon: '⭐',
     price: 10,
     category: 'boost'
