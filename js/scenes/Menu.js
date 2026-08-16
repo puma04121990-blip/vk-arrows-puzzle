@@ -164,7 +164,6 @@ class MenuScene extends Phaser.Scene {
       { label: 'НАСТРОЙКИ', color: 0x1e2f3a, secondary: true, cb: () => this.scene.start('Settings') },
       { label: 'ДОСТИЖЕНИЯ', color: 0x222238, secondary: true, cb: () => this.scene.start('Achievements') },
       { label: 'КАК ИГРАТЬ', color: 0x222238, secondary: true, cb: () => this.scene.start('Help') },
-      { label: 'ПОДДЕРЖКА', color: 0x1e2a38, secondary: true, cb: () => this.scene.start('Support') },
       { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
     );
 
