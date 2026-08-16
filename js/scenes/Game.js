@@ -373,6 +373,8 @@ class GameScene extends Phaser.Scene {
     else {
       this.combo = 0; this.updateComboUI();
       this.mistakes++; this.updateMistakesUI(); this.playFailSound(); this.failFeedback(data);
+      this.spawnImpactBurst(data.graphics ? data.graphics.x : 0, data.graphics ? data.graphics.y : 0, 0xff6b6b);
+      if (this.cameras && this.cameras.main) this.cameras.main.shake(90, 0.0025);
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
     }
   }
@@ -411,6 +413,7 @@ class GameScene extends Phaser.Scene {
     this.bestCombo = Math.max(this.bestCombo, this.combo);
     this.updateComboUI();
     if (this.combo >= (this.chainTarget || 3)) {
+      if (this.cameras && this.cameras.main) this.cameras.main.shake(120, Math.min(0.004, 0.0015 + this.combo * 0.00025));
       this.timeLeft = Math.min(this.timeLimit, this.timeLeft + 1.5);
       this.elapsed = this.timeLimit - this.timeLeft;
       this.playTone(760 + Math.min(220, this.combo * 12), 0.08, 'triangle', 0.07);
@@ -441,6 +444,7 @@ class GameScene extends Phaser.Scene {
     else dx = -1;
 
     const gx = g.x, gy = g.y;
+    this.spawnImpactBurst(gx, gy, data.color);
     const skin = this.skinId || 'neon';
     const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
     const baseAng = data.baseAngle || 0;
@@ -514,6 +518,21 @@ class GameScene extends Phaser.Scene {
     };
     flyBadge(data.badge);
     flyBadge(data.rotBadge);
+  }
+
+  spawnImpactBurst(x, y, color) {
+    const count = 7;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const dot = this.add.circle(x, y, Math.max(2, this.cellSize * 0.045), color, 0.9).setDepth(30);
+      this.tweens.add({
+        targets: dot,
+        x: x + Math.cos(angle) * this.cellSize * 0.48,
+        y: y + Math.sin(angle) * this.cellSize * 0.48,
+        alpha: 0, scale: 0.25, duration: 220 + i * 18, ease: 'Cubic.easeOut',
+        onComplete: () => { try { dot.destroy(); } catch (e) {} }
+      });
+    }
   }
 
   spawnExitTrail(x, y, dx, dy, color, skin) {

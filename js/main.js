@@ -1,5 +1,10 @@
 window.vkUser = null;
-window.isVK = typeof vkBridge !== 'undefined';
+const host = String(window.location.hostname || '');
+const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(host);
+window.isVK = typeof vkBridge !== 'undefined' && !isLocalHost && (
+  window.parent !== window ||
+  /vk_user_id=|vk_app_id=|sign=/.test(String(window.location.search || ''))
+);
 
 const CONSENT_KEY = 'arrow_pulse_consent_v1';
 const VK_CONSENT_KEY = 'ap_consent';
@@ -80,7 +85,10 @@ function initVK() {
     .catch((err) => {
       console.warn('[ArrowPulse] VK init error:', err);
     })
-    .then(load);
+    .then(() => Promise.race([
+      load(),
+      new Promise((resolve) => setTimeout(resolve, 3500))
+    ]));
 }
 
 function setupLifecycle() {
@@ -93,7 +101,14 @@ function setupLifecycle() {
 
 setupLifecycle();
 
-const progressInitPromise = initVK();
+const progressInitPromise = Promise.race([
+  Promise.resolve().then(() => initVK()),
+  new Promise((resolve) => setTimeout(() => {
+    if (window.gameProgress) window.gameProgress.loaded = true;
+    if (window.markProgressReady) window.markProgressReady();
+    resolve();
+  }, 4000))
+]);
 window.progressInitPromise = progressInitPromise;
 
 const config = {

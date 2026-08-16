@@ -138,7 +138,8 @@
 
       const have = window.getHints ? window.getHints() : 0;
       if (have <= 0) {
-        this.showHintToast('Нет подсказок. Купите в магазине');
+        this.showHintToast('Подсказки закончились — открываем магазин');
+        this.time.delayedCall(520, () => this.scene.start('Shop'));
         return;
       }
 
@@ -229,9 +230,9 @@
           this,
           width / 2,
           by,
-          '💡 ' + hints,
+          hints > 0 ? '💡 ' + hints : '💡 МАГАЗИН',
           () => this.useHint(),
-          { w: btnW, h: btnH, color: 0x2a4a3a, secondary: true, fontSize: fontSize, depth: 20 }
+          { w: btnW, h: btnH, color: hints > 0 ? 0x2a4a3a : 0x3a2a18, secondary: true, fontSize: hints > 0 ? fontSize : (wide ? '11px' : '12px'), depth: 20 }
         );
         window.createNiceButton(this, width / 2 + (wide ? 130 : 140), by, 'МЕНЮ', () => this.scene.start('Menu'), {
           w: btnW, h: btnH, color: 0x222238, secondary: true, fontSize: fontSize, depth: 20
