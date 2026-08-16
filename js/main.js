@@ -111,6 +111,30 @@ const progressInitPromise = Promise.race([
 ]);
 window.progressInitPromise = progressInitPromise;
 
+function stripLegacySupportButton(scene) {
+  if (!scene || !scene.children || !scene.children.list) return;
+  const supportText = scene.children.list.find((child) => child && child.text === 'ПОДДЕРЖКА');
+  if (!supportText) return;
+  const supportButton = supportText.parentContainer || supportText;
+  const legalText = scene.children.list.find((child) => child && child.text === 'ПРАВОВАЯ');
+  const helpText = scene.children.list.find((child) => child && child.text === 'КАК ИГРАТЬ');
+  if (legalText && helpText) {
+    const legalButton = legalText.parentContainer || legalText;
+    const step = Number(legalButton.y) - Number((helpText.parentContainer || helpText).y);
+    if (Number.isFinite(step) && Math.abs(step) > 0) legalButton.y -= step;
+  }
+  try { supportButton.destroy(true); } catch (e) { try { supportButton.destroy(); } catch (ignore) {} }
+}
+
+if (typeof MenuScene !== 'undefined' && MenuScene.prototype && !MenuScene.prototype.__legacySupportGuard) {
+  const originalMenuCreate = MenuScene.prototype.create;
+  MenuScene.prototype.create = function () {
+    originalMenuCreate.apply(this, arguments);
+    this.time.delayedCall(0, () => stripLegacySupportButton(this));
+  };
+  MenuScene.prototype.__legacySupportGuard = true;
+}
+
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
