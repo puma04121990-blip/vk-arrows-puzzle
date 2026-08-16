@@ -108,18 +108,42 @@ class WinScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
+    const masteryTarget = Math.max(3, chainTarget);
+    const masteryValue = Math.min(combo, masteryTarget);
+    const barW = Math.min(width - 96, 310);
+    const barY = height * 0.545;
+    const masteryLabel = this.add.text(width / 2, barY - 18, 'МАСТЕРСТВО  ' + masteryValue + '/' + masteryTarget, {
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: '13px',
+      color: combo >= masteryTarget ? '#00e8c8' : '#ffd166'
+    }).setOrigin(0.5);
+    const masteryBar = this.add.graphics();
+    const drawMastery = (value) => {
+      masteryBar.clear();
+      masteryBar.fillStyle(0x151524, 1);
+      masteryBar.fillRoundedRect(width / 2 - barW / 2, barY - 6, barW, 12, 6);
+      masteryBar.lineStyle(1, 0x3a3a58, 1);
+      masteryBar.strokeRoundedRect(width / 2 - barW / 2, barY - 6, barW, 12, 6);
+      if (value > 0) {
+        masteryBar.fillStyle(combo >= masteryTarget ? 0x00e8c8 : 0xffd166, 1);
+        masteryBar.fillRoundedRect(width / 2 - barW / 2 + 2, barY - 4, Math.max(6, (barW - 4) * value / masteryTarget), 8, 4);
+      }
+    };
+    const masteryTween = { value: 0 };
+    drawMastery(0);
+    this.tweens.add({ targets: masteryTween, value: masteryValue, duration: 560, delay: 420, ease: 'Cubic.easeOut', onUpdate: () => drawMastery(masteryTween.value) });
+
     const news = window.popNewAchievements ? window.popNewAchievements() : [];
     if (news.length && !isDaily) {
       const a = window.getAchievementById ? window.getAchievementById(news[0]) : null;
       const label = a ? (a.icon + ' ' + a.title) : 'Новое достижение!';
-      this.add.text(width / 2, height * 0.51, label, {
+      this.add.text(width / 2, height * 0.61, label, {
         fontFamily: 'Arial',
         fontSize: '18px',
         color: '#ffd166'
       }).setOrigin(0.5);
 
       if (news.length > 1) {
-        this.add.text(width / 2, height * 0.55, '+ ещё ' + (news.length - 1), {
+        this.add.text(width / 2, height * 0.65, '+ ещё ' + (news.length - 1), {
           fontFamily: 'Arial',
           fontSize: '14px',
           color: '#6a6a82'
@@ -127,14 +151,14 @@ class WinScene extends Phaser.Scene {
       }
     }
 
-    const btnY = height * 0.64;
+    const btnY = height * 0.70;
 
     if (isDaily) {
       this.createButton(width / 2, btnY, 'ЕЩЁ РАЗ', 0x00e8c8, () => {
         if (window.startDailyPuzzle) window.startDailyPuzzle();
         this.scene.start('Game');
       });
-      this.createButton(width / 2, height * 0.78, 'МЕНЮ', 0x222238, () => {
+      this.createButton(width / 2, height * 0.84, 'МЕНЮ', 0x222238, () => {
         if (window.gameData) window.gameData.mode = 'campaign';
         this.scene.start('Menu');
       });
@@ -158,11 +182,11 @@ class WinScene extends Phaser.Scene {
         }).setOrigin(0.5);
       }
 
-      this.createButton(width / 2, height * 0.76, 'УРОВНИ', 0x2a2a45, () => {
+      this.createButton(width / 2, height * 0.82, 'УРОВНИ', 0x2a2a45, () => {
         this.scene.start('LevelsMap');
       });
 
-      this.createButton(width / 2, height * 0.88, 'МЕНЮ', 0x222238, () => {
+      this.createButton(width / 2, height * 0.92, 'МЕНЮ', 0x222238, () => {
         this.scene.start('Menu');
       });
     }

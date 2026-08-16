@@ -5,8 +5,9 @@
 // ============================================
 
 window.APP_SUPPORT = {
-  communityUrl: 'https://vk.com/puls_strelok',
-  communityTitle: 'Сообщество «Пульс стрелок»',
+  // Укажите опубликованное сообщество VK перед модерацией. Пустое значение не выводит нерабочую кнопку.
+  communityUrl: '',
+  communityTitle: '',
   email: 'puls.strelok.support@yandex.ru',
   responseHint: 'Ответ в течение 7 дней'
 };

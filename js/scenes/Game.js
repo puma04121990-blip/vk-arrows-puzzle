@@ -31,6 +31,10 @@ class GameScene extends Phaser.Scene {
     this.chainTarget = Math.max(3, Math.min(7, 3 + Math.floor(this.levelIndex / 10)));
     this.comboWindow = 3.4;
     this.lastSafeMoveAt = -999;
+    this.runStartedAt = 0;
+    this.coachStep = 0;
+    this.coachTarget = null;
+    this.coachEnabled = false;
   }
 
   calcTimeLimit() {
@@ -63,6 +67,7 @@ class GameScene extends Phaser.Scene {
 
     this.timeLimit = this.calcTimeLimit();
     this.timeLeft = this.timeLimit;
+    this.runStartedAt = this.time.now;
 
     if (window.createHudChip) {
       this.mistakesChip = window.createHudChip(this, width / 2 - (wide ? 78 : 96), statsY, `Ошибки: 0/${this.maxMistakes}`, { fontSize: wide ? '14px' : '15px', color: '#9a9ab4' });
@@ -114,9 +119,11 @@ class GameScene extends Phaser.Scene {
     this.drawWalls();
     this.createArrows();
     this.createUI();
+    if (wide) this.createLandscapeDashboard();
     this.initAudio();
     if (window.startAmbientMusic && window.isMusicOn && window.isMusicOn()) window.startAmbientMusic();
     this.startTimer();
+    this.time.delayedCall(350, () => this.startCoachIfNeeded());
   }
 
   formatTime(sec) {
@@ -134,6 +141,7 @@ class GameScene extends Phaser.Scene {
     else if (shown >= 1) color = '#ffd166';
     if (this.mistakesChip && this.mistakesChip.setLabel) this.mistakesChip.setLabel(label, color);
     else if (this.movesText) { this.movesText.setText(label); if (this.movesText.setColor) this.movesText.setColor(color); }
+    if (this.mistakesSideText) { this.mistakesSideText.setText(shown + '/' + this.maxMistakes); this.mistakesSideText.setColor(color); }
   }
 
   startTimer() {
@@ -142,7 +150,7 @@ class GameScene extends Phaser.Scene {
       callback: () => {
         if (this.completed || this.failed) return;
         this.timeLeft -= 0.2;
-        this.elapsed = this.timeLimit - this.timeLeft;
+        this.elapsed = Math.max(0, (this.time.now - this.runStartedAt) / 1000);
         if (this.combo > 0 && this.elapsed - this.lastSafeMoveAt > this.comboWindow) {
           this.combo = 0;
           this.updateComboUI();
@@ -350,6 +358,10 @@ class GameScene extends Phaser.Scene {
 
   handleArrowTap(data) {
     if (data.removed || this.completed || this.failed) return;
+    if (this.coachEnabled && this.coachTarget && data !== this.coachTarget) {
+      this.showCoachPrompt('Сначала нажми на подсвеченную стрелку');
+      return;
+    }
     if (this.isLocked(data)) {
       this.combo = 0; this.updateComboUI();
       this.mistakes++; this.updateMistakesUI(); this.playFailSound(); this.failFeedback(data);
@@ -367,6 +379,7 @@ class GameScene extends Phaser.Scene {
       if (data.rotBadge) { data.rotBadge.setAlpha(0.35); data.rotBadge.setScale(0.85); }
       this.playTone(400, 0.05, 'sine', 0.08);
       this.time.delayedCall(40, () => this.playTone(520, 0.05, 'sine', 0.08));
+      if (this.coachEnabled) this.focusCoachTarget(data);
       return;
     }
     if (this.canEscape(data)) { this.playSuccessSound(); this.flyAway(data); }
@@ -379,12 +392,101 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  startCoachIfNeeded() {
+    if (this.isDaily || this.levelIndex < 0 || this.levelIndex > 2) return;
+    const key = 'arrow_pulse_coach_level_' + this.levelIndex;
+    try { if (localStorage.getItem(key) === '1') return; } catch (e) {}
+    const target = (this.arrows || []).find((a) => !a.removed && !this.isLocked(a) && (a.rotates && !a.rotated || this.canEscape(a)));
+    if (!target) return;
+    this.coachEnabled = true;
+    this.coachKey = key;
+    this.coachTarget = target;
+    const text = this.levelIndex === 0
+      ? 'СТАРТ: нажми на подсвеченную стрелку'
+      : 'Ищи стрелку со свободным путём';
+    this.showCoachPrompt(text, true);
+    this.focusCoachTarget(target);
+  }
+
+  showCoachPrompt(text, persistent) {
+    const { width, height } = this.scale;
+    if (!this.coachPrompt || !this.coachPrompt.active) {
+      this.coachPrompt = this.add.text(width / 2, height * 0.16, text, {
+        fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: width >= height ? '15px' : '16px',
+        color: '#0b0b14', backgroundColor: '#ffd166', padding: { x: 13, y: 8 }, align: 'center'
+      }).setOrigin(0.5).setDepth(95);
+    } else this.coachPrompt.setText(text);
+    if (!persistent) {
+      this.tweens.killTweensOf(this.coachPrompt);
+      this.coachPrompt.setAlpha(1);
+      this.tweens.add({ targets: this.coachPrompt, alpha: 0.15, delay: 900, duration: 280 });
+    }
+  }
+
+  focusCoachTarget(target) {
+    if (!target || !target.graphics) return;
+    if (this.coachRing) { try { this.coachRing.destroy(); } catch (e) {} }
+    const ring = this.add.circle(target.graphics.x, target.graphics.y, this.cellSize * 0.48, 0xffd166, 0);
+    ring.setStrokeStyle(Math.max(2, this.cellSize * 0.06), 0xffd166, 0.95).setDepth(16);
+    this.coachRing = ring;
+    this.tweens.add({ targets: ring, scale: 1.2, alpha: 0.2, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  advanceCoach() {
+    this.coachStep++;
+    if (this.coachStep >= 2) {
+      this.coachEnabled = false;
+      this.coachTarget = null;
+      try { localStorage.setItem(this.coachKey, '1'); } catch (e) {}
+      if (this.coachRing) { try { this.coachRing.destroy(); } catch (e) {} this.coachRing = null; }
+      this.showCoachPrompt('Отлично! Теперь решай уровень сам');
+      return;
+    }
+    const next = (this.arrows || []).find((a) => !a.removed && !this.isLocked(a) && (a.rotates && !a.rotated || this.canEscape(a)));
+    if (!next) { this.advanceCoach(); return; }
+    this.coachTarget = next;
+    this.showCoachPrompt('Ещё один безопасный ход');
+    this.focusCoachTarget(next);
+  }
+
   updateComboUI() {
     if (!this.comboChip) return;
     const goal = this.chainTarget || 3;
     const label = this.combo >= goal ? 'МАСТЕРСТВО · ' + this.combo : 'ЦЕПОЧКА · ' + this.combo + '/' + goal;
     this.comboChip.setLabel(label, this.combo >= goal ? '#00e8c8' : '#ffd166');
     if (this.combo >= goal && this.comboChip.setScale) this.tweens.add({ targets: this.comboChip, scale: 1.08, duration: 80, yoyo: true });
+    if (this.comboSideText) {
+      this.comboSideText.setText(this.combo + '/' + goal);
+      this.comboSideText.setColor(this.combo >= goal ? '#00e8c8' : '#ffd166');
+      if (this.combo > 0) this.tweens.add({ targets: this.comboSideText, scale: 1.12, duration: 90, yoyo: true });
+    }
+  }
+
+  createLandscapeDashboard() {
+    const { width, height } = this.scale;
+    const panelW = 150;
+    const panelH = 148;
+    const makePanel = (x, title, accent) => {
+      const g = this.add.graphics().setDepth(18);
+      g.fillStyle(0x11111f, 0.92);
+      g.fillRoundedRect(x - panelW / 2, height / 2 - panelH / 2, panelW, panelH, 16);
+      g.lineStyle(1, accent, 0.45);
+      g.strokeRoundedRect(x - panelW / 2, height / 2 - panelH / 2, panelW, panelH, 16);
+      this.add.text(x, height / 2 - 48, title, { fontFamily: 'Manrope, Arial, sans-serif', fontSize: '12px', color: '#8a8aa8' }).setOrigin(0.5).setDepth(19);
+      return x;
+    };
+    const leftX = Math.max(90, this.offsetX - 102);
+    const rightX = Math.min(width - 90, this.offsetX + this.levelData.size * this.cellSize + 102);
+    makePanel(leftX, 'ЦЕПОЧКА', 0xffd166);
+    this.comboSideText = this.add.text(leftX, height / 2 - 4, '0/' + (this.chainTarget || 3), {
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: '30px', color: '#ffd166'
+    }).setOrigin(0.5).setDepth(19);
+    this.add.text(leftX, height / 2 + 38, 'Темп = +время', { fontFamily: 'Manrope, Arial, sans-serif', fontSize: '11px', color: '#6a6a82' }).setOrigin(0.5).setDepth(19);
+    makePanel(rightX, 'ОШИБКИ', 0xff6b6b);
+    this.mistakesSideText = this.add.text(rightX, height / 2 - 4, '0/' + this.maxMistakes, {
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: '30px', color: '#9a9ab4'
+    }).setOrigin(0.5).setDepth(19);
+    this.add.text(rightX, height / 2 + 38, 'Три — и заново', { fontFamily: 'Manrope, Arial, sans-serif', fontSize: '11px', color: '#6a6a82' }).setOrigin(0.5).setDepth(19);
   }
 
   canEscape(data) {
@@ -407,6 +509,7 @@ class GameScene extends Phaser.Scene {
   flyAway(data) {
     if (data.removed) return;
     data.removed = true;
+    if (this.coachEnabled && data === this.coachTarget) this.advanceCoach();
     if (this.elapsed - this.lastSafeMoveAt > this.comboWindow) this.combo = 0;
     this.combo++;
     this.lastSafeMoveAt = this.elapsed;
@@ -415,7 +518,6 @@ class GameScene extends Phaser.Scene {
     if (this.combo >= (this.chainTarget || 3)) {
       if (this.cameras && this.cameras.main) this.cameras.main.shake(120, Math.min(0.004, 0.0015 + this.combo * 0.00025));
       this.timeLeft = Math.min(this.timeLimit, this.timeLeft + 1.5);
-      this.elapsed = this.timeLimit - this.timeLeft;
       this.playTone(760 + Math.min(220, this.combo * 12), 0.08, 'triangle', 0.07);
     }
     this.remaining--;
@@ -569,7 +671,7 @@ class GameScene extends Phaser.Scene {
     window.gameData.stars = this.calcStars();
     window.gameData.timeLeft = Math.max(0, this.timeLeft);
     window.gameData.timeLimit = this.timeLimit;
-    window.gameData.elapsed = Math.max(0, this.elapsed);
+    window.gameData.elapsed = Math.max(0, (this.time.now - this.runStartedAt) / 1000);
     window.gameData.combo = this.bestCombo;
     window.gameData.chainTarget = this.chainTarget;
     this.scene.start('Win');

@@ -112,9 +112,9 @@ class SkinsScene extends Phaser.Scene {
     }).setOrigin(0, 0.5);
     this.cardsContainer.add(desc);
 
-    const lockBadge = this.add.text(textX, y + (wide ? 20 : 24), '🔒 Смотреть рекламу', {
-      fontFamily: 'Arial',
-      fontSize: wide ? '11px' : '12px',
+    const lockBadge = this.add.text(textX, y + (wide ? 20 : 24), '▶ ВИДЕО → ОТКРЫТЬ СТИЛЬ', {
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif',
+      fontSize: wide ? '10px' : '11px',
       color: '#00e8c8'
     }).setOrigin(0, 0.5).setAlpha(0);
     this.cardsContainer.add(lockBadge);
@@ -212,7 +212,7 @@ class SkinsScene extends Phaser.Scene {
 
     // Locked — offer rewarded ad
     this.busy = true;
-    this.updateStatus('Смотрите рекламу, чтобы открыть стиль…');
+    this.updateStatus('Видео откроет стиль сразу после просмотра…');
 
     const show = window.showRewardedAd
       ? window.showRewardedAd()

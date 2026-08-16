@@ -7,7 +7,8 @@ class SupportScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const wide = width >= height;
     const s = window.APP_SUPPORT || {};
-    const community = s.communityUrl || 'https://vk.com';
+    const community = s.communityUrl || '';
+    const hasCommunity = /^https?:\/\/(m\.)?vk\.(com|ru)\//i.test(community);
     const email = s.email || '—';
     const communityLabel = (community || '').replace(/^https?:\/\/(m\.)?vk\.(com|ru)\//i, '');
 
@@ -29,17 +30,19 @@ class SupportScene extends Phaser.Scene {
     const cardW = Math.min(width - 48, 520);
     let y = wide ? 120 : 150;
 
-    // Community card
-    y = this.makeCard(width / 2, y, cardW, wide, {
-      icon: '👥',
-      title: 'Сообщество VK',
-      value: communityLabel || community,
-      hint: 'Нажми, чтобы открыть',
-      onTap: () => {
-        if (window.openSupportCommunity) window.openSupportCommunity();
-      }
-    });
-    y += wide ? 18 : 22;
+    // Community card is rendered only after a real public community URL is configured.
+    if (hasCommunity) {
+      y = this.makeCard(width / 2, y, cardW, wide, {
+        icon: '👥',
+        title: 'Сообщество VK',
+        value: communityLabel || community,
+        hint: 'Нажми, чтобы открыть',
+        onTap: () => {
+          if (window.openSupportCommunity) window.openSupportCommunity();
+        }
+      });
+      y += wide ? 18 : 22;
+    }
 
     // Email card
     y = this.makeCard(width / 2, y, cardW, wide, {
@@ -53,6 +56,11 @@ class SupportScene extends Phaser.Scene {
     });
     y += wide ? 24 : 30;
 
+    if (!hasCommunity) {
+      this.add.text(width / 2, y - 18, 'Поддержка доступна по e-mail', {
+        fontFamily: 'Manrope, Arial, sans-serif', fontSize: '12px', color: '#6a6a82'
+      }).setOrigin(0.5);
+    }
     this.add.text(width / 2, y, s.responseHint || 'Ответ в течение 7 дней', {
       fontFamily: 'Arial',
       fontSize: '13px',
