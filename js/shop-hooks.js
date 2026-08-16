@@ -90,7 +90,7 @@
 
     GameScene.prototype.updateHintsUI = function () {
       const n = window.getHints ? window.getHints() : 0;
-      const label = '💡 ' + n;
+      const label = n > 0 ? '💡 ' + n : '💡 МАГАЗИН';
       if (this.hintBtn && this.hintBtn.list) {
         for (let i = 0; i < this.hintBtn.list.length; i++) {
           const c = this.hintBtn.list[i];
@@ -111,9 +111,12 @@
         try { this._hintToast.destroy(); } catch (e) {}
         this._hintToast = null;
       }
-      const t = this.add.text(width / 2, height * 0.18, msg, {
-        fontFamily: 'Arial',
-        fontSize: '15px',
+      const wide = width >= height;
+      // Keep feedback between board and bottom actions instead of over the header/grid.
+      const toastY = height - (wide ? 74 : 132);
+      const t = this.add.text(width / 2, toastY, msg, {
+        fontFamily: 'Manrope, Arial, sans-serif',
+        fontSize: wide ? '13px' : '15px',
         color: '#ffd166',
         backgroundColor: '#161622',
         padding: { x: 14, y: 8 },
@@ -143,32 +146,30 @@
         return;
       }
 
-      let target = null;
-      for (let i = 0; i < (this.arrows || []).length; i++) {
-        const a = this.arrows[i];
-        if (a.removed) continue;
-        if (this.isLocked && this.isLocked(a)) continue;
-        if (a.rotates && !a.rotated) {
-          target = a;
-          break;
-        }
-        if (this.canEscape && this.canEscape(a)) {
-          target = a;
-          break;
+      // During onboarding the correct step is already available and must not consume a paid hint.
+      let target = this.coachEnabled && this.coachTarget ? this.coachTarget : null;
+      let freeCoachHint = !!target;
+      if (!target) {
+        for (let i = 0; i < (this.arrows || []).length; i++) {
+          const a = this.arrows[i];
+          if (a.removed || !a.graphics) continue;
+          if (this.isLocked && this.isLocked(a)) continue;
+          if (a.rotates && !a.rotated) { target = a; break; }
+          if (this.canEscape && this.canEscape(a)) { target = a; break; }
         }
       }
 
-      if (!target) {
-        this.showHintToast('Нет безопасных ходов');
+      if (!target || !target.graphics) {
+        this.showHintToast('Сейчас нет доступного хода');
         return;
       }
 
-      if (window.spendHint) {
+      if (!freeCoachHint && window.spendHint) {
         if (!window.spendHint()) {
           this.showHintToast('Нет подсказок');
           return;
         }
-      } else if (window.gameProgress) {
+      } else if (!freeCoachHint && window.gameProgress) {
         window.gameProgress.hints = Math.max(0, (window.gameProgress.hints || 0) - 1);
         if (window.persistProgress) window.persistProgress();
       }
@@ -177,12 +178,9 @@
       this._hintBusy = true;
 
       const g = target.graphics;
-      if (!g) {
-        this._hintBusy = false;
-        return;
-      }
-
+      if (this._hintRing) { try { this._hintRing.destroy(); } catch (e) {} }
       const ring = this.add.circle(g.x, g.y, this.cellSize * 0.42, 0xffd166, 0);
+      this._hintRing = ring;
       ring.setStrokeStyle(3, 0xffd166, 0.95);
       ring.setDepth(15);
 
@@ -192,7 +190,7 @@
         alpha: 0,
         duration: 700,
         ease: 'Cubic.easeOut',
-        onComplete: () => { try { ring.destroy(); } catch (e) {} }
+        onComplete: () => { try { ring.destroy(); } catch (e) {} if (this._hintRing === ring) this._hintRing = null; }
       });
 
       this.tweens.add({
@@ -209,7 +207,7 @@
       });
 
       if (this.playTone) this.playTone(660, 0.06, 'sine', 0.1);
-      this.showHintToast('Жми на подсвеченную стрелку');
+      this.showHintToast(freeCoachHint ? 'Обучение: нажми на подсвеченную стрелку' : 'Подсказка: нажми на подсвеченную стрелку');
     };
 
     const origCreateUI = GameScene.prototype.createUI;
@@ -241,14 +239,6 @@
         origCreateUI.apply(this, arguments);
       }
 
-      if (window.createSoundToggle) {
-        window.createSoundToggle(this, width - (wide ? 28 : 32), wide ? 22 : 36, {
-          size: wide ? 36 : 40, fontSize: wide ? '18px' : '20px', depth: 80
-        });
-        if (window.createMusicToggle) window.createMusicToggle(this, width - (wide ? 72 : 82), wide ? 22 : 36, {
-          size: wide ? 36 : 40, fontSize: wide ? '20px' : '22px', depth: 80
-        });
-      }
     };
 
     console.log('[ArrowPulse] shop-hooks: GameScene patched (hints + maxMistakes)');

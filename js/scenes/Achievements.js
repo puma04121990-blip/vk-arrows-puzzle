@@ -47,15 +47,24 @@ class AchievementsScene extends Phaser.Scene {
     this.listContainer = this.add.container(0, 0);
     this.listContainer.setDepth(10);
 
+    // The list is clipped to the clear middle region; header/footer are never covered while scrolling.
+    const listMask = this.make.graphics({ x: 0, y: 0, add: false });
+    listMask.fillStyle(0xffffff);
+    listMask.fillRect(0, headerH, width, height - headerH - footerH);
+    this.listContainer.setMask(listMask.createGeometryMask());
+
     const cardW = Math.min(width - 40, 640);
-    let y = headerH + 28;
+    const rowH = wide ? 72 : 80;
+    const rowStep = wide ? 84 : 92;
+    let y = headerH + rowH / 2 + (wide ? 16 : 20);
     list.forEach((a) => {
       const isOn = !!unlocked[a.id];
       this.createRow(width / 2, y, a, isOn, cardW, wide);
-      y += wide ? 84 : 92;
+      y += rowStep;
     });
 
-    this.setupScroll(y + 20, height, headerH, footerH);
+    const contentBottom = y - rowStep + rowH / 2 + 20;
+    this.setupScroll(contentBottom, height, headerH, footerH);
   }
 
   createRow(x, y, a, isOn, cardW, wide) {
@@ -109,7 +118,11 @@ class AchievementsScene extends Phaser.Scene {
     let dragging = false;
     let lastY = 0;
 
-    this.input.on('pointerdown', (p) => { dragging = true; lastY = p.y; });
+    this.input.on('pointerdown', (p) => {
+      if (p.y < headerH || p.y > height - footerH) return;
+      dragging = true;
+      lastY = p.y;
+    });
     this.input.on('pointerup', () => { dragging = false; });
     this.input.on('pointermove', (p) => {
       if (!dragging || maxScroll <= 0) return;

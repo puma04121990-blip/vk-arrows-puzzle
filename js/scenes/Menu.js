@@ -17,19 +17,6 @@ class MenuScene extends Phaser.Scene {
       try { window.refreshLoginStreak(); } catch (e) {}
     }
 
-    if (window.createSoundToggle) {
-      window.createSoundToggle(this, width - (wide ? 36 : 40), wide ? 28 : 36, {
-        size: wide ? 40 : 44,
-        fontSize: wide ? '20px' : '22px',
-        depth: 80
-      });
-      if (window.createMusicToggle) window.createMusicToggle(this, width - (wide ? 84 : 94), wide ? 28 : 36, {
-        size: wide ? 40 : 44,
-        fontSize: wide ? '22px' : '24px',
-        depth: 80
-      });
-    }
-
     const titleY = wide ? 48 : Math.max(72, Math.round(height * 0.08));
     this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
@@ -174,6 +161,7 @@ class MenuScene extends Phaser.Scene {
       { label: 'УРОВНИ', color: 0x222238, secondary: true, cb: () => this.scene.start('LevelsMap') },
       { label: 'СТИЛИ', color: 0x222238, secondary: true, cb: () => this.scene.start('Skins') },
       { label: 'МАГАЗИН', color: 0x3a2a18, secondary: true, cb: () => this.scene.start('Shop') },
+      { label: 'НАСТРОЙКИ', color: 0x1e2f3a, secondary: true, cb: () => this.scene.start('Settings') },
       { label: 'ДОСТИЖЕНИЯ', color: 0x222238, secondary: true, cb: () => this.scene.start('Achievements') },
       { label: 'КАК ИГРАТЬ', color: 0x222238, secondary: true, cb: () => this.scene.start('Help') },
       { label: 'ПОДДЕРЖКА', color: 0x1e2a38, secondary: true, cb: () => this.scene.start('Support') },
@@ -185,7 +173,10 @@ class MenuScene extends Phaser.Scene {
     const bh = wide ? 36 : 40;
     const n = buttons.length;
     const freeH = Math.max(0, zoneBottom - zoneTop);
-    const step = Math.min(wide ? 42 : 46, freeH / n);
+    // Keep a clear gap between pills even when the settings item is present.
+    const minGap = wide ? 5 : 6;
+    const maxStep = wide ? 42 : 46;
+    const step = Math.max(bh + minGap, Math.min(maxStep, freeH / Math.max(1, n)));
     const totalH = step * (n - 1);
     let y = zoneTop + Math.max(0, (freeH - totalH) / 2);
 
@@ -198,7 +189,7 @@ class MenuScene extends Phaser.Scene {
         b.cb,
         !!b.secondary,
         wide,
-        bh
+        Math.min(bh, Math.max(wide ? 30 : 34, step - minGap))
       );
       y += step;
     });

@@ -140,6 +140,7 @@ const config = {
     AchievementsScene,
     SkinsScene,
     ShopScene,
+    SettingsScene,
     HelpScene,
     SupportScene,
     LegalScene,
