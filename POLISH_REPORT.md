@@ -70,3 +70,11 @@
 ## Повторное использование подсказок
 
 Исправлен блокирующий сценарий, при котором `_hintBusy` удерживал кнопку до завершения длинной анимации и создавал впечатление одноразовой подсказки. Теперь используется только debounce 260 мс для защиты от случайного двойного тапа; после этого каждое нажатие ищет следующий доступный ход, удаляет предыдущую подсветку, запускает новую анимацию и списывает ровно одну подсказку. Проверены пять последовательных вызовов: баланс прошёл с 5 до 0 по одному за нажатие. Дополнительно проверен быстрый двойной тап: списалась только одна подсказка, а следующий вызов после debounce снова сработал.
+
+## VK Payments and shop audit
+
+The client payment path now accepts the VK Bridge confirmation shape `{ status: 'success', order_id }`, keeps compatibility with `success: true`, stores the last order identifier for diagnostics, and does not grant an item for cancel, unknown status, bridge error, or failed grant.
+
+All seven products were tested in local Web test mode. The resulting state was 13 hints, 4 additional mistake slots, active double-stars, no-ads enabled, and one purchase count per item. Repeat attempts correctly returned `already_active` for double-stars and `already_owned` for no-ads and the skin pack. A mock VK response with `status: 'success'` granted 3 hints and stored `mock-order-1`; a `status: 'cancel'` response left the balance unchanged.
+
+A dependency-free callback server was added at `server/vk-payments-callback.js`. It handles signed `get_item` and `order_status_change` POSTs, test-mode suffixes, invalid signatures, and a persistent test/live order journal. Integration tests returned product metadata, order confirmation, and error 10 for an invalid signature.

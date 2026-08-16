@@ -240,6 +240,8 @@ class ShopScene extends Phaser.Scene {
         let msg = 'Покупка отменена';
         if (res && res.reason === 'already_owned') msg = 'Уже куплено';
         else if (res && res.reason === 'already_active') msg = 'Бонус уже активен для следующего уровня';
+        else if (res && res.reason === 'payment_unconfirmed') msg = 'Оплата не подтверждена VK';
+        else if (res && res.reason === 'grant_failed') msg = 'Платёж принят, но награда не выдана — обратитесь в поддержку';
         else if (res && res.reason === 'payment_unavailable') {
           msg = 'Оплата временно недоступна. Попробуйте позже';
         } else if (res && res.reason === 'item_not_found') msg = 'Товар не найден';

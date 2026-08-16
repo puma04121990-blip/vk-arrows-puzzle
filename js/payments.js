@@ -167,11 +167,21 @@ window.buyWithVotes = function (itemId) {
     item: itemId
   })
     .then((data) => {
-      if (data && data.success) {
-        window.grantShopItem(itemId);
-        return { ok: true, order_id: data.order_id || null };
+      // VK Bridge returns { status: 'success', order_id } for a confirmed order.
+      // Keep the legacy `success: true` shape for compatibility with older mocks.
+      const status = data && data.status;
+      const confirmed = !!(data && (status === 'success' || data.success === true));
+      if (confirmed) {
+        const orderId = data.order_id || data.orderId || null;
+        const granted = window.grantShopItem(itemId);
+        if (!granted) return { ok: false, reason: 'grant_failed', order_id: orderId };
+        window.lastPaymentOrder = { itemId, order_id: orderId, status: 'success', at: Date.now() };
+        return { ok: true, order_id: orderId };
       }
-      return { ok: false, reason: 'cancelled' };
+      if (status === 'cancel' || status === 'cancelled') {
+        return { ok: false, reason: 'cancelled' };
+      }
+      return { ok: false, reason: 'payment_unconfirmed', status: status || 'unknown' };
     })
     .catch((err) => {
       console.warn('[ArrowPulse] ShowOrderBox failed:', err);
