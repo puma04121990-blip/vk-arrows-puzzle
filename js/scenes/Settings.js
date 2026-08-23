@@ -18,7 +18,7 @@ class SettingsScene extends Phaser.Scene {
       fontFamily: 'Manrope, Arial Black, Arial, sans-serif',
       fontSize: wide ? '26px' : '30px', color: '#00e8c8'
     }).setOrigin(0.5).setDepth(21);
-    this.add.text(width / 2, wide ? 50 : 66, 'Звук сохраняется на этом устройстве', {
+    this.add.text(width / 2, wide ? 50 : 66, 'Звук — на устройстве · прогресс — в облаке ВК', {
       fontFamily: 'Manrope, Arial, sans-serif', fontSize: '12px', color: '#6a6a82'
     }).setOrigin(0.5).setDepth(21);
 
@@ -46,6 +46,32 @@ class SettingsScene extends Phaser.Scene {
         if (window.isSoundOn && window.isSoundOn() && window.playUiTone) window.playUiTone(660, 0.1, 'sine', 0.08);
         this.refresh();
       }
+    });
+
+    const cloudY = centerY + (cardH + (wide ? 18 : 22)) * 2;
+    const cloud = window.cloudStatus || {};
+    const synced = !!cloud.synced;
+    const cloudTitle = synced ? 'Облако ВК: синхронизировано' : 'Облако ВК';
+    const cloudSub = window.getCloudStatusText ? window.getCloudStatusText() : 'Прогресс привязан к аккаунту';
+    this.cloudHint = this.add.text(width / 2, cloudY, cloudTitle + '\n' + cloudSub + '\nТап — обновить с облака', {
+      fontFamily: 'Manrope, Arial, sans-serif',
+      fontSize: '13px',
+      color: synced ? '#2ec4a0' : '#8a8aa8',
+      align: 'center',
+      lineSpacing: 4
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.cloudHint.on('pointerup', () => {
+      this.cloudHint.setText('Обновление…');
+      const pull = window.pullCloudProgress ? window.pullCloudProgress() : Promise.resolve();
+      Promise.resolve(pull).then(() => {
+        if (window.persistProgress) window.persistProgress(true);
+        const now = window.getCloudStatusText ? window.getCloudStatusText() : '';
+        const ok = window.cloudStatus && window.cloudStatus.synced;
+        this.cloudHint.setColor(ok ? '#2ec4a0' : '#8a8aa8');
+        this.cloudHint.setText((ok ? 'Облако ВК: синхронизировано' : 'Облако ВК') + '\n' + now);
+      }).catch(() => {
+        this.cloudHint.setText('Не удалось обновить облако');
+      });
     });
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.96).setDepth(20);
