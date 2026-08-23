@@ -1,7 +1,7 @@
 window.vkUser = null;
 const host = String(window.location.hostname || '');
 const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(host);
-const launchQuery = String(window.location.search || '');
+const launchQuery = String(window.location.search || '') + String(window.location.hash || '');
 const hasVkLaunch = /vk_user_id=|vk_app_id=|sign=/.test(launchQuery);
 const inIframe = (function () {
   try { return window.parent !== window; } catch (e) { return true; }
@@ -74,7 +74,11 @@ function initVK() {
     });
   };
 
-  if (!window.isVK) {
+  if (!window.isVK && typeof vkBridge === 'undefined') {
+    return load();
+  }
+
+  if (typeof vkBridge === 'undefined') {
     return load();
   }
 
@@ -86,11 +90,17 @@ function initVK() {
     }).catch(() => null))
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
     .then((user) => {
-      if (user && user.id) window.vkUser = user;
+      if (user && user.id) {
+        window.vkUser = user;
+        window.isVK = true;
+      }
       if (!window.vkUser || !window.vkUser.id) {
         try {
-          const m = String(window.location.search || '').match(/vk_user_id=(\d+)/);
-          if (m) window.vkUser = Object.assign({}, window.vkUser || {}, { id: Number(m[1]) });
+          const m = launchQuery.match(/vk_user_id=(\d+)/);
+          if (m) {
+            window.vkUser = Object.assign({}, window.vkUser || {}, { id: Number(m[1]) });
+            window.isVK = true;
+          }
         } catch (e) {}
       }
     })

@@ -6,6 +6,20 @@ class LevelsMapScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const wide = width >= height;
+
+    if (!this._cloudRestart && window.pullCloudProgress) {
+      this._cloudRestart = true;
+      const prevMax = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+      const prevStars = window.getTotalStars ? window.getTotalStars() : 0;
+      window.pullCloudProgress().then(() => {
+        const max = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+        const stars = window.getTotalStars ? window.getTotalStars() : 0;
+        if ((max !== prevMax || stars !== prevStars) && this.sys && this.sys.isActive()) {
+          this.scene.restart();
+        }
+      }).catch(() => {});
+    }
+
     const total = LEVELS.length;
     const maxOpened = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const totalStars = window.getTotalStars ? window.getTotalStars() : 0;
