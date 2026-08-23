@@ -4,6 +4,7 @@
 // Старые ключи читаются один раз для миграции и больше не пишутся.
 // ============================================
 
+(function () {
 window.STAGES = [
   { id: 1, name: 'Этап 1', from: 0,  to: 9,  needStars: 0 },
   { id: 2, name: 'Этап 2', from: 10, to: 19, needStars: 25 },
@@ -590,3 +591,4 @@ if (!window.__pulseLifecycle) {
     } catch (e) {}
   }
 }
+})();
