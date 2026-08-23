@@ -107,7 +107,7 @@ function vkSet(key, value) {
 }
 
 function vkGet(keys) {
-  return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then(function (result) {
+  const req = vkBridge.send('VKWebAppStorageGet', { keys: keys }).then(function (result) {
     const map = {};
     const list = (result && result.keys) || [];
     for (let i = 0; i < list.length; i++) {
@@ -115,6 +115,10 @@ function vkGet(keys) {
     }
     return map;
   });
+  return Promise.race([
+    req,
+    new Promise(function (resolve) { setTimeout(function () { resolve({}); }, 3000); })
+  ]);
 }
 
 function starsFromCompact(arr) {
@@ -464,7 +468,7 @@ function pullAndMerge() {
     window.cloudStatus.error = '';
     window.gameProgress.cloudSynced = got;
     window.gameProgress.loaded = true;
-    if (pendingWrite || got || (window.gameProgress.maxLevel || 0) > 0 || window.gameProgress.consentAccepted) {
+    if (pendingWrite || got) {
       persistNow();
     }
     return window.gameProgress;

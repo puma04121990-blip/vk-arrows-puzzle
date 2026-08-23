@@ -9,7 +9,6 @@ class BootScene extends Phaser.Scene {
     g.fillCircle(8, 8, 8);
     g.generateTexture('particle', 16, 16);
     g.destroy();
-
     this.load.image('menuLogo', 'assets/menu-logo.png');
   }
 
@@ -25,7 +24,7 @@ class BootScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
 
-    const status = this.add.text(width / 2, height * 0.52, 'Загрузка облака…', {
+    const status = this.add.text(width / 2, height * 0.52, 'Загрузка…', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#8a8aa8'
@@ -52,32 +51,18 @@ class BootScene extends Phaser.Scene {
       || window.whenProgressReady
       || Promise.resolve();
 
-    const timeout = new Promise((resolve) => {
-      this.time.delayedCall(13000, () => {
-        if (!window.gameProgress) window.gameProgress = {};
-        window.gameProgress.loaded = true;
-        resolve();
-      });
-    });
+    // Wall-clock timeout — never block on VK Bridge / Phaser clock
+    window.setTimeout(goNext, 3500);
 
-    Promise.race([
-      Promise.resolve(ready).then(() => {
-        if (window.gameProgress) window.gameProgress.loaded = true;
-      }),
-      timeout
-    ]).then(() => {
+    Promise.resolve(ready).then(() => {
+      if (window.gameProgress) window.gameProgress.loaded = true;
       if (status && status.active) {
         const m = (window.gameProgress && window.gameProgress.maxLevel) || 0;
         const cloud = window.cloudStatus && window.cloudStatus.synced;
-        if (m > 0) {
-          status.setText(cloud ? ('Облако: ур. ' + (m + 1)) : ('Прогресс: ур. ' + (m + 1)));
-        } else {
-          status.setText(cloud ? 'Облако готово' : 'Готово');
-        }
+        if (m > 0) status.setText(cloud ? ('Облако: ур. ' + (m + 1)) : ('Прогресс: ур. ' + (m + 1)));
+        else status.setText(cloud ? 'Облако готово' : 'Готово');
       }
-      this.time.delayedCall(180, goNext);
-    }).catch(() => {
-      goNext();
-    });
+      window.setTimeout(goNext, 120);
+    }).catch(goNext);
   }
 }

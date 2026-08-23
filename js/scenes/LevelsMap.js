@@ -7,8 +7,8 @@ class LevelsMapScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const wide = width >= height;
 
-    if (!this._cloudRestart && window.pullCloudProgress) {
-      this._cloudRestart = true;
+    if (!window.__pulseMapRefreshed && window.pullCloudProgress) {
+      window.__pulseMapRefreshed = true;
       const prevMax = (window.gameProgress && window.gameProgress.maxLevel) || 0;
       const prevStars = window.getTotalStars ? window.getTotalStars() : 0;
       window.pullCloudProgress().then(() => {

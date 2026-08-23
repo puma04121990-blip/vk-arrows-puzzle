@@ -18,8 +18,8 @@
         }).setOrigin(0.5).setDepth(40);
       } catch (e) {}
 
-      if (!this._cloudPulled && window.pullCloudProgress) {
-        this._cloudPulled = true;
+      if (!window.__pulseMenuRefreshed && window.pullCloudProgress) {
+        window.__pulseMenuRefreshed = true;
         const prevMax = (window.gameProgress && window.gameProgress.maxLevel) || 0;
         const prevStars = window.getTotalStars ? window.getTotalStars() : 0;
         window.pullCloudProgress().then(() => {

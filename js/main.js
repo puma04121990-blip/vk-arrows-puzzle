@@ -32,6 +32,13 @@ window.isLandscapeLayout = detectLayout();
 window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
 window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    Promise.resolve(promise).catch(() => null),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms))
+  ]);
+}
+
 function initVK() {
   const load = () => {
     if (!window.loadProgress) {
@@ -40,48 +47,45 @@ function initVK() {
       if (window.markProgressReady) window.markProgressReady();
       return Promise.resolve();
     }
-    return window.loadProgress().then(() => {
+    return withTimeout(window.loadProgress(), 3500).then(() => {
+      if (window.gameProgress) window.gameProgress.loaded = true;
       if (window.markProgressReady) window.markProgressReady();
     });
   };
-
-  if (!window.isVK && typeof vkBridge === 'undefined') {
-    return load();
-  }
 
   if (typeof vkBridge === 'undefined') {
     return load();
   }
 
-  return vkBridge.send('VKWebAppInit')
-    .then(() => vkBridge.send('VKWebAppSetViewSettings', {
+  return withTimeout(vkBridge.send('VKWebAppInit'), 2000)
+    .then(() => withTimeout(vkBridge.send('VKWebAppSetViewSettings', {
       status_bar_style: 'light',
       action_bar_color: '#0b0b14',
       navigation_bar_color: '#0b0b14'
-    }).catch(() => null))
-    .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
-    .then((user) => {
-      if (user && user.id) {
-        window.vkUser = user;
-        window.isVK = true;
-      }
-      if (!window.vkUser || !window.vkUser.id) {
-        try {
-          const m = launchQuery.match(/vk_user_id=(\d+)/);
-          if (m) {
-            window.vkUser = Object.assign({}, window.vkUser || {}, { id: Number(m[1]) });
-            window.isVK = true;
-          }
-        } catch (e) {}
-      }
-    })
+    }), 1500))
     .then(() => {
-      if (window.preloadVKAds) return window.preloadVKAds().catch(() => null);
+      // User id from launch params — do not wait for GetUserInfo (it can hang on a hidden prompt)
+      try {
+        const m = launchQuery.match(/vk_user_id=(\d+)/);
+        if (m) {
+          window.vkUser = Object.assign({}, window.vkUser || {}, { id: Number(m[1]) });
+          window.isVK = true;
+        }
+      } catch (e) {}
+      vkBridge.send('VKWebAppGetUserInfo').then((user) => {
+        if (user && user.id) {
+          window.vkUser = user;
+          window.isVK = true;
+        }
+      }).catch(() => {});
     })
     .catch((err) => {
       console.warn('[ArrowPulse] VK init error:', err);
     })
-    .then(() => load());
+    .then(() => load())
+    .then(() => {
+      if (window.preloadVKAds) window.preloadVKAds().catch(() => {});
+    });
 }
 
 function setupLifecycle() {
@@ -97,15 +101,11 @@ setupLifecycle();
 const progressInitPromise = Promise.race([
   Promise.resolve().then(() => initVK()),
   new Promise((resolve) => setTimeout(() => {
-    if (window.gameProgress && window.gameProgress.loaded) {
-      resolve();
-      return;
-    }
-    console.warn('[ArrowPulse] cloud load timed out after 12s');
+    console.warn('[ArrowPulse] boot timed out');
     if (window.gameProgress) window.gameProgress.loaded = true;
     if (window.markProgressReady) window.markProgressReady();
     resolve();
-  }, 12000))
+  }, 4000))
 ]);
 window.progressInitPromise = progressInitPromise;
 
