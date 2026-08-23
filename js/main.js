@@ -1,9 +1,13 @@
 window.vkUser = null;
 const host = String(window.location.hostname || '');
 const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(host);
+const launchQuery = String(window.location.search || '');
+const hasVkLaunch = /vk_user_id=|vk_app_id=|sign=/.test(launchQuery);
+const inIframe = (function () {
+  try { return window.parent !== window; } catch (e) { return true; }
+})();
 window.isVK = typeof vkBridge !== 'undefined' && !isLocalHost && (
-  window.parent !== window ||
-  /vk_user_id=|vk_app_id=|sign=/.test(String(window.location.search || ''))
+  inIframe || hasVkLaunch || /(^|\.)vk\.(com|ru)$/i.test(host) || /vk-apps/i.test(host)
 );
 
 const CONSENT_KEY = 'arrow_pulse_consent_v1';
@@ -26,6 +30,9 @@ window.setConsentAccepted = function (value) {
   } catch (e) {}
   if (window.isVK && typeof vkBridge !== 'undefined' && on) {
     vkBridge.send('VKWebAppStorageSet', { key: VK_CONSENT_KEY, value: '1' }).catch(() => {});
+  }
+  if (on && window.persistProgress) {
+    try { window.persistProgress(true); } catch (e) {}
   }
 };
 
@@ -78,17 +85,22 @@ function initVK() {
       navigation_bar_color: '#0b0b14'
     }).catch(() => null))
     .then(() => vkBridge.send('VKWebAppGetUserInfo').catch(() => null))
-    .then((user) => { if (user) window.vkUser = user; })
+    .then((user) => {
+      if (user && user.id) window.vkUser = user;
+      if (!window.vkUser || !window.vkUser.id) {
+        try {
+          const m = String(window.location.search || '').match(/vk_user_id=(\d+)/);
+          if (m) window.vkUser = Object.assign({}, window.vkUser || {}, { id: Number(m[1]) });
+        } catch (e) {}
+      }
+    })
     .then(() => {
       if (window.preloadVKAds) return window.preloadVKAds().catch(() => null);
     })
     .catch((err) => {
       console.warn('[ArrowPulse] VK init error:', err);
     })
-    .then(() => Promise.race([
-      load(),
-      new Promise((resolve) => setTimeout(resolve, 3500))
-    ]));
+    .then(() => load());
 }
 
 function setupLifecycle() {
@@ -104,10 +116,15 @@ setupLifecycle();
 const progressInitPromise = Promise.race([
   Promise.resolve().then(() => initVK()),
   new Promise((resolve) => setTimeout(() => {
+    if (window.gameProgress && window.gameProgress.loaded) {
+      resolve();
+      return;
+    }
+    console.warn('[ArrowPulse] cloud load timed out after 12s');
     if (window.gameProgress) window.gameProgress.loaded = true;
     if (window.markProgressReady) window.markProgressReady();
     resolve();
-  }, 4000))
+  }, 12000))
 ]);
 window.progressInitPromise = progressInitPromise;
 

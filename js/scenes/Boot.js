@@ -10,7 +10,6 @@ class BootScene extends Phaser.Scene {
     g.generateTexture('particle', 16, 16);
     g.destroy();
 
-    // Menu logo (circular PNG)
     this.load.image('menuLogo', 'assets/menu-logo.png');
   }
 
@@ -26,7 +25,7 @@ class BootScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
 
-    const status = this.add.text(width / 2, height * 0.52, 'Загрузка…', {
+    const status = this.add.text(width / 2, height * 0.52, 'Загрузка облака…', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#8a8aa8'
@@ -54,7 +53,7 @@ class BootScene extends Phaser.Scene {
       || Promise.resolve();
 
     const timeout = new Promise((resolve) => {
-      this.time.delayedCall(12000, () => {
+      this.time.delayedCall(13000, () => {
         if (!window.gameProgress) window.gameProgress = {};
         window.gameProgress.loaded = true;
         resolve();
@@ -69,9 +68,14 @@ class BootScene extends Phaser.Scene {
     ]).then(() => {
       if (status && status.active) {
         const m = (window.gameProgress && window.gameProgress.maxLevel) || 0;
-        status.setText(m > 0 ? `Прогресс: ур. ${m + 1}` : 'Готово');
+        const cloud = window.cloudStatus && window.cloudStatus.synced;
+        if (m > 0) {
+          status.setText(cloud ? ('Облако: ур. ' + (m + 1)) : ('Прогресс: ур. ' + (m + 1)));
+        } else {
+          status.setText(cloud ? 'Облако готово' : 'Готово');
+        }
       }
-      this.time.delayedCall(120, goNext);
+      this.time.delayedCall(180, goNext);
     }).catch(() => {
       goNext();
     });
