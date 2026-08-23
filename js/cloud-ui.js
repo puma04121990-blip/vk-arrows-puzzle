@@ -1,7 +1,7 @@
-// Cloud status line on Menu + refresh progress from VK Storage
+// Строка статуса облака в меню
 (function patchMenuCloud() {
   function apply() {
-    if (typeof MenuScene === 'undefined' || !MenuScene.prototype || MenuScene.prototype.__cloudLine2) return;
+    if (typeof MenuScene === 'undefined' || !MenuScene.prototype || MenuScene.prototype.__cloudLine3) return;
     const orig = MenuScene.prototype.create;
     MenuScene.prototype.create = function () {
       orig.apply(this, arguments);
@@ -37,7 +37,7 @@
         }).catch(() => {});
       }
     };
-    MenuScene.prototype.__cloudLine2 = true;
+    MenuScene.prototype.__cloudLine3 = true;
   }
   apply();
   if (typeof MenuScene === 'undefined') {

@@ -10,27 +10,13 @@ window.isVK = typeof vkBridge !== 'undefined' && !isLocalHost && (
   inIframe || hasVkLaunch || /(^|\.)vk\.(com|ru)$/i.test(host) || /vk-apps/i.test(host)
 );
 
-const CONSENT_KEY = 'arrow_pulse_consent_v1';
-const VK_CONSENT_KEY = 'ap_consent';
-
 window.hasConsentAccepted = function () {
-  try {
-    if (localStorage.getItem(CONSENT_KEY) === '1') return true;
-  } catch (e) {}
-  if (window.gameProgress && window.gameProgress.consentAccepted) return true;
-  return false;
+  return !!(window.gameProgress && window.gameProgress.consentAccepted);
 };
 
 window.setConsentAccepted = function (value) {
   const on = !!value;
   if (window.gameProgress) window.gameProgress.consentAccepted = on;
-  try {
-    if (on) localStorage.setItem(CONSENT_KEY, '1');
-    else localStorage.removeItem(CONSENT_KEY);
-  } catch (e) {}
-  if (window.isVK && typeof vkBridge !== 'undefined' && on) {
-    vkBridge.send('VKWebAppStorageSet', { key: VK_CONSENT_KEY, value: '1' }).catch(() => {});
-  }
   if (on && window.persistProgress) {
     try { window.persistProgress(true); } catch (e) {}
   }
@@ -55,21 +41,6 @@ function initVK() {
       return Promise.resolve();
     }
     return window.loadProgress().then(() => {
-      if (window.isVK && typeof vkBridge !== 'undefined') {
-        return vkBridge.send('VKWebAppStorageGet', { keys: [VK_CONSENT_KEY] })
-          .then((result) => {
-            const list = (result && result.keys) || [];
-            for (let i = 0; i < list.length; i++) {
-              if (list[i] && list[i].key === VK_CONSENT_KEY && list[i].value === '1') {
-                window.setConsentAccepted(true);
-              }
-            }
-          })
-          .catch(() => {})
-          .then(() => {
-            if (window.markProgressReady) window.markProgressReady();
-          });
-      }
       if (window.markProgressReady) window.markProgressReady();
     });
   };

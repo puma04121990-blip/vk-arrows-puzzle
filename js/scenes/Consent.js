@@ -112,8 +112,6 @@ class ConsentScene extends Phaser.Scene {
   accept() {
     if (window.setConsentAccepted) {
       window.setConsentAccepted(true);
-    } else {
-      try { localStorage.setItem('arrow_pulse_consent_v1', '1'); } catch (e) {}
     }
     this.scene.start('Menu');
   }
