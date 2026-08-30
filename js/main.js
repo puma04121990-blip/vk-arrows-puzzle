@@ -158,44 +158,6 @@ window.gameData = {
 const game = new Phaser.Game(config);
 window.game = game;
 
-function sharpenCanvas() {
-  if (!game || !game.renderer || !game.scale) return;
-  const r = game.renderer;
-  const w = game.scale.width;
-  const h = game.scale.height;
-  const dpr = window.getUiDpr ? window.getUiDpr() : 1;
-  const canvas = game.canvas;
-  if (!canvas) return;
-  const bw = Math.max(1, Math.round(w * dpr));
-  const bh = Math.max(1, Math.round(h * dpr));
-  if (canvas.width !== bw || canvas.height !== bh) {
-    canvas.width = bw;
-    canvas.height = bh;
-    if (typeof r.setProjectionMatrix === 'function') r.setProjectionMatrix(w, h);
-    r.width = w;
-    r.height = h;
-    if (r.gl) r.gl.viewport(0, 0, bw, bh);
-  }
-  canvas.style.width = Math.round(w) + 'px';
-  canvas.style.height = Math.round(h) + 'px';
-  if (r.gl && !r.gl.__pulseHiDpiWrap) {
-    const gl = r.gl;
-    const origVp = gl.viewport.bind(gl);
-    r.gl.__pulseHiDpiWrap = true;
-    gl.viewport = function (x, y, vw, vh) {
-      if (vw === r.width && vh === r.height && (canvas.width !== vw || canvas.height !== vh)) {
-        return origVp(x, y, canvas.width, canvas.height);
-      }
-      return origVp(x, y, vw, vh);
-    };
-  }
-}
-
-game.events.once('ready', () => {
-  sharpenCanvas();
-  if (game.scale && game.scale.on) game.scale.on('resize', sharpenCanvas);
-});
-
 let resizeTimer = 0;
 function relayoutOnResize() {
   if (!game || !game.scale) return;
