@@ -1,3 +1,21 @@
+/** Extra bottom inset: VK web iframe / browser chrome often covers the last pixels. */
+window.pulseWebInset = function () {
+  let extra = 12;
+  try {
+    const q = String(window.location.search || '') + String(window.location.hash || '');
+    const platform = ((q.match(/[?&]vk_platform=([a-z0-9_]+)/i) || [])[1] || '').toLowerCase();
+    if (platform === 'desktop_web') extra = 40;
+    else if (platform === 'mobile_web' || platform === 'html5' || platform === 'html5_mobile') extra = 34;
+    else if (platform === 'mobile_android' || platform === 'mobile_iphone' || platform === 'mobile_ipad') extra = 10;
+    else extra = 24;
+    if (window.visualViewport && window.innerHeight) {
+      const delta = Math.round(window.innerHeight - window.visualViewport.height);
+      if (delta > extra) extra = Math.min(52, delta);
+    }
+  } catch (e) {}
+  return extra;
+};
+
 /** Shared safe layout so UI never collides in VK portrait or landscape iframes. */
 window.pulseLayout = function (scene) {
   const w = Math.max(1, Math.round(scene.scale.width || scene.sys.game.config.width || 720));
@@ -28,10 +46,45 @@ window.pulseChrome = function (scene) {
   const w = Math.max(1, Math.round(scene.scale.width || 720));
   const h = Math.max(1, Math.round(scene.scale.height || 1280));
   const wide = w >= h;
+  const web = (window.pulseWebInset && window.pulseWebInset()) || 0;
   const headerH = wide ? 70 : 92;
-  const footerH = wide ? 92 : 108;
-  const btnY = h - Math.round(footerH * 0.5);
-  return { w: w, h: h, wide: wide, headerH: headerH, footerH: footerH, btnY: btnY };
+  const footerH = (wide ? 92 : 108) + Math.max(0, web - 10);
+  let btnY = h - Math.round(footerH * 0.5);
+  const btnHalf = wide ? 20 : 24;
+  const maxBtnY = h - web - 8 - btnHalf;
+  if (btnY > maxBtnY) btnY = maxBtnY;
+  if (btnY < headerH + btnHalf + 8) btnY = Math.max(btnHalf + 8, h - footerH + btnHalf);
+  return { w: w, h: h, wide: wide, headerH: headerH, footerH: footerH, btnY: btnY, webInset: web };
+};
+
+/** Game-scene action dock (ЗАНОВО / подсказка / МЕНЮ) — always fully on-screen. */
+window.pulseGameDock = function (scene) {
+  const w = Math.max(1, Math.round(scene.scale.width || 720));
+  const h = Math.max(1, Math.round(scene.scale.height || 1280));
+  const wide = w >= h;
+  const short = h < 560;
+  const web = (window.pulseWebInset && window.pulseWebInset()) || 12;
+  const btnH = short ? 36 : (wide ? 40 : 46);
+  const gapTop = short ? 6 : 8;
+  const gapBot = 8;
+  const footerH = gapTop + btnH + gapBot + web;
+  const dockY = Math.max(0, h - footerH);
+  let btnY = dockY + gapTop + btnH / 2;
+  const maxBtnY = h - web - gapBot - btnH / 2;
+  if (btnY > maxBtnY) btnY = maxBtnY;
+  if (btnY < btnH / 2 + 4) btnY = btnH / 2 + 4;
+  return {
+    w: w,
+    h: h,
+    wide: wide,
+    short: short,
+    webInset: web,
+    btnH: btnH,
+    footerH: footerH,
+    dockY: dockY,
+    btnY: btnY,
+    topPad: wide ? (short ? 72 : 88) : 80
+  };
 };
 
 window.pulseWasDrag = function (scene) {

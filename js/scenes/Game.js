@@ -120,20 +120,21 @@ class GameScene extends Phaser.Scene {
     }
 
     const size = this.levelData.size;
-    const topPad = wide ? 96 : 80;
-    const bottomPad = wide ? 78 : 70;
+    const metrics = window.pulseGameDock ? window.pulseGameDock(this) : null;
+    const topPad = metrics ? metrics.topPad : (wide ? 96 : 80);
+    const bottomPad = metrics ? metrics.footerH : (wide ? 96 : 108);
     const sideMargin = wide ? 36 : 12;
     const panelPad = wide ? 18 : 10;
     const maxGridW = width - sideMargin * 2 - panelPad * 2;
-    const maxGridH = height - topPad - bottomPad - panelPad * 2;
-    this.cellSize = Math.max(28, Math.floor(Math.min(maxGridW / size, maxGridH / size)));
+    const maxGridH = Math.max(80, height - topPad - bottomPad - panelPad * 2);
+    this.cellSize = Math.max(16, Math.floor(Math.min(maxGridW / size, maxGridH / size)));
     const gridW = this.cellSize * size;
     const gridH = this.cellSize * size;
     const panelW = gridW + panelPad * 2;
     const panelH = gridH + panelPad * 2;
     const panelX = Math.round((width - panelW) / 2);
     const slack = height - topPad - bottomPad - panelH;
-    const panelY = Math.round(topPad + Math.max(4, slack * 0.28));
+    const panelY = Math.round(topPad + Math.max(0, slack * 0.28));
 
     const panel = this.add.graphics();
     panel.fillStyle(0x00e8c8, 0.1);
@@ -152,15 +153,18 @@ class GameScene extends Phaser.Scene {
     this.boardPanelW = panelW;
     this.boardPanelH = panelH;
 
-    this.actionDockY = panelY + panelH + 12;
-    if (!wide) {
-      const dockH = 72;
-      const dock = this.add.graphics();
-      dock.fillStyle(0x141422, 0.98);
-      dock.fillRoundedRect(12, this.actionDockY, width - 24, dockH, 18);
-      dock.lineStyle(1, 0x32324c, 1);
-      dock.strokeRoundedRect(12, this.actionDockY, width - 24, dockH, 18);
-    }
+    this.actionDockY = metrics ? metrics.dockY : (height - bottomPad);
+    this.actionBtnY = metrics ? metrics.btnY : (this.actionDockY + (wide ? 28 : 36));
+    this.actionBtnH = metrics ? metrics.btnH : (wide ? 40 : 46);
+    const dockH = metrics
+      ? Math.max(metrics.btnH + 12, height - this.actionDockY - (metrics.webInset || 0))
+      : (wide ? 56 : 72);
+    const dockBg = this.add.graphics();
+    dockBg.fillStyle(0x141422, 0.98);
+    dockBg.fillRoundedRect(12, this.actionDockY, width - 24, Math.max(44, dockH - 4), 18);
+    dockBg.lineStyle(1, 0x32324c, 1);
+    dockBg.strokeRoundedRect(12, this.actionDockY, width - 24, Math.max(44, dockH - 4), 18);
+
 
     this.drawGrid(size);
     this.drawWalls();
@@ -481,7 +485,7 @@ class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const wide = width >= height;
     if (!this.coachPrompt || !this.coachPrompt.active) {
-      const promptY = height - (wide ? 82 : 122);
+      const promptY = Math.max(80, (this.actionDockY || height) - (wide ? 22 : 28));
       this.coachPrompt = this.add.text(width / 2, promptY, text, {
         fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: width >= height ? '15px' : '16px',
         color: '#0b0b14', backgroundColor: '#ffd166', padding: { x: 13, y: 8 }, align: 'center'
@@ -764,14 +768,18 @@ class GameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
     const wide = width >= height;
-    const by = height - (wide ? 38 : 54);
+    const dock = window.pulseGameDock ? window.pulseGameDock(this) : null;
+    const btnH = this.actionBtnH || (dock ? dock.btnH : (wide ? 40 : 46));
+    const maxBy = height - 8 - btnH / 2 - ((dock && dock.webInset) || 0);
+    let by = this.actionBtnY || (dock && dock.btnY) || (height - (wide ? 38 : 54));
+    if (by > maxBy) by = maxBy;
     const gap = wide ? 170 : 150;
     if (window.createNiceButton) {
       window.createNiceButton(this, width / 2 - gap / 2, by, '↺ ЗАНОВО', () => this.restartAfterFailure(), {
-        w: wide ? 130 : 140, h: wide ? 40 : 46, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
+        w: wide ? 130 : 140, h: btnH, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
       });
       window.createNiceButton(this, width / 2 + gap / 2, by, 'МЕНЮ', () => this.scene.start('Menu'), {
-        w: wide ? 130 : 140, h: wide ? 40 : 46, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
+        w: wide ? 130 : 140, h: btnH, color: 0x222238, secondary: true, fontSize: wide ? '14px' : '16px', depth: 20
       });
     }
   }

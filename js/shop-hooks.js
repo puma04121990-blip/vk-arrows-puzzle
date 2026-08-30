@@ -248,15 +248,19 @@ window.pulseLeaveShop = function (to) {
     GameScene.prototype.createUI = function () {
       const { width, height } = this.scale;
       const wide = width >= height;
-      const btnH = wide ? 42 : 48;
+      const dock = window.pulseGameDock ? window.pulseGameDock(this) : null;
+      const btnH = this.actionBtnH || (dock ? dock.btnH : (wide ? 40 : 46));
       const btnW = Math.max(100, Math.min(wide ? 124 : 118, Math.floor((width - 24) / 3) - 6));
       const span = Math.min(width - 16, btnW * 3 + (wide ? 20 : 12));
       const leftX = width / 2 - span / 2 + btnW / 2;
       const rightX = width / 2 + span / 2 - btnW / 2;
       const fontSize = btnW < 108 ? '12px' : (wide ? '14px' : '15px');
       const hints = window.getHints ? window.getHints() : 0;
-      const dockTop = this.actionDockY || ((this.boardPanelY || 0) + (this.boardPanelH || 0) + 12);
-      const by = dockTop + (wide ? 28 : 36);
+      const maxBy = height - 8 - btnH / 2 - ((dock && dock.webInset) || 0);
+      let by = this.actionBtnY || (dock && dock.btnY) || (height - (wide ? 38 : 54));
+      if (by > maxBy) by = maxBy;
+      if (by < btnH / 2 + 8) by = btnH / 2 + 8;
+      this.actionBtnY = by;
 
       if (window.createNiceButton) {
         window.createNiceButton(this, leftX, by, '↺ ЗАНОВО', () => this.scene.restart(), {
