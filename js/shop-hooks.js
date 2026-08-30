@@ -202,43 +202,37 @@ window.pulseLeaveShop = function (to) {
       }
 
       this.updateHintsUI();
-      this._hintBusy = true;
+      this._hintBusy = false;
 
       const g = target.graphics;
       if (this._hintRing) {
+        try { this.tweens.killTweensOf(this._hintRing); } catch (e) {}
         try { this._hintRing.destroy(); } catch (e) {}
         this._hintRing = null;
       }
-      // Stop the previous pulse so a second hint starts cleanly on every press.
-      try { if (this.tweens && this.tweens.killTweensOf) this.tweens.killTweensOf(g); } catch (e) {}
-      const ring = this.add.circle(g.x, g.y, this.cellSize * 0.42, 0xffd166, 0);
+      this._hintTarget = target;
+      // Never tween Image.scale — sprites are 256px and setDisplaySize is just a tiny scale.
+      if (this.fitArrowSprite) this.fitArrowSprite(g, target.spriteSize);
+      const ringR = Math.max(12, this.cellSize * 0.48);
+      const ring = this.add.circle(g.x, g.y, ringR, 0xffd166, 0.12);
       this._hintRing = ring;
-      ring.setStrokeStyle(3, 0xffd166, 0.95);
+      ring.setStrokeStyle(Math.max(2, this.cellSize * 0.07), 0xffd166, 1);
       ring.setDepth(15);
-
       this.tweens.add({
         targets: ring,
-        scale: 1.35,
-        alpha: 0,
-        duration: 700,
-        ease: 'Cubic.easeOut',
-        onComplete: () => { try { ring.destroy(); } catch (e) {} if (this._hintRing === ring) this._hintRing = null; }
-      });
-
-      this.tweens.add({
-        targets: g,
-        scale: 1.22,
-        duration: 160,
+        scale: 1.16,
+        alpha: 0.28,
+        duration: 480,
         yoyo: true,
-        repeat: 2,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
-          this._hintBusy = false;
-          try { if (g && g.setScale) g.setScale(1); } catch (e) {}
-        }
+        repeat: -1,
+        ease: 'Sine.easeInOut'
       });
-      // Keep the guard only as a state indicator; repeated hints are governed by _hintLastTap.
-      this.time.delayedCall(280, () => { this._hintBusy = false; });
+      if (g.setTint && target.color != null) {
+        g.setTint(0xfff3c0);
+        this.time.delayedCall(200, () => {
+          if (!target.removed && g.setTint) g.setTint(target.color);
+        });
+      }
 
       if (this.playTone) this.playTone(660, 0.06, 'sine', 0.1);
       this.showHintToast(freeCoachHint ? 'Обучение: нажми на подсвеченную стрелку' : 'Подсказка: нажми на подсвеченную стрелку');

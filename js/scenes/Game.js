@@ -391,9 +391,14 @@ class GameScene extends Phaser.Scene {
   }
 
   fitArrowSprite(g, size) {
-    if (!g || !g.setDisplaySize) return;
-    const s = size || this.arrowSpriteSize || Math.round(this.cellSize * 0.92);
-    g.setDisplaySize(s, s);
+    if (!g) return;
+    const s = Math.max(8, size || this.arrowSpriteSize || Math.round((this.cellSize || 32) * 0.92));
+    const fw = (g.frame && (g.frame.realWidth || g.frame.width)) || 0;
+    if (fw > 1 && g.setScale) {
+      g.setScale(s / fw);
+      return;
+    }
+    if (g.setDisplaySize) g.setDisplaySize(s, s);
   }
 
   isTouchDevice() {
@@ -646,6 +651,12 @@ class GameScene extends Phaser.Scene {
     this.moves++;
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
+    if (this._hintRing) {
+      try { this.tweens.killTweensOf(this._hintRing); } catch (e) {}
+      try { this._hintRing.destroy(); } catch (e) {}
+      this._hintRing = null;
+    }
+    this._hintTarget = null;
     const g = data.graphics;
     if (g) {
       this.fitArrowSprite(g, data.spriteSize);
@@ -721,7 +732,9 @@ class GameScene extends Phaser.Scene {
       x: destX,
       y: destY,
       duration: duration,
-      ease: 'Sine.easeOut'
+      ease: 'Sine.easeOut',
+      onStart: () => { this.fitArrowSprite(g, data.spriteSize); },
+      onUpdate: () => { this.fitArrowSprite(g, data.spriteSize); }
     });
     this.tweens.add({
       targets: g,
@@ -779,7 +792,9 @@ class GameScene extends Phaser.Scene {
     const n = 3;
     for (let i = 0; i < n; i++) {
       const ghost = this.add.image(startX, startY, g.texture.key);
-      ghost.setDisplaySize(size, size);
+      const fw = (ghost.frame && (ghost.frame.realWidth || ghost.frame.width)) || ghost.width || 256;
+      if (fw > 1) ghost.setScale(size / fw);
+      else ghost.setDisplaySize(size, size);
       ghost.setTint(data.color);
       ghost.setAngle(data.baseAngle != null ? data.baseAngle : g.angle);
       ghost.setAlpha(0.48 - i * 0.12);
@@ -792,6 +807,7 @@ class GameScene extends Phaser.Scene {
         duration: duration,
         delay: 18 + i * 42,
         ease: 'Sine.easeOut',
+        onUpdate: () => { if (fw > 1) ghost.setScale(size / fw); },
         onComplete: () => { try { ghost.destroy(); } catch (e) {} }
       });
     }
