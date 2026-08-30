@@ -255,8 +255,8 @@ window.pulseLeaveShop = function (to) {
       const rightX = width / 2 + span / 2 - btnW / 2;
       const fontSize = btnW < 108 ? '12px' : (wide ? '14px' : '15px');
       const hints = window.getHints ? window.getHints() : 0;
-      const dockTop = this.actionDockY || ((this.boardPanelY || 0) + (this.boardPanelH || 0) + 8);
-      const by = dockTop + Math.max(36, (height - 8 - dockTop) / 2);
+      const dockTop = this.actionDockY || ((this.boardPanelY || 0) + (this.boardPanelH || 0) + 12);
+      const by = dockTop + (wide ? 28 : 36);
 
       if (window.createNiceButton) {
         window.createNiceButton(this, leftX, by, '↺ ЗАНОВО', () => this.scene.restart(), {

@@ -146,16 +146,14 @@ class GameScene extends Phaser.Scene {
     this.boardPanelW = panelW;
     this.boardPanelH = panelH;
 
-    this.actionDockY = panelY + panelH + 8;
+    this.actionDockY = panelY + panelH + 12;
     if (!wide) {
+      const dockH = 72;
       const dock = this.add.graphics();
-      const dockH = Math.max(64, height - this.actionDockY - 8);
-      dock.fillStyle(0x12121c, 0.96);
-      dock.fillRoundedRect(10, this.actionDockY, width - 20, dockH, 18);
-      dock.lineStyle(1, 0x2c2c44, 0.95);
-      dock.strokeRoundedRect(10, this.actionDockY, width - 20, dockH, 18);
-      dock.fillStyle(0x00e8c8, 0.1);
-      dock.fillRoundedRect(width / 2 - 22, this.actionDockY + 9, 44, 3, 2);
+      dock.fillStyle(0x141422, 0.98);
+      dock.fillRoundedRect(12, this.actionDockY, width - 24, dockH, 18);
+      dock.lineStyle(1, 0x32324c, 1);
+      dock.strokeRoundedRect(12, this.actionDockY, width - 24, dockH, 18);
     }
 
     this.drawGrid(size);
@@ -307,7 +305,9 @@ class GameScene extends Phaser.Scene {
     const gridBottom = this.offsetY + this.levelData.size * this.cellSize - 4;
     const gridLeft = this.offsetX + 4;
     const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
-    const texSize = Math.ceil(this.cellSize * 1.5);
+    const aa = 2;
+    const display = Math.ceil(this.cellSize * 1.55);
+    const texSize = display * aa;
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -315,17 +315,25 @@ class GameScene extends Phaser.Scene {
       const cx = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
       const cy = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
 
-      const texKey = 'arw_' + this.skinId + '_' + a.dir + '_' + (color >>> 0).toString(16) + '_' + this.cellSize;
+      const texKey = 'arw_' + this.skinId + '_' + a.dir + '_' + (color >>> 0).toString(16) + '_' + display + 'x' + aa;
       if (!this.textures.exists(texKey)) {
         const tmp = this.make.graphics({ x: 0, y: 0, add: false });
+        const savedCell = this.cellSize;
+        this.cellSize = savedCell * aa;
         this.drawArrow(tmp, a.dir, color);
+        this.cellSize = savedCell;
         const rt = this.make.renderTexture({ width: texSize, height: texSize, add: false });
         rt.draw(tmp, texSize / 2, texSize / 2);
         rt.saveTexture(texKey);
         tmp.destroy();
         rt.destroy();
+        const tex = this.textures.get(texKey);
+        if (tex && tex.setFilter) {
+          const linear = (Phaser.Textures && Phaser.Textures.FilterMode && Phaser.Textures.FilterMode.LINEAR) || 1;
+          tex.setFilter(linear);
+        }
       }
-      const g = this.add.image(cx, cy, texKey).setDepth(5);
+      const g = this.add.image(cx, cy, texKey).setDisplaySize(display, display).setDepth(5);
 
       let badge = null, rotBadge = null;
       const iconSize = Math.max(10, Math.floor(this.cellSize * 0.16));

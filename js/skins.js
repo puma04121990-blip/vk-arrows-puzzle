@@ -93,13 +93,17 @@ function toDir(x, y, dir) {
   return [y, -x];
 }
 
-function fillPoly(g, pts) {
+function fillPoly(g, pts, stroke) {
   if (!pts || pts.length < 3) return;
   g.beginPath();
   g.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
   g.closePath();
   g.fillPath();
+  if (stroke) {
+    g.lineStyle(stroke.w || 1.5, stroke.c, stroke.a != null ? stroke.a : 1);
+    g.strokePath();
+  }
 }
 
 function poly(base, dir) {
@@ -122,7 +126,7 @@ function drawClassic(g, dir, color, s) {
   g.fillStyle(color, 0.16);
   fillPoly(g, poly(body.map(p => [p[0] * 1.12, p[1] * 1.12]), dir));
   g.fillStyle(color, 1);
-  fillPoly(g, poly(body, dir));
+  fillPoly(g, poly(body, dir), { w: 1.6, c: color, a: 1 });
   g.fillStyle(0xffffff, 0.28);
   fillPoly(g, poly([[head * 0.7, 0], [s * 0.2, -s * 0.25], [s * 0.2, s * 0.25]], dir));
 }
@@ -139,7 +143,7 @@ function drawBlock(g, dir, color, s) {
   g.fillStyle(0x000000, 0.35);
   fillPoly(g, poly(body.map(p => [p[0] + 2, p[1] + 2]), dir));
   g.fillStyle(color, 1);
-  fillPoly(g, poly(body, dir));
+  fillPoly(g, poly(body, dir), { w: 1.6, c: color, a: 1 });
   g.fillStyle(0xffffff, 0.25);
   fillPoly(g, poly([[head * 0.55, 0], [s * 0.12, -s * 0.35], [s * 0.12, s * 0.35]], dir));
 }
@@ -149,7 +153,7 @@ function drawTriangle(g, dir, color, s) {
   g.fillStyle(0x000000, 0.3);
   fillPoly(g, poly(body.map(p => [p[0] + 2, p[1] + 2]), dir));
   g.fillStyle(color, 1);
-  fillPoly(g, poly(body, dir));
+  fillPoly(g, poly(body, dir), { w: 1.8, c: color, a: 1 });
   g.fillStyle(0xffffff, 0.3);
   fillPoly(g, poly([[s * 0.5, 0], [-s * 0.35, -s * 0.35], [-s * 0.35, s * 0.35]], dir));
 }
@@ -165,9 +169,9 @@ function drawChevron(g, dir, color, s) {
     ];
   }
   g.fillStyle(color, 0.45);
-  fillPoly(g, poly(oneChevron(-s * 0.35), dir));
+  fillPoly(g, poly(oneChevron(-s * 0.35), dir), { w: 1.4, c: color, a: 0.8 });
   g.fillStyle(color, 1);
-  fillPoly(g, poly(oneChevron(s * 0.25), dir));
+  fillPoly(g, poly(oneChevron(s * 0.25), dir), { w: 1.6, c: color, a: 1 });
   g.fillStyle(0xffffff, 0.3);
   fillPoly(g, poly([[s * 0.85, 0], [s * 0.35, -s * 0.3], [s * 0.35, s * 0.3]], dir));
 }
@@ -182,8 +186,7 @@ function drawThin(g, dir, color, s) {
     [-sl, sw], [-s * 0.05, sw], [-s * 0.05, hw]
   ];
   g.fillStyle(color, 1);
-  fillPoly(g, poly(body, dir));
-  g.fillStyle(color, 0.85);
+  fillPoly(g, poly(body, dir), { w: 1.5, c: color, a: 1 });
   fillPoly(g, poly([[s * 0.15, -sw], [-s * 0.25, -s * 0.38], [-s * 0.05, -sw]], dir));
   fillPoly(g, poly([[s * 0.15, sw], [-s * 0.25, s * 0.38], [-s * 0.05, sw]], dir));
   g.fillStyle(0xffffff, 0.35);
@@ -199,8 +202,8 @@ function drawFeather(g, dir, color, s) {
   const f3 = [[-s * 0.55, -sw], [-s * 1.1, -s * 0.28], [-s * 0.85, -sw]];
   const f4 = [[-s * 0.55, sw], [-s * 1.1, s * 0.28], [-s * 0.85, sw]];
   g.fillStyle(color, 1);
-  fillPoly(g, poly(tip, dir));
-  fillPoly(g, poly(shaft, dir));
+  fillPoly(g, poly(tip, dir), { w: 1.5, c: color, a: 1 });
+  fillPoly(g, poly(shaft, dir), { w: 1.3, c: color, a: 1 });
   g.fillStyle(color, 0.85);
   fillPoly(g, poly(f1, dir));
   fillPoly(g, poly(f2, dir));
