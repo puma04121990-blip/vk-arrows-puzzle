@@ -47,6 +47,14 @@ class BootScene extends Phaser.Scene {
       this.scene.start(accepted ? 'Menu' : 'Consent');
     };
 
+    const fontsReady = (document.fonts && document.fonts.ready)
+      ? Promise.race([
+        document.fonts.load('800 32px Manrope').catch(() => {}),
+        document.fonts.ready,
+        new Promise((resolve) => setTimeout(resolve, 1200))
+      ])
+      : Promise.resolve();
+
     const ready = window.progressInitPromise
       || window.whenProgressReady
       || Promise.resolve();
@@ -54,7 +62,7 @@ class BootScene extends Phaser.Scene {
     // Wall-clock timeout — never block on VK Bridge / Phaser clock
     window.setTimeout(goNext, 3500);
 
-    Promise.resolve(ready).then(() => {
+    Promise.all([Promise.resolve(ready), fontsReady]).then(() => {
       if (window.gameProgress) window.gameProgress.loaded = true;
       if (status && status.active) {
         const m = (window.gameProgress && window.gameProgress.maxLevel) || 0;
