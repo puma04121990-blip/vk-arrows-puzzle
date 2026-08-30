@@ -65,10 +65,14 @@ class LevelsMapScene extends Phaser.Scene {
     listMask.fillRect(0, headerH, width, height - headerH - footerH);
     this.mapContainer.setMask(listMask.createGeometryMask());
 
-    const cols = wide ? 5 : 5;
-    const cellW = Math.min(110, Math.floor((width - 32) / cols));
-    const cellH = wide ? 100 : 108;
-    const btnHalfH = 38;
+    const cols = width < 420 ? 4 : 5;
+    const gridPad = 28;
+    const cellW = Math.floor((width - gridPad) / cols);
+    const gap = Math.max(8, Math.round(cellW * 0.1));
+    this.btnW = Math.max(58, cellW - gap);
+    this.btnH = Math.round(this.btnW * 0.92);
+    const cellH = this.btnH + 18;
+    const btnHalfH = this.btnH / 2;
     const startX = (width - cols * cellW) / 2 + cellW / 2;
     // Content starts below fixed header
     let y = headerH + 16;
@@ -126,8 +130,8 @@ class LevelsMapScene extends Phaser.Scene {
 
   createLevelButton(x, y, index, playable, progressed, stageUnlocked, stars) {
     const g = this.add.graphics();
-    const bw = 76;
-    const bh = 72;
+    const bw = this.btnW || 76;
+    const bh = this.btnH || 72;
 
     if (!stageUnlocked || !progressed) {
       g.fillStyle(0x1a1a28, 1);
@@ -150,7 +154,7 @@ class LevelsMapScene extends Phaser.Scene {
 
     const num = this.add.text(x, y - 10, String(index + 1), {
       fontFamily: 'Arial Black, Arial',
-      fontSize: '22px',
+      fontSize: bw < 68 ? '18px' : '22px',
       color: playable ? '#e8e8ff' : '#4a4a60'
     }).setOrigin(0.5);
     this.mapContainer.add(num);
