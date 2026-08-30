@@ -13,15 +13,13 @@
 
 ### Что осталось сделать в кабинете VK (только вы)
 
-1. В [настройках приложения](https://dev.vk.com) поле **iframe / URL приложения**:
-   `https://puma04121990-blip.github.io/vk-arrows-puzzle/`
-2. Поле **Адрес обратного вызова платежей**: публичный HTTPS URL вида
-   `https://ВАШ-ХОСТ/vk/payments`
-   (GitHub Pages это не умеет — нужен любой Node-хост, см. [`server/README.md`](server/README.md).)
-3. На том хосте задать переменную `VK_APP_SECRET` = **Защищённый ключ** из настроек приложения VK.
-   Секрет в GitHub не класть.
+Подробно, с картинками-шагами для новичка: [`server/README.md`](server/README.md).
 
-После шагов 2–3 откройте `https://ВАШ-ХОСТ/vk/payments` в браузере: должно быть `{"ok":true,"configured":true}`.
+Кратко:
+1. URL игры: `https://puma04121990-blip.github.io/vk-arrows-puzzle/`
+2. Подключить тот же GitHub-репозиторий к [Vercel](https://vercel.com) и задать переменную `VK_APP_SECRET` = **Защищённый ключ** из настроек приложения VK.
+3. В кабинете VK, раздел **Платежи**, поле **Адрес обратного вызова**:
+   `https://ВАШ-ДОМЕН.vercel.app/vk/payments`
 
 ## Что уже сделано под VK Games
 

@@ -1,37 +1,97 @@
-# VK Payments callback
+# Платежи VK — инструкция для новичка
 
-The static game calls `VKWebAppShowOrderBox` with the product `item` identifier. Real VK Payments also requires a public HTTPS callback URL configured in the VK application settings. This repository includes a dependency-free Node callback at `server/vk-payments-callback.js`.
+Игра уже лежит на GitHub Pages. Для покупок за голоса VK нужен ещё маленький сервер: VK спрашивает его «этот товар сколько стоит?» и «заказ оплачен?».
 
-## Local start
+Ниже один путь, без терминала и без программирования.
 
-```bash
-VK_APP_SECRET='your-app-secret' PORT=8080 node server/vk-payments-callback.js
+## Часть 1. Скопировать «Защищённый ключ» из VK
+
+1. Откройте [https://vk.com/apps?act=manage](https://vk.com/apps?act=manage) (или [https://dev.vk.com](https://dev.vk.com) → **Мои приложения**).
+2. Найдите игру **Пульс стрелок** и нажмите **Настройки**.
+3. На странице настроек найдите блок с ключами. Обычно там три строки:
+   - ID приложения
+   - **Защищённый ключ**
+   - Сервисный ключ доступа
+4. Нажмите **Показать** напротив **Защищённый ключ** и скопируйте длинную строку.
+5. Вставьте её в Блокнот. Это и есть пароль сервера.
+
+Берите **только Защищённый ключ**. Сервисный ключ доступа не подойдёт.
+
+Никому не отправляйте этот ключ и не кладите его в GitHub.
+
+## Часть 2. Включить сервер на Vercel (бесплатно)
+
+Vercel — это сайт, который берёт ваш GitHub и держит сервер включённым.
+
+1. Откройте [https://vercel.com/signup](https://vercel.com/signup).
+2. Нажмите **Continue with GitHub** и разрешите доступ.
+3. После входа нажмите **Add New… → Project**.
+4. В списке репозиториев выберите **vk-arrows-puzzle**. Если репозитория нет — нажмите **Adjust GitHub App Permissions** и включите доступ к этому репозиторию, затем обновите страницу.
+5. На экране настройки проекта:
+   - **Framework Preset** оставьте как есть (Other / —).
+   - Раздел **Environment Variables** — нажмите, чтобы открыть.
+   - **Key:** `VK_APP_SECRET`
+   - **Value:** вставьте защищённый ключ из Части 1. Без кавычек, без пробелов по краям.
+   - Нажмите **Add** / **Save**.
+6. Нажмите **Deploy**. Подождите 1–2 минуты, пока не появится **Congratulations**.
+7. Нажмите на домен вида `https://vk-arrows-puzzle-xxxx.vercel.app`. Запомните его — это ваш хост.
+
+Если Vercel спросит про защиту деплоя (**Deployment Protection** / **Vercel Authentication**) — выключите. Иначе VK не сможет достучаться до сервера.
+
+Проверка: в новой вкладке откройте:
+
+`https://ВАШ-ДОМЕН.vercel.app/vk/payments`
+
+Должно появиться:
+
+```json
+{"ok":true,"configured":true,"endpoint":"/vk/payments"}
 ```
 
-Configure the VK application callback URL as:
+Если `configured: false` — ключ не сохранился. Project → **Settings** → **Environment Variables** → добавьте `VK_APP_SECRET` ещё раз → **Deployments** → на последнем деплое **Redeploy**.
+
+## Часть 3. Вставить адрес в кабинет VK
+
+1. Снова откройте [https://vk.com/apps?act=manage](https://vk.com/apps?act=manage).
+2. Напротив игры нажмите **Настройки**.
+3. Перейдите в раздел **Платежи**.
+4. Найдите поле **Адрес обратного вызова**.
+5. Вставьте ровно эту строку (подставьте свой домен Vercel):
 
 ```text
-https://YOUR_PUBLIC_HOST/vk/payments
+https://ВАШ-ДОМЕН.vercel.app/vk/payments
 ```
 
-The callback accepts `POST` form data and handles `get_item` and `order_status_change`. It verifies the `sig` field, returns product metadata from the single source of truth in `PRODUCTS`, supports VK test-mode notification suffixes, and stores seen orders in `server/data/orders.json` using a `test:` or `live:` namespace so overlapping test and production order IDs do not collide.
+Пример: `https://vk-arrows-puzzle-abc123.vercel.app/vk/payments`
 
-## Production requirements
+6. Сохраните настройки.
 
-The callback must be deployed to a public HTTPS host, and `VK_APP_SECRET` must be stored as a server-side secret rather than committed to the repository. The process should be backed by persistent storage and monitored. The included JSON journal is suitable for a small single-process deployment; a multi-instance deployment should replace it with a transactional database table keyed by `(environment, order_id)`.
+В поле **URL приложения / iframe** должна остаться игра:
 
-The frontend grants a product only after VK Bridge returns `status: "success"` (the legacy `success: true` shape is also accepted for compatibility). A cancel, unknown status, bridge error, or failed grant does not grant the product.
+```text
+https://puma04121990-blip.github.io/vk-arrows-puzzle/
+```
 
-## Product identifiers
+Это другой адрес. Игру и платежный сервер не путайте.
 
-| Item ID | Price in VK Votes | Grant |
-|---|---:|---|
-| `hints_3` | 3 | Adds 3 hints |
-| `hints_10` | 7 | Adds 10 hints |
-| `extra_error` | 5 | Adds 1 permanent mistake slot |
-| `extra_error_3` | 12 | Adds 3 permanent mistake slots |
-| `double_stars` | 10 | Enables double stars for the next completed level |
-| `remove_ads` | 25 | Permanently disables interstitial ads |
-| `skin_pack` | 20 | Unlocks every non-free skin |
+## Часть 4. Проверить покупку
 
-> The callback endpoint validates the item and price presented by its own product table. Do not accept client-provided prices.
+1. В кабинете VK, раздел **Платежи**, добавьте **себя** в список тестировщиков платежей.
+2. Включите **тестовый режим**, если он есть.
+3. Откройте игру **из клиента VK** (не из обычного браузера).
+4. Меню → **Магазин** → купите «3 подсказки».
+5. Должно открыться окно VK «оплатить голосами». После успеха в магазине появится «Куплено».
+
+Если окно не открывается или пишет про callback — вернитесь к проверке из Части 2: в браузере должно быть `configured: true`.
+
+## Если что-то не так
+
+| Что видите | Что сделать |
+|---|---|
+| Страница Vercel просит логин | Settings → Deployment Protection → выключить Vercel Authentication, затем Redeploy |
+| `configured: false` | Переменная называется ровно `VK_APP_SECRET`. После добавления — Redeploy |
+| 404 на `/vk/payments` | Дождитесь конца деплоя. Адрес должен заканчиваться на `/vk/payments` |
+| «Invalid signature» / товар не находится | В кабинете вставлен **Защищённый ключ** этого же приложения, не от другого |
+| Покупка работает только у вас | Так и должно быть, пока игра не прошла модерацию и тестовый режим не выключен |
+
+Код сервера: [`vk-payments-callback.js`](vk-payments-callback.js).

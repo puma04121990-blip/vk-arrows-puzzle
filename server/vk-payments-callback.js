@@ -20,8 +20,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const querystring = require('node:querystring');
 
+function getSecret() {
+  return String(process.env.VK_APP_SECRET || '').trim();
+}
+
+function makeAppOrderId(orderId, isTest) {
+  const digits = String(orderId).replace(/\D/g, '');
+  const n = digits ? Number(digits.slice(-9)) : 0;
+  if (n > 0) return isTest ? 1000000000 + n : n;
+  return Date.now();
+}
+
 const PORT = Number(process.env.PORT || 8080);
-const SECRET = process.env.VK_APP_SECRET || '';
 const DATA_FILE = path.resolve(process.env.VK_CALLBACK_DATA || path.join(__dirname, 'data', 'orders.json'));
 
 const PRODUCTS = Object.freeze({
@@ -44,10 +54,14 @@ function readOrders() {
 }
 
 function writeOrders(orders) {
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  const temp = DATA_FILE + '.tmp';
-  fs.writeFileSync(temp, JSON.stringify(orders, null, 2) + '\n', { mode: 0o600 });
-  fs.renameSync(temp, DATA_FILE);
+  try {
+    fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+    const temp = DATA_FILE + '.tmp';
+    fs.writeFileSync(temp, JSON.stringify(orders, null, 2) + '\n', { mode: 0o600 });
+    fs.renameSync(temp, DATA_FILE);
+  } catch (error) {
+    console.warn('[VK Payments] order journal skipped:', error.message);
+  }
 }
 
 function orderedSignatureInput(params) {
@@ -59,10 +73,11 @@ function orderedSignatureInput(params) {
 }
 
 function isValidSignature(params) {
-  if (!SECRET || !params.sig) return false;
+  const secret = getSecret();
+  if (!secret || !params.sig) return false;
   const expected = crypto
     .createHash('md5')
-    .update(orderedSignatureInput(params) + SECRET, 'utf8')
+    .update(orderedSignatureInput(params) + secret, 'utf8')
     .digest('hex');
   const actual = String(params.sig);
   if (!/^[a-f0-9]{32}$/i.test(actual)) return false;
@@ -83,7 +98,7 @@ function vkError(code, message) {
 }
 
 function handleCallback(params) {
-  if (!SECRET) return { status: 500, body: vkError(10, 'VK_APP_SECRET is not configured') };
+  if (!getSecret()) return { status: 500, body: vkError(10, 'VK_APP_SECRET is not configured') };
   if (!isValidSignature(params)) return { status: 403, body: vkError(10, 'Invalid signature') };
 
   const type = String(params.notification_type || '').toLowerCase();
@@ -118,7 +133,9 @@ function handleCallback(params) {
     const orders = readOrders();
     const key = `${isTest ? 'test:' : 'live:'}${orderId}`;
     const previous = orders[key];
-    const appOrderId = previous && previous.app_order_id ? previous.app_order_id : String(Date.now());
+    const appOrderId = previous && previous.app_order_id
+      ? previous.app_order_id
+      : String(makeAppOrderId(orderId, isTest));
     orders[key] = {
       order_id: orderId,
       app_order_id: appOrderId,
@@ -155,7 +172,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' || req.method === 'HEAD') {
     return json(res, 200, {
       ok: true,
-      configured: Boolean(SECRET),
+      configured: Boolean(getSecret()),
       endpoint: '/vk/payments'
     });
   }
@@ -183,7 +200,15 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[VK Payments] listening on http://0.0.0.0:${PORT}/vk/payments`);
-  if (!SECRET) console.warn('[VK Payments] WARNING: set VK_APP_SECRET before production use');
-});
+if (require.main === module) {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[VK Payments] listening on http://0.0.0.0:${PORT}/vk/payments`);
+    if (!getSecret()) console.warn('[VK Payments] WARNING: set VK_APP_SECRET before production use');
+  });
+}
+
+module.exports = {
+  handleCallback,
+  getSecret,
+  PRODUCTS
+};
