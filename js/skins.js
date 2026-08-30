@@ -119,8 +119,8 @@ function drawClassic(g, dir, color, s) {
     [s * 0.15, shaftW],
     [s * 0.15, s * 0.55]
   ];
-  g.fillStyle(color, 0.2);
-  fillPoly(g, poly(body.map(p => [p[0] * 1.2, p[1] * 1.2]), dir));
+  g.fillStyle(color, 0.16);
+  fillPoly(g, poly(body.map(p => [p[0] * 1.12, p[1] * 1.12]), dir));
   g.fillStyle(color, 1);
   fillPoly(g, poly(body, dir));
   g.fillStyle(0xffffff, 0.28);

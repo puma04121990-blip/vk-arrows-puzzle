@@ -651,28 +651,29 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnImpactBurst(x, y, color) {
-    const count = 7;
+    const count = 4;
+    const reach = this.cellSize * 0.42;
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count;
-      const dot = this.add.circle(x, y, Math.max(2, this.cellSize * 0.045), color, 0.9).setDepth(30);
+      const angle = (Math.PI * 2 * i) / count + 0.4;
+      const dot = this.add.circle(x, y, Math.max(2, this.cellSize * 0.05), color, 0.85).setDepth(30);
       this.tweens.add({
         targets: dot,
-        x: x + Math.cos(angle) * this.cellSize * 0.48,
-        y: y + Math.sin(angle) * this.cellSize * 0.48,
-        alpha: 0, scale: 0.25, duration: 220 + i * 18, ease: 'Cubic.easeOut',
+        x: x + Math.cos(angle) * reach,
+        y: y + Math.sin(angle) * reach,
+        alpha: 0, scale: 0.2, duration: 180, ease: 'Cubic.easeOut',
         onComplete: () => { try { dot.destroy(); } catch (e) {} }
       });
     }
   }
 
   spawnExitTrail(x, y, dx, dy, color, skin) {
-    const n = skin === 'neon' ? 4 : 3;
+    const n = 2;
     for (let i = 0; i < n; i++) {
-      const dot = this.add.circle(x - dx * i * 7, y - dy * i * 7, 4 - i * 0.6, color, 0.8);
+      const dot = this.add.circle(x - dx * i * 6, y - dy * i * 6, 3.5 - i, color, 0.75);
       dot.setDepth(20);
       this.tweens.add({
-        targets: dot, x: dot.x + dx * (50 + i * 18), y: dot.y + dy * (50 + i * 18),
-        alpha: 0, scale: 0, duration: 180 + i * 25, ease: 'Quad.easeOut',
+        targets: dot, x: dot.x + dx * (40 + i * 16), y: dot.y + dy * (40 + i * 16),
+        alpha: 0, scale: 0, duration: 160, ease: 'Cubic.easeOut',
         onComplete: () => { try { dot.destroy(); } catch (e) {} }
       });
     }

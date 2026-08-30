@@ -8,36 +8,10 @@
 window.drawAppBackground = function (scene, width, height, opts) {
   opts = opts || {};
   const accent = opts.accent != null ? opts.accent : 0x00e8c8;
-
-  // Base fill
   scene.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0).setDepth(-20);
-
   const g = scene.add.graphics().setDepth(-19);
-
-  // Top vignette glow
-  g.fillStyle(accent, 0.04);
-  g.fillCircle(width * 0.5, height * 0.12, Math.max(width, height) * 0.35);
-  g.fillStyle(0x4cc9f0, 0.03);
-  g.fillCircle(width * 0.15, height * 0.75, Math.max(width, height) * 0.28);
-  g.fillStyle(0x9b5de5, 0.025);
-  g.fillCircle(width * 0.88, height * 0.55, Math.max(width, height) * 0.22);
-
-  // Subtle radial dark edges
-  const edge = scene.add.graphics().setDepth(-18);
-  edge.fillStyle(0x000000, 0.22);
-  edge.fillRect(0, 0, width, Math.max(24, height * 0.04));
-  edge.fillRect(0, height - Math.max(24, height * 0.05), width, Math.max(24, height * 0.05));
-
-  // Dot grid texture (sparse for mobile)
-  const dots = scene.add.graphics().setDepth(-17);
-  dots.fillStyle(0xffffff, 0.03);
-  const step = opts.dotStep || 40;
-  for (let y = step; y < height; y += step) {
-    for (let x = step; x < width; x += step) {
-      dots.fillCircle(x, y, 1.1);
-    }
-  }
-
+  g.fillStyle(accent, 0.045);
+  g.fillCircle(width * 0.5, -height * 0.02, Math.max(width, height) * 0.22);
   return g;
 };
 
@@ -45,38 +19,13 @@ window.drawAppBackground = function (scene, width, height, opts) {
  * Brick / block wall cell.
  */
 window.drawWallIcon = function (g, x, y, s) {
-  const r = Math.max(4, s * 0.14);
-  // Shadow
-  g.fillStyle(0x000000, 0.4);
-  g.fillRoundedRect(x + 2, y + 3, s, s, r);
-
-  // Body
-  g.fillStyle(0x3d3d58, 1);
+  const r = Math.max(4, s * 0.16);
+  g.fillStyle(0x2c2c42, 1);
   g.fillRoundedRect(x, y, s, s, r);
-
-  // Top highlight strip
-  g.fillStyle(0x5a5a7a, 1);
-  g.fillRoundedRect(x + 2, y + 2, s - 4, Math.max(4, s * 0.22), r * 0.6);
-
-  // Brick lines
-  g.lineStyle(1.5, 0x2a2a40, 1);
-  const midY = y + s * 0.5;
-  g.lineBetween(x + 3, midY, x + s - 3, midY);
-  g.lineBetween(x + s * 0.5, y + 3, x + s * 0.5, midY);
-  g.lineBetween(x + s * 0.33, midY, x + s * 0.33, y + s - 3);
-  g.lineBetween(x + s * 0.66, midY, x + s * 0.66, y + s - 3);
-
-  // Border
-  g.lineStyle(2, 0x8a8ab0, 0.95);
+  g.fillStyle(0x4a4a68, 1);
+  g.fillRoundedRect(x + 2, y + 2, s - 4, Math.max(3, s * 0.2), r * 0.5);
+  g.lineStyle(2, 0x8a8ab0, 0.9);
   g.strokeRoundedRect(x, y, s, s, r);
-
-  // Small rivets
-  g.fillStyle(0x9a9ab8, 0.7);
-  const d = Math.max(2, s * 0.07);
-  g.fillCircle(x + s * 0.22, y + s * 0.28, d);
-  g.fillCircle(x + s * 0.78, y + s * 0.28, d);
-  g.fillCircle(x + s * 0.22, y + s * 0.72, d);
-  g.fillCircle(x + s * 0.78, y + s * 0.72, d);
 };
 
 /**
@@ -215,14 +164,17 @@ window.createNiceButton = function (scene, x, y, label, callback, opts) {
   btn.on('pointerout', () => drawBg(fill, stroke));
   btn.on('pointerdown', () => {
     if (window.ensureGameAudio) window.ensureGameAudio();
-    if (window.playUiTone) window.playUiTone(420, 0.045, 'sine', 0.045);
-    scene.tweens.add({
-      targets: btn,
-      scale: 0.94,
-      duration: 70,
-      yoyo: true,
-      onComplete: () => { if (callback) callback(); }
-    });
+    if (window.playUiTone) window.playUiTone(420, 0.03, 'sine', 0.04);
+    if (scene.sys && scene.sys.isActive()) {
+      scene.tweens.add({
+        targets: btn,
+        scale: 0.96,
+        duration: 70,
+        yoyo: true,
+        ease: 'Sine.easeOut'
+      });
+    }
+    if (callback) callback();
   });
 
   return btn;

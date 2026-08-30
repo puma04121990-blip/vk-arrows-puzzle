@@ -60,6 +60,10 @@ class LevelsMapScene extends Phaser.Scene {
 
     this.mapContainer = this.add.container(0, 0);
     this.mapContainer.setDepth(10);
+    const listMask = this.make.graphics({ x: 0, y: 0, add: false });
+    listMask.fillStyle(0xffffff);
+    listMask.fillRect(0, headerH, width, height - headerH - footerH);
+    this.mapContainer.setMask(listMask.createGeometryMask());
 
     const cols = wide ? 5 : 5;
     const cellW = Math.min(110, Math.floor((width - 32) / cols));

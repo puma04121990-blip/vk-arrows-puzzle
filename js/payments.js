@@ -46,7 +46,7 @@ window.SHOP_ITEMS = [
   {
     id: 'remove_ads',
     title: 'Без рекламы',
-    desc: 'Навсегда убрать interstitial',
+    desc: 'Реклама между уровнями',
     icon: '🚫',
     price: 25,
     category: 'premium'

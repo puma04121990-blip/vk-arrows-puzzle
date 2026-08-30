@@ -20,8 +20,8 @@ class ShopScene extends Phaser.Scene {
       this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
     }
 
-    const headerH = wide ? 72 : 96;
-    const footerH = wide ? 56 : 72;
+    const headerH = wide ? 72 : 88;
+    const footerH = wide ? 72 : 96;
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 0.92).setDepth(40);
     this.add.text(width / 2, wide ? 22 : 30, 'МАГАЗИН', {
@@ -38,14 +38,15 @@ class ShopScene extends Phaser.Scene {
       wordWrap: { width: width - 40 }
     }).setOrigin(0.5).setDepth(41);
 
-    this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.95).setDepth(40);
+    this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.98).setDepth(40);
     const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isSleeping('Game') || this.scene.isPaused('Game');
     const backLabel = fromGame ? '← К ИГРЕ' : '← МЕНЮ';
-    const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, fromGame ? 240 : 200, wide ? 40 : 48, fromGame ? 0x00e8c8 : 0x1a1a28)
+    const btnY = height - Math.round(footerH * 0.38);
+    const menuBtn = this.add.rectangle(width / 2, btnY, fromGame ? 240 : 200, wide ? 40 : 46, fromGame ? 0x00e8c8 : 0x1a1a28)
       .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)
       .setInteractive({ useHandCursor: true })
       .setDepth(41);
-    this.add.text(width / 2, height - footerH / 2, backLabel, {
+    this.add.text(width / 2, btnY, backLabel, {
       fontFamily: 'Arial',
       fontSize: wide ? '16px' : '18px',
       color: fromGame ? '#0b0b14' : '#9a9ab8'
@@ -57,14 +58,19 @@ class ShopScene extends Phaser.Scene {
       if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
       else this.scene.start(fromGame ? 'Game' : 'Menu');
     });
+    this.note = this.add.text(width / 2, height - footerH + 14, 'Оплата голосами ВК · цена на кнопке', {
+      fontFamily: 'Arial',
+      fontSize: '11px',
+      color: '#6a6a82'
+    }).setOrigin(0.5, 0).setDepth(41);
 
     const items = window.SHOP_ITEMS || [];
     const cols = wide ? 2 : 1;
     const cardW = wide ? Math.min(520, (width - 56) / 2) : Math.min(640, width - 40);
-    const cardH = wide ? 92 : 100;
+    const cardH = wide ? 86 : 82;
     const gapX = 14;
-    const gapY = wide ? 10 : 12;
-    const startY = headerH + cardH / 2 + 10;
+    const gapY = wide ? 8 : 8;
+    const startY = headerH + cardH / 2 + 8;
     const totalW = cols * cardW + (cols - 1) * gapX;
     const startX = (width - totalW) / 2 + cardW / 2;
 
@@ -72,7 +78,7 @@ class ShopScene extends Phaser.Scene {
     this.scrollRoot.setDepth(10);
     const listMask = this.make.graphics({ x: 0, y: 0, add: false });
     listMask.fillStyle(0xffffff);
-    listMask.fillRect(0, headerH, width, height - headerH - footerH - 18);
+    listMask.fillRect(0, headerH, width, Math.max(40, height - headerH - footerH));
     this.scrollRoot.setMask(listMask.createGeometryMask());
 
     items.forEach((item, i) => {
@@ -86,8 +92,8 @@ class ShopScene extends Phaser.Scene {
     });
 
     const rows = Math.ceil(items.length / cols);
-    const contentBottom = startY + (rows - 1) * (cardH + gapY) + cardH / 2 + 14;
-    const listBottom = height - footerH - 18;
+    const contentBottom = startY + (rows - 1) * (cardH + gapY) + cardH / 2 + 12;
+    const listBottom = height - footerH;
     const maxScroll = Math.max(0, contentBottom - listBottom);
     if (maxScroll > 0) {
       this.input.on('wheel', (pointer, over, dx, dy) => {
@@ -106,12 +112,6 @@ class ShopScene extends Phaser.Scene {
       });
       this.input.on('pointerup', () => { dragY = null; });
     }
-
-    this.note = this.add.text(width / 2, height - footerH - 10, 'Оплата голосами ВК · цена указана на кнопке', {
-      fontFamily: 'Arial',
-      fontSize: '11px',
-      color: '#4a4a62'
-    }).setOrigin(0.5).setDepth(41);
   }
 
   buildStatusLine() {
