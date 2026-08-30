@@ -306,7 +306,8 @@ class GameScene extends Phaser.Scene {
     const gridLeft = this.offsetX + 4;
     const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
     const spriteKey = this.textures.exists('arrow_' + this.skinId) ? ('arrow_' + this.skinId) : (this.textures.exists('arrow_neon') ? 'arrow_neon' : null);
-    const spriteSize = Math.round(this.cellSize * 0.78);
+    const spriteSize = Math.round(this.cellSize * 0.72);
+    this.arrowSpriteSize = spriteSize;
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -319,7 +320,7 @@ class GameScene extends Phaser.Scene {
         g = this.add.image(cx, cy, spriteKey).setDepth(5);
         g.setDisplaySize(spriteSize, spriteSize);
         g.setTint(color);
-        g.setAngle(((a.dir - 1) * 90 + 360) % 360);
+        g.setAngle(this.arrowAngle(a.dir));
       } else {
         g = this.add.graphics().setDepth(5);
         g.setPosition(cx, cy);
@@ -359,7 +360,8 @@ class GameScene extends Phaser.Scene {
         lockId: a.lockId != null ? a.lockId : null,
         keyId: a.keyId != null ? a.keyId : null,
         lockColor: a.lockColor != null ? a.lockColor : null,
-        baseAngle: 0
+        baseAngle: this.arrowAngle(a.dir),
+        spriteSize: spriteSize
       };
       zone.on('pointerdown', () => {
         if (data.removed || this.completed || this.failed) return;
@@ -368,6 +370,16 @@ class GameScene extends Phaser.Scene {
       });
       this.arrows.push(data);
     });
+  }
+
+  arrowAngle(dir) {
+    return ((dir - 1) * 90 + 360) % 360;
+  }
+
+  fitArrowSprite(g, size) {
+    if (!g || !g.setDisplaySize) return;
+    const s = size || this.arrowSpriteSize || Math.round(this.cellSize * 0.72);
+    g.setDisplaySize(s, s);
   }
 
   drawArrow(g, dir, color) {
@@ -419,11 +431,15 @@ class GameScene extends Phaser.Scene {
       data.rotated = true;
       data.dir = (data.dir + 1) % 4;
       try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
-      data.graphics.setAlpha(1); data.graphics.setScale(1);
-      data.baseAngle = (data.baseAngle || 0) + 90;
-      data.graphics.angle = data.baseAngle;
-      this.tweens.add({ targets: data.graphics, scale: 1.12, duration: 70, yoyo: true, ease: 'Quad.easeOut' });
-      if (data.rotBadge) { data.rotBadge.setAlpha(0.35); data.rotBadge.setScale(0.85); }
+      data.baseAngle = this.arrowAngle(data.dir);
+      const g = data.graphics;
+      if (g) {
+        if (g.setAngle) g.setAngle(data.baseAngle);
+        else g.angle = data.baseAngle;
+        this.fitArrowSprite(g, data.spriteSize);
+        if (g.setAlpha) g.setAlpha(1);
+      }
+      if (data.rotBadge) { data.rotBadge.setAlpha(0.35); if (data.rotBadge.setScale) data.rotBadge.setScale(0.85); }
       this.playTone(400, 0.05, 'sine', 0.08);
       this.time.delayedCall(40, () => this.playTone(520, 0.05, 'sine', 0.08));
       if (this.coachEnabled) this.focusCoachTarget(data);
@@ -604,7 +620,14 @@ class GameScene extends Phaser.Scene {
     data.zone.disableInteractive();
     try { this.tweens.killTweensOf(data.graphics); } catch (e) {}
     const g = data.graphics;
-    g.setScale(1); g.setAlpha(1);
+    if (g) {
+      this.fitArrowSprite(g, data.spriteSize);
+      if (g.setAlpha) g.setAlpha(1);
+      const face = this.arrowAngle(data.dir);
+      data.baseAngle = face;
+      if (g.setAngle) g.setAngle(face);
+      else g.angle = face;
+    }
 
     if (data.keyId != null) {
       for (let i = 0; i < this.arrows.length; i++) {
@@ -626,9 +649,7 @@ class GameScene extends Phaser.Scene {
 
     const gx = g.x, gy = g.y;
     this.spawnImpactBurst(gx, gy, data.color);
-    const skin = this.skinId || 'neon';
     const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
-    const baseAng = data.baseAngle || 0;
 
     const finish = () => {
       try {
@@ -645,53 +666,15 @@ class GameScene extends Phaser.Scene {
 
     this.spawnExitTrail(gx, gy, dx, dy, data.color, skin);
 
-    if (skin === 'block') {
-      this.tweens.add({
-        targets: g, scaleX: 1.35, scaleY: 0.55, duration: 70, yoyo: true,
-        onComplete: () => {
-          this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-            angle: baseAng + (dx !== 0 ? 0 : (dy < 0 ? -20 : 20)), alpha: 0, scale: 0.3,
-            duration: 280, ease: 'Back.easeIn', onComplete: finish });
-        }
-      });
-    } else if (skin === 'triangle') {
-      this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-        angle: baseAng + 360, alpha: 0, scale: 0.2, duration: 300, ease: 'Cubic.easeIn', onComplete: finish });
-    } else if (skin === 'chevron') {
-      this.tweens.add({
-        targets: g, x: gx + dx * 36, y: gy + dy * 36, scale: 1.12, duration: 55,
-        onComplete: () => {
-          this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-            alpha: 0, scaleX: 1.55, scaleY: 0.4, duration: 230, ease: 'Expo.easeIn', onComplete: finish });
-        }
-      });
-    } else if (skin === 'thin') {
-      this.tweens.add({
-        targets: g, scaleX: dx !== 0 ? 1.7 : 0.55, scaleY: dy !== 0 ? 1.7 : 0.55, duration: 70,
-        onComplete: () => {
-          this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-            alpha: 0, scale: 0.15, duration: 210, ease: 'Quad.easeIn', onComplete: finish });
-        }
-      });
-    } else if (skin === 'feather') {
-      this.tweens.add({
-        targets: g, x: gx + dx * dist * 0.35 + (dy !== 0 ? 28 : 0),
-        y: gy + dy * dist * 0.35 + (dx !== 0 ? -18 : 0), angle: baseAng + 22, duration: 130, ease: 'Sine.easeOut',
-        onComplete: () => {
-          this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-            angle: baseAng - 12, alpha: 0, scale: 0.35, duration: 250, ease: 'Cubic.easeIn', onComplete: finish });
-        }
-      });
-    } else {
-      this.tweens.add({
-        targets: g, scale: 1.22, duration: 45, yoyo: true,
-        onComplete: () => {
-          this.tweens.add({ targets: g, x: gx + dx * dist, y: gy + dy * dist,
-            alpha: 0, scale: 0.22, angle: baseAng + (dx !== 0 ? dx * 12 : 0),
-            duration: 280, ease: 'Cubic.easeIn', onComplete: finish });
-        }
-      });
-    }
+    this.tweens.add({
+      targets: g,
+      x: gx + dx * dist,
+      y: gy + dy * dist,
+      alpha: 0,
+      duration: 260,
+      ease: 'Cubic.easeIn',
+      onComplete: finish
+    });
 
     const flyBadge = (obj) => {
       if (!obj) return;
@@ -734,7 +717,7 @@ class GameScene extends Phaser.Scene {
     const g = data.graphics;
     if (g && g.setTint) {
       g.setTint(0xff4444);
-      this.time.delayedCall(100, () => { if (!data.removed && g.clearTint) g.clearTint(); });
+      this.time.delayedCall(100, () => { if (!data.removed && g.setTint) g.setTint(data.color); });
     }
   }
 
