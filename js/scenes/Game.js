@@ -65,15 +65,14 @@ class GameScene extends Phaser.Scene {
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const wide = width >= height;
-    // Header, board frame and bottom actions must each have their own reserved space.
-    const topPad = wide ? 102 : 148;
-    const bottomPad = wide ? 88 : 118;
-    const headerY = wide ? 24 : 40;
-    const statsY = wide ? 50 : 98;
+    const headerY = wide ? 22 : 24;
+    const statsY = wide ? 50 : 56;
     const headerLabel = this.isDaily ? 'ЕЖЕДНЕВНЫЙ' : `УРОВЕНЬ ${this.levelIndex + 1}`;
-    this.compactComboY = wide ? 78 : statsY + 42;
+    this.compactComboY = statsY;
     this.add.text(width / 2, headerY, headerLabel, {
-      fontFamily: 'Arial Black, Arial', fontSize: wide ? '20px' : '26px', color: '#00e8c8'
+      fontFamily: 'Manrope, Arial Black, Arial, sans-serif',
+      fontSize: wide ? '20px' : '22px',
+      color: '#7ff6e6'
     }).setOrigin(0.5);
 
     this.timeLimit = this.calcTimeLimit();
@@ -81,32 +80,45 @@ class GameScene extends Phaser.Scene {
     this.runStartedAt = this.time.now;
 
     if (window.createHudChip) {
-      this.mistakesChip = window.createHudChip(this, width / 2 - (wide ? 78 : 96), statsY, `Ошибки: 0/${this.maxMistakes}`, { fontSize: wide ? '14px' : '15px', color: '#9a9ab4' });
-      this.timerChip = window.createHudChip(this, width / 2 + (wide ? 78 : 96), statsY, this.formatTime(this.timeLeft), { fontSize: wide ? '15px' : '16px', color: '#00e8c8', fontFamily: 'Arial Black, Arial' });
-      this._mistakesStr = `Ошибки: 0/${this.maxMistakes}`;
+      const chipFont = wide ? '14px' : '13px';
+      const chipPad = { padX: wide ? 12 : 10, padY: wide ? 7 : 5 };
+      this.mistakesChip = window.createHudChip(this, width / 2 - (wide ? 78 : 120), statsY, `Ошибки ${this.maxMistakes}`, Object.assign({ fontSize: chipFont, color: '#9a9ab4' }, chipPad));
+      this.timerChip = window.createHudChip(this, width / 2 + (wide ? 78 : 120), statsY, this.formatTime(this.timeLeft), Object.assign({ fontSize: chipFont, color: '#00e8c8', fontFamily: 'Manrope, Arial Black, Arial, sans-serif' }, chipPad));
+      this._mistakesStr = `Ошибки 0/${this.maxMistakes}`;
+      this.mistakesChip.setLabel(this._mistakesStr, '#9a9ab4');
       this._mistakesColor = '#9a9ab4';
       this._timerStr = this.formatTime(this.timeLeft);
       this._timerColor = '#00e8c8';
       this.movesText = {
-        setText: (t) => { this._mistakesStr = t; if (this.mistakesChip) this.mistakesChip.setLabel(t, this._mistakesColor); },
+        setText: (t) => { this._mistakesStr = t.replace('Ошибки: ', 'Ошибки '); if (this.mistakesChip) this.mistakesChip.setLabel(this._mistakesStr, this._mistakesColor); },
         setColor: (c) => { this._mistakesColor = c; if (this.mistakesChip) this.mistakesChip.setLabel(this._mistakesStr, c); }
       };
       this.timerText = {
         setText: (t) => { this._timerStr = t; if (this.timerChip) this.timerChip.setLabel(t, this._timerColor); },
         setColor: (c) => { this._timerColor = c; if (this.timerChip) this.timerChip.setLabel(this._timerStr, c); }
       };
-      // Landscape uses the dedicated side dashboard; rendering a second combo chip over the board caused overlap.
-      if (!wide) this.comboChip = window.createHudChip(this, width / 2, this.compactComboY, 'ЦЕПОЧКА · 0', { fontSize: '13px', color: '#ffd166', fill: 0x151524, stroke: 0x4a3d2a });
+      if (!wide) {
+        this.comboChip = window.createHudChip(this, width / 2, statsY, 'Цепочка 0', Object.assign({ fontSize: chipFont, color: '#ffd166', fill: 0x151524, stroke: 0x4a3d2a }, chipPad));
+        const gap = 8;
+        const total = this.mistakesChip.width + this.comboChip.width + this.timerChip.width + gap * 2;
+        let cx = width / 2 - total / 2;
+        this.mistakesChip.x = cx + this.mistakesChip.width / 2;
+        cx += this.mistakesChip.width + gap;
+        this.comboChip.x = cx + this.comboChip.width / 2;
+        cx += this.comboChip.width + gap;
+        this.timerChip.x = cx + this.timerChip.width / 2;
+      }
     } else {
       this.movesText = this.add.text(width / 2 - 90, statsY, `Ошибки: 0/${this.maxMistakes}`, { fontFamily: 'Arial', fontSize: '17px', color: '#6e6e8a' }).setOrigin(1, 0.5);
       this.timerText = this.add.text(width / 2 + 90, statsY, this.formatTime(this.timeLeft), { fontFamily: 'Arial Black, Arial', fontSize: '19px', color: '#00e8c8' }).setOrigin(0, 0.5);
     }
 
     const size = this.levelData.size;
-    const sideMargin = wide ? 48 : 40;
-    const panelPad = wide ? 26 : 22;
+    const topPad = wide ? 96 : 80;
+    const bottomPad = wide ? 78 : 70;
+    const sideMargin = wide ? 36 : 12;
+    const panelPad = wide ? 18 : 10;
     const maxGridW = width - sideMargin * 2 - panelPad * 2;
-    // Reserve the full board frame, not only the grid, so it cannot intrude into the header or bottom actions.
     const maxGridH = height - topPad - bottomPad - panelPad * 2;
     this.cellSize = Math.max(28, Math.floor(Math.min(maxGridW / size, maxGridH / size)));
     const gridW = this.cellSize * size;
@@ -114,16 +126,18 @@ class GameScene extends Phaser.Scene {
     const panelW = gridW + panelPad * 2;
     const panelH = gridH + panelPad * 2;
     const panelX = Math.round((width - panelW) / 2);
-    const freeH = height - topPad - bottomPad;
-    const panelY = Math.round(topPad + (freeH - panelH) / 2);
+    const slack = height - topPad - bottomPad - panelH;
+    const panelY = Math.round(topPad + Math.max(4, slack * 0.28));
 
     const panel = this.add.graphics();
-    panel.fillStyle(0x00e8c8, 0.06);
-    panel.fillRoundedRect(panelX - 6, panelY - 6, panelW + 12, panelH + 12, 20);
-    panel.fillStyle(0x141422, 1);
-    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 16);
-    panel.lineStyle(2, 0x3a3a58, 1);
-    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 16);
+    panel.fillStyle(0x00e8c8, 0.1);
+    panel.fillRoundedRect(panelX - 5, panelY - 5, panelW + 10, panelH + 10, 18);
+    panel.fillStyle(0x10101c, 1);
+    panel.fillRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(2, 0x00e8c8, 0.4);
+    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, 14);
+    panel.lineStyle(1, 0x2a2a48, 0.9);
+    panel.strokeRoundedRect(panelX + 3, panelY + 3, panelW - 6, panelH - 6, 11);
 
     this.offsetX = panelX + panelPad;
     this.offsetY = panelY + panelPad;
@@ -131,6 +145,18 @@ class GameScene extends Phaser.Scene {
     this.boardPanelY = panelY;
     this.boardPanelW = panelW;
     this.boardPanelH = panelH;
+
+    this.actionDockY = panelY + panelH + 8;
+    if (!wide) {
+      const dock = this.add.graphics();
+      const dockH = Math.max(64, height - this.actionDockY - 8);
+      dock.fillStyle(0x12121c, 0.96);
+      dock.fillRoundedRect(10, this.actionDockY, width - 20, dockH, 18);
+      dock.lineStyle(1, 0x2c2c44, 0.95);
+      dock.strokeRoundedRect(10, this.actionDockY, width - 20, dockH, 18);
+      dock.fillStyle(0x00e8c8, 0.1);
+      dock.fillRoundedRect(width / 2 - 22, this.actionDockY + 9, 44, 3, 2);
+    }
 
     this.drawGrid(size);
     this.drawWalls();
@@ -152,12 +178,14 @@ class GameScene extends Phaser.Scene {
 
   updateMistakesUI() {
     const shown = Math.min(this.mistakes, this.maxMistakes);
-    const label = `Ошибки: ${shown}/${this.maxMistakes}`;
+    const label = `Ошибки ${shown}/${this.maxMistakes}`;
     let color = '#9a9ab4';
     if (shown >= this.maxMistakes - 1) color = '#ff6b6b';
     else if (shown >= 1) color = '#ffd166';
-    if (this.mistakesChip && this.mistakesChip.setLabel) this.mistakesChip.setLabel(label, color);
-    else if (this.movesText) { this.movesText.setText(label); if (this.movesText.setColor) this.movesText.setColor(color); }
+    if (this.mistakesChip && this.mistakesChip.setLabel) {
+      this.mistakesChip.setLabel(label, color);
+      if (this.layoutPortraitChips) this.layoutPortraitChips();
+    } else if (this.movesText) { this.movesText.setText(label); if (this.movesText.setColor) this.movesText.setColor(color); }
     if (this.mistakesSideText) { this.mistakesSideText.setText(shown + '/' + this.maxMistakes); this.mistakesSideText.setColor(color); }
   }
 
@@ -235,10 +263,13 @@ class GameScene extends Phaser.Scene {
         const px = this.offsetX + x * cell;
         const py = this.offsetY + y * cell;
         const odd = (x + y) % 2 === 0;
-        g.fillStyle(odd ? 0x1a1a2c : 0x161624, 0.95);
-        g.fillRoundedRect(px + 2, py + 2, cell - 4, cell - 4, 6);
-        g.fillStyle(0x3a3a55, 0.9);
-        g.fillCircle(px + cell / 2, py + cell / 2, Math.max(2.5, cell * 0.05));
+        const r = Math.max(5, cell * 0.16);
+        g.fillStyle(odd ? 0x1e1e36 : 0x17172a, 1);
+        g.fillRoundedRect(px + 3, py + 3, cell - 6, cell - 6, r);
+        g.fillStyle(0xffffff, 0.04);
+        g.fillRoundedRect(px + 5, py + 5, cell - 10, Math.max(4, (cell - 6) * 0.28), r * 0.6);
+        g.fillStyle(0x4a4a6a, 0.55);
+        g.fillCircle(px + cell / 2, py + cell / 2, Math.max(2, cell * 0.045));
       }
     }
   }
@@ -468,14 +499,35 @@ class GameScene extends Phaser.Scene {
     this.focusCoachTarget(next);
   }
 
+  layoutPortraitChips() {
+    if (this.scale.width >= this.scale.height) return;
+    if (!this.mistakesChip || !this.comboChip || !this.timerChip) return;
+    const gap = 8;
+    const w = this.scale.width;
+    const total = this.mistakesChip.width + this.comboChip.width + this.timerChip.width + gap * 2;
+    let x = w / 2 - total / 2;
+    this.mistakesChip.x = x + this.mistakesChip.width / 2;
+    x += this.mistakesChip.width + gap;
+    this.comboChip.x = x + this.comboChip.width / 2;
+    x += this.comboChip.width + gap;
+    this.timerChip.x = x + this.timerChip.width / 2;
+  }
+
   updateComboUI() {
     const goal = this.chainTarget || 3;
-    const label = this.combo >= goal ? 'МАСТЕРСТВО · ' + this.combo : 'ЦЕПОЧКА · ' + this.combo + '/' + goal;
-    if (this.comboChip && this.comboChip.setLabel) this.comboChip.setLabel(label, this.combo >= goal ? '#00e8c8' : '#ffd166');
-    if (this.comboChip && this.combo >= goal && this.comboChip.setScale) this.tweens.add({ targets: this.comboChip, scale: 1.08, duration: 80, yoyo: true });
+    const mastered = this.combo >= goal;
+    const compact = this.scale.width < this.scale.height;
+    const label = mastered
+      ? (compact ? 'Мастерство ' + this.combo : 'МАСТЕРСТВО · ' + this.combo)
+      : (compact ? 'Цепочка ' + this.combo + '/' + goal : 'ЦЕПОЧКА · ' + this.combo + '/' + goal);
+    if (this.comboChip && this.comboChip.setLabel) {
+      this.comboChip.setLabel(label, mastered ? '#00e8c8' : '#ffd166');
+      if (this.layoutPortraitChips) this.layoutPortraitChips();
+    }
+    if (this.comboChip && mastered && this.comboChip.setScale) this.tweens.add({ targets: this.comboChip, scale: 1.08, duration: 80, yoyo: true });
     if (this.comboSideText) {
       this.comboSideText.setText(this.combo + '/' + goal);
-      this.comboSideText.setColor(this.combo >= goal ? '#00e8c8' : '#ffd166');
+      this.comboSideText.setColor(mastered ? '#00e8c8' : '#ffd166');
       if (this.combo > 0) this.tweens.add({ targets: this.comboSideText, scale: 1.12, duration: 90, yoyo: true });
     }
   }

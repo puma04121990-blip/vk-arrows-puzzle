@@ -248,16 +248,15 @@ window.pulseLeaveShop = function (to) {
     GameScene.prototype.createUI = function () {
       const { width, height } = this.scale;
       const wide = width >= height;
-      const btnH = wide ? 40 : 46;
-      const btnW = Math.max(96, Math.min(wide ? 118 : 112, Math.floor((width - 28) / 3) - 8));
-      const span = Math.min(width - 20, btnW * 3 + (wide ? 24 : 16));
+      const btnH = wide ? 42 : 48;
+      const btnW = Math.max(100, Math.min(wide ? 124 : 118, Math.floor((width - 24) / 3) - 6));
+      const span = Math.min(width - 16, btnW * 3 + (wide ? 20 : 12));
       const leftX = width / 2 - span / 2 + btnW / 2;
       const rightX = width / 2 + span / 2 - btnW / 2;
-      const fontSize = btnW < 104 ? '11px' : (wide ? '13px' : '14px');
+      const fontSize = btnW < 108 ? '12px' : (wide ? '14px' : '15px');
       const hints = window.getHints ? window.getHints() : 0;
-      const safeBottom = height - (wide ? 22 : 30);
-      let by = (this.boardPanelY || 0) + (this.boardPanelH || 0) + 14 + btnH / 2;
-      if (by + btnH / 2 > safeBottom) by = safeBottom - btnH / 2;
+      const dockTop = this.actionDockY || ((this.boardPanelY || 0) + (this.boardPanelH || 0) + 8);
+      const by = dockTop + Math.max(36, (height - 8 - dockTop) / 2);
 
       if (window.createNiceButton) {
         window.createNiceButton(this, leftX, by, '↺ ЗАНОВО', () => this.scene.restart(), {

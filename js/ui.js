@@ -8,10 +8,12 @@
 window.drawAppBackground = function (scene, width, height, opts) {
   opts = opts || {};
   const accent = opts.accent != null ? opts.accent : 0x00e8c8;
-  scene.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0).setDepth(-20);
+  scene.add.rectangle(0, 0, width, height, 0x0c0c18).setOrigin(0).setDepth(-20);
   const g = scene.add.graphics().setDepth(-19);
-  g.fillStyle(accent, 0.045);
-  g.fillCircle(width * 0.5, -height * 0.02, Math.max(width, height) * 0.22);
+  g.fillStyle(accent, 0.07);
+  g.fillCircle(width * 0.5, -8, Math.max(width, height) * 0.26);
+  g.fillStyle(0x4cc9f0, 0.03);
+  g.fillCircle(width * 0.08, height * 0.92, Math.max(width, height) * 0.18);
   return g;
 };
 
@@ -205,6 +207,18 @@ window.createHudChip = function (scene, x, y, label, opts) {
   const stroke = opts.stroke != null ? opts.stroke : 0x2e2e48;
   const depth = opts.depth != null ? opts.depth : 20;
 
+  const paintChip = (g, bw, bh) => {
+    g.clear();
+    g.fillStyle(0x000000, 0.28);
+    g.fillRoundedRect(-bw / 2, -bh / 2 + 2, bw, bh, bh / 2);
+    g.fillStyle(fill, 1);
+    g.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+    g.lineStyle(1, stroke, 1);
+    g.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+    g.fillStyle(0xffffff, 0.06);
+    g.fillRoundedRect(-bw / 2 + 3, -bh / 2 + 2, bw - 6, Math.max(5, bh * 0.38), bh / 3);
+  };
+
   const text = scene.add.text(0, 0, label, {
     fontFamily: opts.fontFamily || 'Manrope, Arial, sans-serif',
     fontSize: opts.fontSize || '16px',
@@ -218,10 +232,7 @@ window.createHudChip = function (scene, x, y, label, opts) {
   container.setDepth(depth);
 
   const bg = scene.add.graphics();
-  bg.fillStyle(fill, 1);
-  bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
-  bg.lineStyle(1, stroke, 1);
-  bg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+  paintChip(bg, bw, bh);
 
   container.add([bg, text]);
   container.setSize(bw, bh);
@@ -233,11 +244,7 @@ window.createHudChip = function (scene, x, y, label, opts) {
     if (color) text.setColor(color);
     const nw = text.width + padX * 2;
     const nh = text.height + padY * 2;
-    bg.clear();
-    bg.fillStyle(fill, 1);
-    bg.fillRoundedRect(-nw / 2, -nh / 2, nw, nh, nh / 2);
-    bg.lineStyle(1, stroke, 1);
-    bg.strokeRoundedRect(-nw / 2, -nh / 2, nw, nh, nh / 2);
+    paintChip(bg, nw, nh);
     container.setSize(nw, nh);
   };
   container.setInteractiveChip = function (cb) {
