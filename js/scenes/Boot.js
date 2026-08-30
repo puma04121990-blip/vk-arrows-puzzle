@@ -10,6 +10,10 @@ class BootScene extends Phaser.Scene {
     g.generateTexture('particle', 16, 16);
     g.destroy();
     this.load.image('menuLogo', 'assets/menu-logo.png');
+    this.load.image('shop_hints', 'assets/shop/hints.png');
+    this.load.image('shop_heart', 'assets/shop/heart.png');
+    this.load.image('shop_noads', 'assets/shop/noads.png');
+    this.load.image('shop_skins', 'assets/shop/skins.png');
   }
 
   create() {

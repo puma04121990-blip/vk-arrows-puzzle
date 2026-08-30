@@ -16,6 +16,7 @@ window.SHOP_ITEMS = [
     title: '3 подсказки',
     desc: 'Подсветка безопасной стрелки',
     icon: '💡',
+    tex: 'shop_hints',
     price: 3,
     category: 'hints'
   },
@@ -24,6 +25,7 @@ window.SHOP_ITEMS = [
     title: '10 подсказок',
     desc: 'Выгодный пакет',
     icon: '💡',
+    tex: 'shop_hints',
     price: 7,
     category: 'hints'
   },
@@ -32,6 +34,7 @@ window.SHOP_ITEMS = [
     title: '+1 ошибка',
     desc: 'Лимит ошибок +1 навсегда',
     icon: '❤️',
+    tex: 'shop_heart',
     price: 5,
     category: 'lives'
   },
@@ -40,6 +43,7 @@ window.SHOP_ITEMS = [
     title: '+3 ошибки',
     desc: 'Лимит ошибок +3 навсегда',
     icon: '💖',
+    tex: 'shop_heart',
     price: 12,
     category: 'lives'
   },
@@ -48,6 +52,7 @@ window.SHOP_ITEMS = [
     title: 'Без рекламы',
     desc: 'Реклама между уровнями',
     icon: '🚫',
+    tex: 'shop_noads',
     price: 25,
     category: 'premium'
   },
@@ -56,6 +61,7 @@ window.SHOP_ITEMS = [
     title: 'Все стили',
     desc: 'Открыть все скины сразу',
     icon: '🎨',
+    tex: 'shop_skins',
     price: 20,
     category: 'skins'
   }

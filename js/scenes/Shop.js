@@ -70,7 +70,7 @@ class ShopScene extends Phaser.Scene {
     const cardH = wide ? 86 : 82;
     const gapX = 14;
     const gapY = wide ? 8 : 8;
-    const startY = headerH + cardH / 2 + 8;
+    const startY = headerH + cardH / 2 + 14;
     const totalW = cols * cardW + (cols - 1) * gapX;
     const startX = (width - totalW) / 2 + cardW / 2;
 
@@ -137,11 +137,18 @@ class ShopScene extends Phaser.Scene {
     bg.lineStyle(2, owned ? 0x2a5a48 : (active ? 0x5a4a22 : 0x2e2e48), 1);
     bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
 
-    const icon = this.add.text(-w / 2 + 22, 0, item.icon || '•', {
-      fontSize: '28px'
-    }).setOrigin(0.5);
+    const iconSize = Math.min(48, h - 20);
+    const iconX = -w / 2 + 12 + iconSize / 2;
+    let icon;
+    if (item.tex && this.textures.exists(item.tex)) {
+      icon = this.add.image(iconX, 0, item.tex);
+      icon.setDisplaySize(iconSize, iconSize);
+    } else {
+      icon = this.add.text(iconX, 2, item.icon || '•', { fontSize: '26px' }).setOrigin(0.5);
+    }
 
-    const title = this.add.text(-w / 2 + 48, -16, item.title, {
+    const textX = -w / 2 + 20 + iconSize;
+    const title = this.add.text(textX, -16, item.title, {
       fontFamily: 'Arial Black, Arial',
       fontSize: '16px',
       color: '#e8e8f8'
@@ -149,11 +156,11 @@ class ShopScene extends Phaser.Scene {
 
     const btnW = 136;
     const btnH = 38;
-    const desc = this.add.text(-w / 2 + 48, 8, item.desc, {
+    const desc = this.add.text(textX, 8, item.desc, {
       fontFamily: 'Manrope, Arial, sans-serif',
       fontSize: '12px',
       color: '#7a7a92',
-      wordWrap: { width: w - btnW - 96 }
+      wordWrap: { width: w - btnW - iconSize - 48 }
     }).setOrigin(0, 0.5);
 
     const priceLabel = owned
