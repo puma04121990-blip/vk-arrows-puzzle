@@ -116,12 +116,17 @@ const config = {
     autoRound: true
   },
   render: {
-    roundPixels: true,
+    roundPixels: false,
     antialias: true,
     antialiasGL: true,
     pixelArt: false,
     powerPreference: 'high-performance',
     mipmapFilter: 'LINEAR'
+  },
+  fps: {
+    target: 60,
+    min: 30,
+    smoothStep: true
   },
   input: {
     activePointers: 3,

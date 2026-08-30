@@ -172,6 +172,10 @@ class GameScene extends Phaser.Scene {
     this.createUI();
     if (wide) this.createLandscapeDashboard();
     this.initAudio();
+    if (this.cameras && this.cameras.main) {
+      this.cameras.main.roundPixels = false;
+      if (this.cameras.main.setRoundPixels) this.cameras.main.setRoundPixels(false);
+    }
     if (window.startAmbientMusic && window.isMusicOn && window.isMusicOn()) window.startAmbientMusic();
     this.startTimer();
     this.time.delayedCall(350, () => this.startCoachIfNeeded());
@@ -392,6 +396,17 @@ class GameScene extends Phaser.Scene {
     g.setDisplaySize(s, s);
   }
 
+  isTouchDevice() {
+    try {
+      const input = this.sys && this.sys.game && this.sys.game.device && this.sys.game.device.input;
+      if (input && input.touch) return true;
+    } catch (e) {}
+    try {
+      if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) return true;
+    } catch (e) {}
+    return false;
+  }
+
   drawArrow(g, dir, color) {
     if (window.drawArrowSkin) { window.drawArrowSkin(g, dir, color, this.cellSize, this.skinId); return; }
     g.clear();
@@ -460,7 +475,7 @@ class GameScene extends Phaser.Scene {
       this.combo = 0; this.updateComboUI();
       this.mistakes++; this.updateMistakesUI(); this.playFailSound(); this.failFeedback(data);
       this.spawnImpactBurst(data.graphics ? data.graphics.x : 0, data.graphics ? data.graphics.y : 0, 0xff6b6b);
-      if (this.cameras && this.cameras.main) this.cameras.main.shake(90, 0.0025);
+      if (!this.isTouchDevice() && this.cameras && this.cameras.main) this.cameras.main.shake(90, 0.0025);
       if (this.mistakes >= this.maxMistakes) this.triggerFail('СЛИШКОМ МНОГО\nОШИБОК');
     }
   }
@@ -621,7 +636,9 @@ class GameScene extends Phaser.Scene {
     this.bestCombo = Math.max(this.bestCombo, this.combo);
     this.updateComboUI();
     if (this.combo >= (this.chainTarget || 3)) {
-      if (this.cameras && this.cameras.main) this.cameras.main.shake(120, Math.min(0.004, 0.0015 + this.combo * 0.00025));
+      if (!this.isTouchDevice() && this.cameras && this.cameras.main) {
+        this.cameras.main.shake(80, Math.min(0.0025, 0.001 + this.combo * 0.00015));
+      }
       this.timeLeft = Math.min(this.timeLimit, this.timeLeft + 1.5);
       this.playTone(760 + Math.min(220, this.combo * 12), 0.08, 'triangle', 0.07);
     }
@@ -658,8 +675,24 @@ class GameScene extends Phaser.Scene {
     else dx = -1;
 
     const gx = g.x, gy = g.y;
+    // Leave just past the board chrome so the whole flight stays readable
+    // on 30fps VK WebView instead of teleporting off-screen.
+    const extra = Math.max(40, this.cellSize * 1.55);
+    const left = (this.boardPanelX != null) ? this.boardPanelX : 0;
+    const right = (this.boardPanelX != null) ? this.boardPanelX + this.boardPanelW : this.scale.width;
+    const top = (this.boardPanelY != null) ? this.boardPanelY : 0;
+    const bot = (this.boardPanelY != null) ? this.boardPanelY + this.boardPanelH : this.scale.height;
+    let destX = gx, destY = gy;
+    if (dx > 0) destX = right + extra;
+    else if (dx < 0) destX = left - extra;
+    if (dy > 0) destY = bot + extra;
+    else if (dy < 0) destY = top - extra;
+
+    const distPx = Math.max(this.cellSize * 2, Math.hypot(destX - gx, destY - gy));
+    // ~15–22 frames at 30fps; Sine.easeOut moves on the first frame (easeIn does not).
+    const duration = Math.max(460, Math.min(700, 280 + distPx * 0.95));
+
     this.spawnImpactBurst(gx, gy, data.color);
-    const dist = Math.max(this.scale.width, this.scale.height) * 1.15;
 
     const finish = () => {
       try {
@@ -670,25 +703,54 @@ class GameScene extends Phaser.Scene {
       if (this.remaining <= 0 && !this.completed && !this.failed) {
         this.completed = true;
         if (this.timerEvent) try { this.timerEvent.remove(false); } catch (e) {}
-        this.time.delayedCall(50, () => this.levelComplete());
+        this.time.delayedCall(90, () => this.levelComplete());
       }
     };
 
-    this.spawnExitTrail(gx, gy, dx, dy, data.color);
+    if (g.setDepth) g.setDepth(14);
+    const nudge = Math.max(6, this.cellSize * 0.22);
+    g.x = gx + dx * nudge;
+    g.y = gy + dy * nudge;
+    this.fitArrowSprite(g, data.spriteSize);
+    if (g.setAlpha) g.setAlpha(1);
+
+    this.spawnExitTrail(g, data, destX, destY, duration);
 
     this.tweens.add({
       targets: g,
-      x: gx + dx * dist,
-      y: gy + dy * dist,
+      x: destX,
+      y: destY,
+      duration: duration,
+      ease: 'Sine.easeOut'
+    });
+    this.tweens.add({
+      targets: g,
       alpha: 0,
-      duration: 260,
-      ease: 'Cubic.easeIn',
+      duration: Math.max(200, duration * 0.36),
+      delay: duration * 0.62,
+      ease: 'Sine.easeIn',
       onComplete: finish
     });
 
     const flyBadge = (obj) => {
       if (!obj) return;
-      this.tweens.add({ targets: obj, x: obj.x + dx * dist, y: obj.y + dy * dist, alpha: 0, scale: 0.25, duration: 240 });
+      const ox = obj.x - gx, oy = obj.y - gy;
+      obj.x = g.x + ox;
+      obj.y = g.y + oy;
+      this.tweens.add({
+        targets: obj,
+        x: destX + ox,
+        y: destY + oy,
+        duration: duration,
+        ease: 'Sine.easeOut'
+      });
+      this.tweens.add({
+        targets: obj,
+        alpha: 0,
+        duration: Math.max(200, duration * 0.36),
+        delay: duration * 0.62,
+        ease: 'Sine.easeIn'
+      });
     };
     flyBadge(data.badge);
     flyBadge(data.rotBadge);
@@ -704,21 +766,33 @@ class GameScene extends Phaser.Scene {
         targets: dot,
         x: x + Math.cos(angle) * reach,
         y: y + Math.sin(angle) * reach,
-        alpha: 0, scale: 0.2, duration: 180, ease: 'Cubic.easeOut',
+        alpha: 0, duration: 240, ease: 'Sine.easeOut',
         onComplete: () => { try { dot.destroy(); } catch (e) {} }
       });
     }
   }
 
-  spawnExitTrail(x, y, dx, dy, color, skin) {
-    const n = 2;
+  spawnExitTrail(g, data, destX, destY, duration) {
+    if (!g || !data || !g.texture || !g.texture.key) return;
+    const size = data.spriteSize || this.arrowSpriteSize;
+    const startX = g.x, startY = g.y;
+    const n = 3;
     for (let i = 0; i < n; i++) {
-      const dot = this.add.circle(x - dx * i * 6, y - dy * i * 6, 3.5 - i, color, 0.75);
-      dot.setDepth(20);
+      const ghost = this.add.image(startX, startY, g.texture.key);
+      ghost.setDisplaySize(size, size);
+      ghost.setTint(data.color);
+      ghost.setAngle(data.baseAngle != null ? data.baseAngle : g.angle);
+      ghost.setAlpha(0.48 - i * 0.12);
+      ghost.setDepth(13 - i);
       this.tweens.add({
-        targets: dot, x: dot.x + dx * (40 + i * 16), y: dot.y + dy * (40 + i * 16),
-        alpha: 0, scale: 0, duration: 160, ease: 'Cubic.easeOut',
-        onComplete: () => { try { dot.destroy(); } catch (e) {} }
+        targets: ghost,
+        x: destX,
+        y: destY,
+        alpha: 0,
+        duration: duration,
+        delay: 18 + i * 42,
+        ease: 'Sine.easeOut',
+        onComplete: () => { try { ghost.destroy(); } catch (e) {} }
       });
     }
   }
