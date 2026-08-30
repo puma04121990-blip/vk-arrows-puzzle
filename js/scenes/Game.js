@@ -306,7 +306,7 @@ class GameScene extends Phaser.Scene {
     const gridLeft = this.offsetX + 4;
     const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
     const spriteKey = this.textures.exists('arrow_' + this.skinId) ? ('arrow_' + this.skinId) : (this.textures.exists('arrow_neon') ? 'arrow_neon' : null);
-    const spriteSize = Math.round(this.cellSize * 0.72);
+    const spriteSize = Math.round(this.cellSize * 0.92);
     this.arrowSpriteSize = spriteSize;
 
     this.levelData.arrows.forEach((a, i) => {
@@ -378,7 +378,7 @@ class GameScene extends Phaser.Scene {
 
   fitArrowSprite(g, size) {
     if (!g || !g.setDisplaySize) return;
-    const s = size || this.arrowSpriteSize || Math.round(this.cellSize * 0.72);
+    const s = size || this.arrowSpriteSize || Math.round(this.cellSize * 0.92);
     g.setDisplaySize(s, s);
   }
 
