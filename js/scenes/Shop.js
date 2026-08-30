@@ -39,7 +39,7 @@ class ShopScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(41);
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.95).setDepth(40);
-    const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isPaused('Game');
+    const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isSleeping('Game') || this.scene.isPaused('Game');
     const backLabel = fromGame ? '← К ИГРЕ' : '← МЕНЮ';
     const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, fromGame ? 240 : 200, wide ? 40 : 48, fromGame ? 0x00e8c8 : 0x1a1a28)
       .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)

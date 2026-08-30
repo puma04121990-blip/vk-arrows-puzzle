@@ -15,23 +15,44 @@
   ensureShopFields();
 })();
 
-window.pulseOpenShop = function (from) {
+window.pulseOpenShop = function (from, plugin) {
   const src = from === 'Game' ? 'Game' : 'Menu';
   window.__pulseShopFrom = src;
   const game = window.game;
-  if (!game) return;
+  if (!game) return false;
   const mgr = game.scene;
-  const live = mgr.getScenes(true)[0];
-  const plugin = live && live.scene;
-  if (!plugin) return;
-  if (src === 'Game') {
-    try { plugin.pause('Game'); } catch (e) {}
-    try { plugin.launch('Shop'); } catch (e) {
-      try { plugin.start('Shop'); } catch (e2) {}
-    }
-    return;
+  const host = plugin || (mgr.getScenes(true)[0] && mgr.getScenes(true)[0].scene);
+  if (!host) return false;
+
+  if (src !== 'Game') {
+    try { host.start('Shop'); } catch (e) { return false; }
+    return true;
   }
-  plugin.start('Shop');
+
+  try {
+    if (mgr.isActive('Shop')) {
+      host.bringToTop('Shop');
+    } else if (mgr.isSleeping('Shop') || mgr.isPaused('Shop')) {
+      host.wake('Shop');
+      host.bringToTop('Shop');
+    } else {
+      host.launch('Shop');
+      host.bringToTop('Shop');
+    }
+    // Sleep AFTER launch so the shop is on top and the board stops drawing/updating.
+    if (mgr.isActive('Game') && !mgr.isSleeping('Game')) {
+      host.sleep('Game');
+    } else if (mgr.isPaused('Game')) {
+      try { host.resume('Game'); } catch (e) {}
+      try { host.sleep('Game'); } catch (e) {}
+    }
+    return true;
+  } catch (e) {
+    console.warn('[ArrowPulse] openShop failed', e);
+    try { host.wake('Game'); } catch (e2) {}
+    try { host.resume('Game'); } catch (e2) {}
+    return false;
+  }
 };
 
 window.pulseLeaveShop = function (to) {
@@ -41,23 +62,27 @@ window.pulseLeaveShop = function (to) {
   const live = mgr.getScene('Shop') || mgr.getScenes(true)[0];
   const plugin = live && live.scene;
   if (!plugin) return;
-  const fromGame = window.__pulseShopFrom === 'Game' || mgr.isPaused('Game');
+  const fromGame = window.__pulseShopFrom === 'Game' || mgr.isSleeping('Game') || mgr.isPaused('Game');
   const dest = to || (fromGame ? 'Game' : 'Menu');
   window.__pulseShopFrom = null;
   try { plugin.stop('Shop'); } catch (e) {}
   if (dest === 'Game') {
-    if (mgr.isPaused('Game')) {
+    if (mgr.isSleeping('Game')) {
+      try { plugin.wake('Game'); } catch (e) {}
+    } else if (mgr.isPaused('Game')) {
       try { plugin.resume('Game'); } catch (e) {}
-      const gs = mgr.getScene('Game');
-      if (gs && gs.onReturnedFromShop) {
-        try { gs.onReturnedFromShop(); } catch (e) {}
-      }
+    } else if (!mgr.isActive('Game')) {
+      plugin.start('Game');
       return;
     }
-    plugin.start('Game');
+    try { plugin.bringToTop('Game'); } catch (e) {}
+    const gs = mgr.getScene('Game');
+    if (gs && gs.onReturnedFromShop) {
+      try { gs.onReturnedFromShop(); } catch (e) {}
+    }
     return;
   }
-  if (mgr.isPaused('Game') || mgr.isActive('Game')) {
+  if (mgr.isSleeping('Game') || mgr.isPaused('Game') || mgr.isActive('Game')) {
     try { plugin.stop('Game'); } catch (e) {}
   }
   plugin.start('Menu');
@@ -136,10 +161,12 @@ window.pulseLeaveShop = function (to) {
 
       const have = window.getHints ? window.getHints() : 0;
       if (have <= 0) {
-        window.__pulseShopFrom = 'Game';
-        try { this.scene.pause('Game'); } catch (e) {}
-        try { this.scene.launch('Shop'); } catch (e) {
-          if (window.pulseOpenShop) window.pulseOpenShop('Game');
+        const ok = window.pulseOpenShop ? window.pulseOpenShop('Game', this.scene) : false;
+        if (!ok) {
+          window.__pulseShopFrom = 'Game';
+          this.scene.launch('Shop');
+          this.scene.bringToTop('Shop');
+          this.scene.sleep('Game');
         }
         return;
       }
