@@ -22,16 +22,6 @@ window.setConsentAccepted = function (value) {
   }
 };
 
-function detectLayout() {
-  const w = window.innerWidth || 720;
-  const h = window.innerHeight || 1280;
-  return w > h;
-}
-
-window.isLandscapeLayout = detectLayout();
-window.GAME_W = window.isLandscapeLayout ? 1280 : 720;
-window.GAME_H = window.isLandscapeLayout ? 720 : 1280;
-
 function withTimeout(promise, ms) {
   return Promise.race([
     Promise.resolve(promise).catch(() => null),
@@ -53,7 +43,7 @@ function initVK() {
     });
   };
 
-  if (typeof vkBridge === 'undefined') {
+  if (typeof vkBridge === 'undefined' || isLocalHost) {
     return load();
   }
 
@@ -64,7 +54,6 @@ function initVK() {
       navigation_bar_color: '#0b0b14'
     }), 1500))
     .then(() => {
-      // User id from launch params — do not wait for GetUserInfo (it can hang on a hidden prompt)
       try {
         const m = launchQuery.match(/vk_user_id=(\d+)/);
         if (m) {
@@ -109,29 +98,9 @@ const progressInitPromise = Promise.race([
 ]);
 window.progressInitPromise = progressInitPromise;
 
-function stripLegacySupportButton(scene) {
-  if (!scene || !scene.children || !scene.children.list) return;
-  const supportText = scene.children.list.find((child) => child && child.text === 'ПОДДЕРЖКА');
-  if (!supportText) return;
-  const supportButton = supportText.parentContainer || supportText;
-  const legalText = scene.children.list.find((child) => child && child.text === 'ПРАВОВАЯ');
-  const helpText = scene.children.list.find((child) => child && child.text === 'КАК ИГРАТЬ');
-  if (legalText && helpText) {
-    const legalButton = legalText.parentContainer || legalText;
-    const step = Number(legalButton.y) - Number((helpText.parentContainer || helpText).y);
-    if (Number.isFinite(step) && Math.abs(step) > 0) legalButton.y -= step;
-  }
-  try { supportButton.destroy(true); } catch (e) { try { supportButton.destroy(); } catch (ignore) {} }
-}
-
-if (typeof MenuScene !== 'undefined' && MenuScene.prototype && !MenuScene.prototype.__legacySupportGuard) {
-  const originalMenuCreate = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () {
-    originalMenuCreate.apply(this, arguments);
-    this.time.delayedCall(0, () => stripLegacySupportButton(this));
-  };
-  MenuScene.prototype.__legacySupportGuard = true;
-}
+const parent = document.getElementById('game-container');
+window.GAME_W = Math.max(320, (parent && parent.clientWidth) || window.innerWidth || 720);
+window.GAME_H = Math.max(480, (parent && parent.clientHeight) || window.innerHeight || 1280);
 
 const config = {
   type: Phaser.AUTO,
@@ -140,11 +109,10 @@ const config = {
   height: window.GAME_H,
   backgroundColor: '#0b0b14',
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: window.GAME_W,
-    height: window.GAME_H,
-    expandParent: true
+    parent: 'game-container',
+    expandParent: false
   },
   render: {
     roundPixels: true,
@@ -185,48 +153,22 @@ window.gameData = {
 const game = new Phaser.Game(config);
 window.game = game;
 
-function centerCanvas() {
-  if (!game || !game.canvas) return;
-  const canvas = game.canvas;
-  canvas.style.cursor = 'default';
-  canvas.style.display = 'block';
-  canvas.style.margin = '0 auto';
-  try {
-    const sw = parseFloat(canvas.style.width) || canvas.clientWidth;
-    const sh = parseFloat(canvas.style.height) || canvas.clientHeight;
-    if (sw > 0) canvas.style.width = Math.round(sw) + 'px';
-    if (sh > 0) canvas.style.height = Math.round(sh) + 'px';
-  } catch (e) {}
-  const parent = canvas.parentElement;
-  if (parent) {
-    parent.style.display = 'flex';
-    parent.style.justifyContent = 'center';
-    parent.style.alignItems = 'center';
-  }
+let resizeTimer = 0;
+function relayoutOnResize() {
+  if (!game || !game.scale) return;
+  game.scale.refresh();
+  const live = game.scene.getScenes(true)[0];
+  if (!live || !live.scene) return;
+  const key = live.scene.key;
+  if (key === 'Game' || key === 'Win') return;
+  try { live.scene.restart(); } catch (e) {}
 }
 
-if (game.canvas) {
-  game.events.once('ready', () => {
-    if (game.scale) game.scale.refresh();
-    centerCanvas();
-    setTimeout(centerCanvas, 50);
-    setTimeout(centerCanvas, 200);
-  });
-}
-
-let lastLandscape = window.isLandscapeLayout;
-function checkOrientation() {
-  const now = detectLayout();
-  if (now !== lastLandscape) {
-    lastLandscape = now;
-    window.location.reload();
-  } else if (game && game.scale) {
-    game.scale.refresh();
-    centerCanvas();
-  }
-}
-
-window.addEventListener('resize', checkOrientation);
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(relayoutOnResize, 180);
+});
 window.addEventListener('orientationchange', () => {
-  setTimeout(checkOrientation, 150);
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(relayoutOnResize, 220);
 });

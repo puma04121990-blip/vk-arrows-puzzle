@@ -186,9 +186,14 @@ window.buyWithVotes = function (itemId) {
     })
     .catch((err) => {
       console.warn('[ArrowPulse] ShowOrderBox failed:', err);
-      const code = err && (err.error_data && err.error_data.error_code);
+      const data = err && err.error_data ? err.error_data : {};
+      const code = data.error_code;
+      const reason = String(data.error_reason || data.error_msg || '');
       if (code === 4 || code === 6) {
         return { ok: false, reason: 'cancelled' };
+      }
+      if (/callback|get_item|not found|item/i.test(reason) || code === 20) {
+        return { ok: false, reason: 'callback_missing', error: err };
       }
       return { ok: false, reason: 'payment_unavailable', error: err };
     });

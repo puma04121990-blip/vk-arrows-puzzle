@@ -98,9 +98,10 @@ function handleCallback(params) {
       status: 200,
       body: {
         response: {
-          item: itemId,
+          item_id: itemId,
           title: product.title,
-          price: String(product.price)
+          photo_url: 'https://puma04121990-blip.github.io/vk-arrows-puzzle/assets/menu-logo.png',
+          price: product.price
         }
       }
     };
@@ -110,14 +111,14 @@ function handleCallback(params) {
     const itemId = String(params.item || params.item_id || '');
     const product = PRODUCTS[itemId];
     const orderId = String(params.order_id || '');
-    const appOrderId = String(params.app_order_id || '');
-    if (!product || !orderId || !appOrderId) {
+    if (!product || !orderId) {
       return { status: 200, body: vkError(11, 'Invalid order data') };
     }
 
     const orders = readOrders();
     const key = `${isTest ? 'test:' : 'live:'}${orderId}`;
     const previous = orders[key];
+    const appOrderId = previous && previous.app_order_id ? previous.app_order_id : String(Date.now());
     orders[key] = {
       order_id: orderId,
       app_order_id: appOrderId,
@@ -135,10 +136,8 @@ function handleCallback(params) {
       status: 200,
       body: {
         response: {
-          order_id: orderId,
-          app_order_id: appOrderId,
-          item: itemId,
-          status: String(params.status || 'chargeable')
+          order_id: Number(orderId) || orderId,
+          app_order_id: Number(appOrderId) || appOrderId
         }
       }
     };
@@ -148,8 +147,21 @@ function handleCallback(params) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.method !== 'POST' || req.url.split('?')[0] !== '/vk/payments') {
+  const urlPath = req.url.split('?')[0];
+  if (urlPath !== '/vk/payments') {
     return json(res, 404, { error: 'Not found' });
+  }
+
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return json(res, 200, {
+      ok: true,
+      configured: Boolean(SECRET),
+      endpoint: '/vk/payments'
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return json(res, 405, { error: 'Method not allowed' });
   }
 
   let raw = '';

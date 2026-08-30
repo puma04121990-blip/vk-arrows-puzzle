@@ -243,7 +243,9 @@ class ShopScene extends Phaser.Scene {
         else if (res && res.reason === 'payment_unconfirmed') msg = 'Оплата не подтверждена VK';
         else if (res && res.reason === 'grant_failed') msg = 'Платёж принят, но награда не выдана — обратитесь в поддержку';
         else if (res && res.reason === 'payment_unavailable') {
-          msg = 'Оплата временно недоступна. Попробуйте позже';
+          msg = 'Оплата недоступна. В кабинете VK укажите callback https://ХОСТ/vk/payments';
+        } else if (res && res.reason === 'callback_missing') {
+          msg = 'VK не получил товар. Проверьте callback /vk/payments и VK_APP_SECRET';
         } else if (res && res.reason === 'item_not_found') msg = 'Товар не найден';
         this.statusText.setText(msg);
         this.statusText.setColor('#ff8a8a');

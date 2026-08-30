@@ -4,75 +4,81 @@ class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale;
-    const wide = width >= height;
+    const L = window.pulseLayout(this);
+    const { w, h, cx, wide, short, padT, padB, padX } = L;
 
-    if (window.drawAppBackground) {
-      window.drawAppBackground(this, width, height);
-    } else {
-      this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
-    }
+    if (window.drawAppBackground) window.drawAppBackground(this, w, h);
+    else this.add.rectangle(0, 0, w, h, 0x0b0b14).setOrigin(0);
 
     if (window.refreshLoginStreak) {
       try { window.refreshLoginStreak(); } catch (e) {}
     }
 
-    const titleY = wide ? 48 : Math.max(72, Math.round(height * 0.08));
-    this.add.text(width / 2, titleY, 'ПУЛЬС СТРЕЛОК', {
+    const footerH = Math.max(44, Math.round(h * 0.075));
+    const footerTop = h - footerH;
+
+    this.add.text(cx, padT + 2, 'ПУЛЬС СТРЕЛОК', {
       fontFamily: 'Arial Black, Arial',
-      fontSize: wide ? '32px' : '28px',
+      fontSize: short ? '22px' : (wide ? '28px' : '26px'),
       color: '#00e8c8',
       align: 'center'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 0);
 
-    const greetY = titleY + (wide ? 30 : 34);
     let greeting = 'Головоломка со стрелками';
     if (window.vkUser && window.vkUser.first_name) {
       greeting = 'Привет, ' + window.vkUser.first_name + '!';
     }
-    this.add.text(width / 2, greetY, greeting, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '14px' : '15px',
+    const greet = this.add.text(cx, padT + (short ? 30 : 40), greeting, {
+      fontFamily: 'Manrope, Arial, sans-serif',
+      fontSize: short ? '13px' : '15px',
       color: '#8a8aa8',
       align: 'center',
-      wordWrap: { width: width - 48 }
-    }).setOrigin(0.5);
+      wordWrap: { width: w - padX * 2 }
+    }).setOrigin(0.5, 0);
 
-    const circleR = wide ? 64 : 72;
-    const circleY = greetY + circleR + (wide ? 28 : 34);
-    const cx = width / 2;
+    const cloudTxt = window.getCloudStatusText ? window.getCloudStatusText() : '';
+    const synced = window.cloudStatus && window.cloudStatus.synced;
+    this._cloudLine = this.add.text(cx, greet.y + greet.height + 6, cloudTxt || '', {
+      fontFamily: 'Manrope, Arial, sans-serif',
+      fontSize: '12px',
+      color: synced ? '#2ec4a0' : '#5a5a72',
+      align: 'center',
+      wordWrap: { width: w - padX * 2 }
+    }).setOrigin(0.5, 0).setDepth(40);
 
-    const plate = this.add.graphics();
-    plate.fillStyle(0x0e0e18, 1);
-    plate.fillCircle(cx, circleY, circleR);
-    plate.lineStyle(2, 0x2a2a40, 1);
-    plate.strokeCircle(cx, circleY, circleR);
+    let y = this._cloudLine.y + this._cloudLine.height + 10;
 
-    if (this.textures.exists('menuLogo')) {
-      const logo = this.add.image(cx, circleY, 'menuLogo');
-      const diam = circleR * 2 - 4;
-      logo.setDisplaySize(diam, diam);
-      logo.setDepth(2);
-      const maskG = this.make.graphics({ x: 0, y: 0, add: false });
-      maskG.fillStyle(0xffffff);
-      maskG.fillCircle(cx, circleY, circleR - 2);
-      logo.setMask(maskG.createGeometryMask());
-      const ring = this.add.graphics().setDepth(3);
-      ring.lineStyle(2, 0x00e8c8, 0.35);
-      ring.strokeCircle(cx, circleY, circleR - 1);
+    const showLogo = !short && h >= 620;
+    if (showLogo) {
+      const circleR = wide ? 48 : 56;
+      const circleY = y + circleR;
+      const plate = this.add.graphics();
+      plate.fillStyle(0x0e0e18, 1);
+      plate.fillCircle(cx, circleY, circleR);
+      plate.lineStyle(2, 0x2a2a40, 1);
+      plate.strokeCircle(cx, circleY, circleR);
+      if (this.textures.exists('menuLogo')) {
+        const logo = this.add.image(cx, circleY, 'menuLogo');
+        const diam = circleR * 2 - 4;
+        logo.setDisplaySize(diam, diam).setDepth(2);
+        const maskG = this.make.graphics({ x: 0, y: 0, add: false });
+        maskG.fillStyle(0xffffff);
+        maskG.fillCircle(cx, circleY, circleR - 2);
+        logo.setMask(maskG.createGeometryMask());
+      }
+      y = circleY + circleR + 8;
     }
 
-    let infoY = circleY + circleR + (wide ? 12 : 16);
     const goal = window.getNextGoalText ? window.getNextGoalText() : '';
     if (goal) {
-      this.add.text(width / 2, infoY, goal, {
-        fontFamily: 'Arial',
+      const g = this.add.text(cx, y, goal, {
+        fontFamily: 'Manrope, Arial, sans-serif',
         fontSize: '13px',
         color: '#ffd166',
         align: 'center',
-        wordWrap: { width: width - 40 }
-      }).setOrigin(0.5);
-      infoY += wide ? 20 : 24;
+        wordWrap: { width: w - padX * 2 }
+      }).setOrigin(0.5, 0);
+      y = g.y + g.height + 6;
     }
 
     const streak = window.getLoginStreak ? window.getLoginStreak() : 0;
@@ -81,117 +87,122 @@ class MenuScene extends Phaser.Scene {
     const dailyInfo = dailyBest && dailyBest.bestStars
       ? ('Ежедн. ' + dailyBest.bestStars + '★')
       : 'Ежедн. —';
-    this.add.text(width / 2, infoY, 'Серия ' + streak + ' дн.  ·  ' + dailyInfo + '  ·  Подсказки: ' + hints, {
-      fontFamily: 'Arial',
+    const stats = this.add.text(cx, y, 'Серия ' + streak + ' дн.  ·  ' + dailyInfo + '  ·  Подсказки: ' + hints, {
+      fontFamily: 'Manrope, Arial, sans-serif',
       fontSize: '12px',
       color: '#6a6a82',
-      align: 'center'
-    }).setOrigin(0.5);
-    infoY += wide ? 18 : 22;
+      align: 'center',
+      wordWrap: { width: w - padX * 2 }
+    }).setOrigin(0.5, 0);
+    y = stats.y + stats.height + 12;
+
+    this.add.text(cx, h - padB, 'Играя, вы принимаете соглашение и политику', {
+      fontFamily: 'Manrope, Arial, sans-serif',
+      fontSize: '11px',
+      color: '#505068',
+      align: 'center',
+      wordWrap: { width: w - padX * 2 }
+    }).setOrigin(0.5, 1);
 
     const maxLevel = (window.gameProgress && window.gameProgress.maxLevel) || 0;
     const hasProgress = maxLevel > 0;
 
-    const footerH = wide ? 32 : 40;
-    const footerY = height - footerH / 2 - 2;
-    this.add.text(width / 2, footerY, 'Играя, вы принимаете соглашение и политику', {
-      fontFamily: 'Arial',
-      fontSize: '11px',
-      color: '#404058',
-      align: 'center',
-      wordWrap: { width: width - 40 }
-    }).setOrigin(0.5);
-
-    const buttons = [];
-
+    const primaries = [];
     if (window.canClaimDailyReward && window.canClaimDailyReward()) {
-      buttons.push({
-        label: '🎁 НАГРАДА ДНЯ',
+      primaries.push({
+        label: 'НАГРАДА ДНЯ',
         color: 0xffd166,
         secondary: false,
         cb: () => this.onClaimReward()
       });
     }
-
-    if (hasProgress) {
-      buttons.push({
-        label: 'ПРОДОЛЖИТЬ',
-        color: 0x00e8c8,
-        secondary: false,
-        cb: () => {
-          try {
-            if (window.startCampaignLevel) {
-              window.startCampaignLevel(Math.min(maxLevel, (LEVELS && LEVELS.length ? LEVELS.length : 50) - 1));
-            } else {
-              window.gameData = window.gameData || {};
-              window.gameData.mode = 'campaign';
-              window.gameData.currentLevel = Math.min(maxLevel, 49);
-            }
-          } catch (e) {}
-          this.scene.start('Game');
-        }
-      });
-    } else {
-      buttons.push({
-        label: 'ИГРАТЬ',
-        color: 0x00e8c8,
-        secondary: false,
-        cb: () => {
-          try {
-            if (window.startCampaignLevel) window.startCampaignLevel(0);
-            else {
-              window.gameData = window.gameData || {};
-              window.gameData.mode = 'campaign';
-              window.gameData.currentLevel = 0;
-            }
-          } catch (e) {}
-          this.scene.start('Game');
-        }
-      });
-    }
-
-    buttons.push({
+    primaries.push({
+      label: hasProgress ? 'ПРОДОЛЖИТЬ' : 'ИГРАТЬ',
+      color: 0x00e8c8,
+      secondary: false,
+      cb: () => this.startCampaign(hasProgress ? Math.min(maxLevel, 49) : 0)
+    });
+    primaries.push({
       label: 'ЕЖЕДНЕВНЫЙ',
       color: 0x2a4a5a,
       secondary: true,
       cb: () => this.onDaily()
     });
 
-    buttons.push(
-      { label: 'УРОВНИ', color: 0x222238, secondary: true, cb: () => this.scene.start('LevelsMap') },
-      { label: 'СТИЛИ', color: 0x222238, secondary: true, cb: () => this.scene.start('Skins') },
-      { label: 'МАГАЗИН', color: 0x3a2a18, secondary: true, cb: () => this.scene.start('Shop') },
-      { label: 'НАСТРОЙКИ', color: 0x1e2f3a, secondary: true, cb: () => this.scene.start('Settings') },
-      { label: 'ДОСТИЖЕНИЯ', color: 0x222238, secondary: true, cb: () => this.scene.start('Achievements') },
-      { label: 'КАК ИГРАТЬ', color: 0x222238, secondary: true, cb: () => this.scene.start('Help') },
-      { label: 'ПРАВОВАЯ', color: 0x1a1a28, secondary: true, cb: () => this.scene.start('Legal') }
-    );
+    const secondaries = [
+      { label: 'УРОВНИ', color: 0x222238, cb: () => this.scene.start('LevelsMap') },
+      { label: 'СТИЛИ', color: 0x222238, cb: () => this.scene.start('Skins') },
+      { label: 'МАГАЗИН', color: 0x3a2a18, cb: () => this.scene.start('Shop') },
+      { label: 'НАСТРОЙКИ', color: 0x1e2f3a, cb: () => this.scene.start('Settings') },
+      { label: 'ДОСТИЖЕНИЯ', color: 0x222238, cb: () => this.scene.start('Achievements') },
+      { label: 'КАК ИГРАТЬ', color: 0x222238, cb: () => this.scene.start('Help') },
+      { label: 'ПРАВОВАЯ', color: 0x1a1a28, cb: () => this.scene.start('Legal') }
+    ];
 
-    const zoneTop = infoY + 4;
-    const zoneBottom = footerY - footerH / 2 - 8;
-    const bh = wide ? 36 : 40;
-    const n = buttons.length;
-    const freeH = Math.max(0, zoneBottom - zoneTop);
-    // Keep a clear gap between pills even when the settings item is present.
-    const minGap = wide ? 5 : 6;
-    const maxStep = wide ? 42 : 46;
-    const step = Math.max(bh + minGap, Math.min(maxStep, freeH / Math.max(1, n)));
-    const totalH = step * (n - 1);
-    let y = zoneTop + Math.max(0, (freeH - totalH) / 2);
+    const zoneTop = y;
+    const zoneBottom = footerTop - 10;
+    const freeH = Math.max(80, zoneBottom - zoneTop);
+    const cols = 2;
+    const gapX = 10;
+    const gapY = short ? 6 : 8;
+    const innerW = Math.min(w - padX * 2, wide ? 560 : 400);
+    const colW = (innerW - gapX) / cols;
+    const startX = cx - innerW / 2 + colW / 2;
 
-    buttons.forEach((b) => {
-      this.createButton(
-        width / 2,
-        Math.round(y),
-        b.label,
-        b.color,
-        b.cb,
-        !!b.secondary,
-        wide,
-        Math.min(bh, Math.max(wide ? 30 : 34, step - minGap))
-      );
-      y += step;
+    const primH = short ? 40 : 46;
+    const secH = short ? 36 : 40;
+    const primBlock = primaries.length * (primH + gapY);
+    const secRows = Math.ceil(secondaries.length / cols);
+    const needed = primBlock + secRows * (secH + gapY);
+    const scaleH = needed > freeH ? freeH / needed : 1;
+    const pH = Math.max(34, Math.round(primH * scaleH));
+    const sH = Math.max(32, Math.round(secH * scaleH));
+    const gY = Math.max(4, Math.round(gapY * scaleH));
+
+    let rowY = zoneTop + pH / 2;
+    primaries.forEach((b) => {
+      this.createButton(cx, Math.round(rowY), b.label, b.color, b.cb, !!b.secondary, innerW, pH);
+      rowY += pH + gY;
     });
+
+    secondaries.forEach((b, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const isLastOdd = i === secondaries.length - 1 && secondaries.length % 2 === 1;
+      const bw = isLastOdd ? innerW : colW;
+      const x = isLastOdd ? cx : startX + col * (colW + gapX);
+      const by = rowY + row * (sH + gY);
+      this.createButton(x, Math.round(by), b.label, b.color, b.cb, true, bw, sH);
+    });
+
+    if (!window.__pulseMenuRefreshed && window.pullCloudProgress) {
+      window.__pulseMenuRefreshed = true;
+      const prevMax = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+      window.pullCloudProgress().then(() => {
+        const now = (window.gameProgress && window.gameProgress.maxLevel) || 0;
+        if (now > prevMax && this.sys && this.sys.isActive()) {
+          this.scene.restart();
+          return;
+        }
+        if (this._cloudLine && this._cloudLine.active) {
+          const ok = window.cloudStatus && window.cloudStatus.synced;
+          this._cloudLine.setColor(ok ? '#2ec4a0' : '#5a5a72');
+          this._cloudLine.setText(window.getCloudStatusText ? window.getCloudStatusText() : '');
+        }
+      }).catch(() => {});
+    }
+  }
+
+  startCampaign(level) {
+    try {
+      if (window.startCampaignLevel) window.startCampaignLevel(level);
+      else {
+        window.gameData = window.gameData || {};
+        window.gameData.mode = 'campaign';
+        window.gameData.currentLevel = level;
+      }
+    } catch (e) {}
+    this.scene.start('Game');
   }
 
   onDaily() {
@@ -205,7 +216,6 @@ class MenuScene extends Phaser.Scene {
         window.gameData.currentLevel = 0;
       }
     } catch (e) {
-      console.warn('[ArrowPulse] daily start failed:', e);
       window.gameData = window.gameData || {};
       window.gameData.mode = 'campaign';
       window.gameData.currentLevel = 0;
@@ -216,125 +226,84 @@ class MenuScene extends Phaser.Scene {
   onClaimReward() {
     if (this._busy) return;
     this._busy = true;
-
     let res = null;
     try {
       res = window.claimDailyReward ? window.claimDailyReward() : null;
     } catch (e) {
-      console.warn('[ArrowPulse] claim error:', e);
       this._busy = false;
       return;
     }
-
     if (!res || !res.ok) {
       this._busy = false;
       return;
     }
 
-    const { width, height } = this.scale;
+    const { w, h, cx } = window.pulseLayout(this);
     const rewards = res.rewards || [];
-    const lines = Math.max(1, rewards.length);
-    const bw = Math.min(width - 40, 360);
-    const bh = Math.min(height * 0.7, 180 + lines * 28 + (res.nextItems && res.nextItems.length ? 56 : 20));
+    const bw = Math.min(w - 40, 360);
+    const bh = Math.min(h * 0.7, 180 + rewards.length * 28 + (res.nextItems && res.nextItems.length ? 56 : 20));
 
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75)
+    const overlay = this.add.rectangle(cx, h / 2, w, h, 0x000000, 0.75)
       .setDepth(100)
       .setInteractive();
     const box = this.add.graphics().setDepth(101);
     box.fillStyle(0x161622, 1);
-    box.fillRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 18);
+    box.fillRoundedRect(cx - bw / 2, h / 2 - bh / 2, bw, bh, 18);
     box.lineStyle(2, 0xffd166, 0.9);
-    box.strokeRoundedRect(width / 2 - bw / 2, height / 2 - bh / 2, bw, bh, 18);
+    box.strokeRoundedRect(cx - bw / 2, h / 2 - bh / 2, bw, bh, 18);
 
-    let y = height / 2 - bh / 2 + 28;
-
-    this.add.text(width / 2, y, (res.icon || '🎁') + ' НАГРАДА ДНЯ', {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: '20px',
-      color: '#ffd166'
+    let y = h / 2 - bh / 2 + 28;
+    this.add.text(cx, y, 'НАГРАДА ДНЯ', {
+      fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#ffd166'
     }).setOrigin(0.5).setDepth(102);
     y += 28;
-
-    this.add.text(width / 2, y, 'День ' + res.day + ' из 7 · серия ' + res.streak + ' дн.', {
-      fontFamily: 'Arial',
-      fontSize: '14px',
-      color: '#8a8aa8'
+    this.add.text(cx, y, 'День ' + res.day + ' из 7 · серия ' + res.streak + ' дн.', {
+      fontFamily: 'Arial', fontSize: '14px', color: '#8a8aa8'
     }).setOrigin(0.5).setDepth(102);
     y += 22;
-
-    this.add.text(width / 2, y, res.title || 'Награда получена', {
-      fontFamily: 'Arial Black, Arial',
-      fontSize: '16px',
-      color: '#00e8c8'
+    this.add.text(cx, y, res.title || 'Награда получена', {
+      fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#00e8c8'
     }).setOrigin(0.5).setDepth(102);
     y += 26;
-
     rewards.forEach((r) => {
-      this.add.text(width / 2, y, (r.icon || '•') + '  ' + (r.text || ''), {
-        fontFamily: 'Arial',
-        fontSize: '15px',
-        color: '#e8e8f8'
+      this.add.text(cx, y, (r.text || ''), {
+        fontFamily: 'Arial', fontSize: '15px', color: '#e8e8f8'
       }).setOrigin(0.5).setDepth(102);
       y += 24;
     });
-
-    if (res.nextItems && res.nextItems.length) {
-      y += 8;
-      this.add.text(width / 2, y, 'Завтра: ' + (res.nextTitle || ('день ' + res.nextDay)), {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color: '#6a6a82'
-      }).setOrigin(0.5).setDepth(102);
-      y += 18;
-      this.add.text(width / 2, y, res.nextItems.join(' · '), {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color: '#5a5a72',
-        align: 'center',
-        wordWrap: { width: bw - 36 }
-      }).setOrigin(0.5).setDepth(102);
-    }
-
-    this.add.text(width / 2, height / 2 + bh / 2 - 22, 'ТАП — ЗАКРЫТЬ', {
-      fontFamily: 'Arial',
-      fontSize: '13px',
-      color: '#6a6a82'
+    this.add.text(cx, h / 2 + bh / 2 - 22, 'ТАП — ЗАКРЫТЬ', {
+      fontFamily: 'Arial', fontSize: '13px', color: '#6a6a82'
     }).setOrigin(0.5).setDepth(102);
 
     const close = () => {
       if (this._closedReward) return;
       this._closedReward = true;
       this.time.delayedCall(30, () => {
-        try { this.scene.restart(); } catch (e) {
-          this.scene.start('Menu');
-        }
+        try { this.scene.restart(); } catch (e) { this.scene.start('Menu'); }
       });
     };
-
     overlay.once('pointerup', close);
     this.time.delayedCall(6000, close);
   }
 
-  createButton(x, y, label, color, callback, secondary = false, wide = false, bh = 48) {
-    const bw = wide ? 300 : 280;
+  createButton(x, y, label, color, callback, secondary, bw, bh) {
     if (window.createNiceButton) {
       return window.createNiceButton(this, x, y, label, callback, {
         w: bw,
         h: bh,
         color: color,
         secondary: secondary || (color !== 0x00e8c8 && color !== 0xffd166),
-        fontSize: secondary ? (wide ? '14px' : '15px') : (wide ? '16px' : '17px'),
+        fontSize: secondary ? '14px' : '16px',
         depth: 10
       });
     }
-
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
     const text = this.add.text(0, 0, label, {
       fontFamily: 'Arial Black',
-      fontSize: secondary ? '15px' : '18px',
+      fontSize: secondary ? '14px' : '16px',
       color: color === 0x00e8c8 || color === 0xffd166 ? '#0b0b14' : '#c8c8e0'
     }).setOrigin(0.5);
     btn.add([bg, text]);
