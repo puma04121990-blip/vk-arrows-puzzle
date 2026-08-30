@@ -15,6 +15,54 @@
   ensureShopFields();
 })();
 
+window.pulseOpenShop = function (from) {
+  const src = from === 'Game' ? 'Game' : 'Menu';
+  window.__pulseShopFrom = src;
+  const game = window.game;
+  if (!game) return;
+  const mgr = game.scene;
+  const live = mgr.getScenes(true)[0];
+  const plugin = live && live.scene;
+  if (!plugin) return;
+  if (src === 'Game') {
+    try { plugin.pause('Game'); } catch (e) {}
+    try { plugin.launch('Shop'); } catch (e) {
+      try { plugin.start('Shop'); } catch (e2) {}
+    }
+    return;
+  }
+  plugin.start('Shop');
+};
+
+window.pulseLeaveShop = function (to) {
+  const game = window.game;
+  if (!game) return;
+  const mgr = game.scene;
+  const live = mgr.getScene('Shop') || mgr.getScenes(true)[0];
+  const plugin = live && live.scene;
+  if (!plugin) return;
+  const fromGame = window.__pulseShopFrom === 'Game' || mgr.isPaused('Game');
+  const dest = to || (fromGame ? 'Game' : 'Menu');
+  window.__pulseShopFrom = null;
+  try { plugin.stop('Shop'); } catch (e) {}
+  if (dest === 'Game') {
+    if (mgr.isPaused('Game')) {
+      try { plugin.resume('Game'); } catch (e) {}
+      const gs = mgr.getScene('Game');
+      if (gs && gs.onReturnedFromShop) {
+        try { gs.onReturnedFromShop(); } catch (e) {}
+      }
+      return;
+    }
+    plugin.start('Game');
+    return;
+  }
+  if (mgr.isPaused('Game') || mgr.isActive('Game')) {
+    try { plugin.stop('Game'); } catch (e) {}
+  }
+  plugin.start('Menu');
+};
+
 // --- Патч GameScene: лимит ошибок + кнопка подсказки ---
 (function patchGameScene() {
   function apply() {
@@ -88,8 +136,11 @@
 
       const have = window.getHints ? window.getHints() : 0;
       if (have <= 0) {
-        this.showHintToast('Подсказки закончились — открываем магазин');
-        this.time.delayedCall(520, () => this.scene.start('Shop'));
+        window.__pulseShopFrom = 'Game';
+        try { this.scene.pause('Game'); } catch (e) {}
+        try { this.scene.launch('Shop'); } catch (e) {
+          if (window.pulseOpenShop) window.pulseOpenShop('Game');
+        }
         return;
       }
 
@@ -169,13 +220,16 @@
       const { width, height } = this.scale;
       const wide = width >= height;
       const by = height - (wide ? 38 : 54);
-      const btnW = wide ? 110 : 118;
       const btnH = wide ? 40 : 46;
-      const fontSize = wide ? '13px' : '14px';
+      const btnW = Math.max(96, Math.min(wide ? 118 : 112, Math.floor((width - 28) / 3) - 8));
+      const span = Math.min(width - 20, btnW * 3 + (wide ? 24 : 16));
+      const leftX = width / 2 - span / 2 + btnW / 2;
+      const rightX = width / 2 + span / 2 - btnW / 2;
+      const fontSize = btnW < 104 ? '11px' : (wide ? '13px' : '14px');
       const hints = window.getHints ? window.getHints() : 0;
 
       if (window.createNiceButton) {
-        window.createNiceButton(this, width / 2 - (wide ? 130 : 140), by, '↺ ЗАНОВО', () => this.scene.restart(), {
+        window.createNiceButton(this, leftX, by, '↺ ЗАНОВО', () => this.scene.restart(), {
           w: btnW, h: btnH, color: 0x222238, secondary: true, fontSize: fontSize, depth: 20
         });
         this.hintBtn = window.createNiceButton(
@@ -184,15 +238,22 @@
           by,
           hints > 0 ? '💡 ' + hints : '💡 МАГАЗИН',
           () => this.useHint(),
-          { w: btnW, h: btnH, color: hints > 0 ? 0x2a4a3a : 0x3a2a18, secondary: true, fontSize: hints > 0 ? fontSize : (wide ? '11px' : '12px'), depth: 20 }
+          { w: btnW, h: btnH, color: hints > 0 ? 0x2a4a3a : 0x3a2a18, secondary: true, fontSize: fontSize, depth: 20 }
         );
-        window.createNiceButton(this, width / 2 + (wide ? 130 : 140), by, 'МЕНЮ', () => this.scene.start('Menu'), {
+        window.createNiceButton(this, rightX, by, 'МЕНЮ', () => this.scene.start('Menu'), {
           w: btnW, h: btnH, color: 0x222238, secondary: true, fontSize: fontSize, depth: 20
         });
       } else if (typeof origCreateUI === 'function') {
         origCreateUI.apply(this, arguments);
       }
+    };
 
+    GameScene.prototype.onReturnedFromShop = function () {
+      if (window.getEffectiveMaxMistakes) {
+        this.maxMistakes = window.getEffectiveMaxMistakes();
+        if (this.updateMistakesUI) this.updateMistakesUI();
+      }
+      if (this.updateHintsUI) this.updateHintsUI();
     };
 
     console.log('[ArrowPulse] shop-hooks: GameScene patched (hints + maxMistakes)');

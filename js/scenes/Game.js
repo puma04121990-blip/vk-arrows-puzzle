@@ -427,8 +427,10 @@ class GameScene extends Phaser.Scene {
 
   showCoachPrompt(text, persistent) {
     const { width, height } = this.scale;
+    const wide = width >= height;
     if (!this.coachPrompt || !this.coachPrompt.active) {
-      this.coachPrompt = this.add.text(width / 2, height * 0.16, text, {
+      const promptY = height - (wide ? 82 : 122);
+      this.coachPrompt = this.add.text(width / 2, promptY, text, {
         fontFamily: 'Manrope, Arial Black, Arial, sans-serif', fontSize: width >= height ? '15px' : '16px',
         color: '#0b0b14', backgroundColor: '#ffd166', padding: { x: 13, y: 8 }, align: 'center'
       }).setOrigin(0.5).setDepth(95);

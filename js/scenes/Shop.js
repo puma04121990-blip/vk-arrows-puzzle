@@ -39,20 +39,23 @@ class ShopScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(41);
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.95).setDepth(40);
-    const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, 200, wide ? 40 : 48, 0x1a1a28)
-      .setStrokeStyle(2, 0x2e2e48)
+    const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isPaused('Game');
+    const backLabel = fromGame ? '← К ИГРЕ' : '← МЕНЮ';
+    const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, fromGame ? 240 : 200, wide ? 40 : 48, fromGame ? 0x00e8c8 : 0x1a1a28)
+      .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)
       .setInteractive({ useHandCursor: true })
       .setDepth(41);
-    this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    this.add.text(width / 2, height - footerH / 2, backLabel, {
       fontFamily: 'Arial',
       fontSize: wide ? '16px' : '18px',
-      color: '#9a9ab8'
+      color: fromGame ? '#0b0b14' : '#9a9ab8'
     }).setOrigin(0.5).setDepth(42);
-    menuBtn.on('pointerover', () => menuBtn.setFillStyle(0x222238));
-    menuBtn.on('pointerout', () => menuBtn.setFillStyle(0x1a1a28));
+    menuBtn.on('pointerover', () => menuBtn.setFillStyle(fromGame ? 0x00d4b8 : 0x222238));
+    menuBtn.on('pointerout', () => menuBtn.setFillStyle(fromGame ? 0x00e8c8 : 0x1a1a28));
     menuBtn.on('pointerup', () => {
       if (this.busy) return;
-      this.scene.start('Menu');
+      if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
+      else this.scene.start(fromGame ? 'Game' : 'Menu');
     });
 
     const items = window.SHOP_ITEMS || [];
@@ -204,7 +207,7 @@ class ShopScene extends Phaser.Scene {
   }
 
   isTemporarilyActive(id) {
-    return id === 'double_stars' && !!(window.gameProgress && window.gameProgress.doubleStarsNext);
+    return false;
   }
 
   onBuy(itemId) {

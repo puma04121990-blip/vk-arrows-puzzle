@@ -48,7 +48,10 @@ class SettingsScene extends Phaser.Scene {
       }
     });
 
-    const cloudY = centerY + (cardH + (wide ? 18 : 22)) * 2;
+    const cloudY = Math.min(
+      centerY + (cardH + (wide ? 18 : 22)) * 2,
+      height - footerH - 40
+    );
     const cloud = window.cloudStatus || {};
     const synced = !!cloud.synced;
     const cloudTitle = synced ? 'Облако ВК: синхронизировано' : 'Облако ВК';

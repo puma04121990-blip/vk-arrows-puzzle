@@ -39,7 +39,6 @@ const PRODUCTS = Object.freeze({
   hints_10: { title: '10 подсказок', price: 7 },
   extra_error: { title: '+1 ошибка', price: 5 },
   extra_error_3: { title: '+3 ошибки', price: 12 },
-  double_stars: { title: '×2 звёзды', price: 10 },
   remove_ads: { title: 'Без рекламы', price: 25 },
   skin_pack: { title: 'Все стили', price: 20 }
 });

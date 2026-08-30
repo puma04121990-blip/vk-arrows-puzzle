@@ -44,14 +44,6 @@ window.SHOP_ITEMS = [
     category: 'lives'
   },
   {
-    id: 'double_stars',
-    title: '×2 звёзды',
-    desc: 'Удвоит звёзды на следующем уровне (до 3★)',
-    icon: '⭐',
-    price: 10,
-    category: 'boost'
-  },
-  {
     id: 'remove_ads',
     title: 'Без рекламы',
     desc: 'Навсегда убрать interstitial',
@@ -106,9 +98,6 @@ window.grantShopItem = function (itemId) {
     case 'extra_error_3':
       p.bonusMaxMistakes = (p.bonusMaxMistakes || 0) + 3;
       break;
-    case 'double_stars':
-      p.doubleStarsNext = true;
-      break;
     case 'remove_ads':
       p.noAds = true;
       break;
@@ -151,9 +140,6 @@ window.buyWithVotes = function (itemId) {
     if (allOpen) {
       return Promise.resolve({ ok: false, reason: 'already_owned' });
     }
-  }
-  if (itemId === 'double_stars' && window.gameProgress && window.gameProgress.doubleStarsNext) {
-    return Promise.resolve({ ok: false, reason: 'already_active' });
   }
 
   const isVK = typeof vkBridge !== 'undefined' && typeof vkBridge.send === 'function' && window.isVK;
