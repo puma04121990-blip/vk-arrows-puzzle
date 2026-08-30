@@ -16,8 +16,9 @@ class SkinsScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b14);
 
     const wide = width >= height;
-    const headerH = wide ? 68 : 90;
-    const footerH = wide ? 56 : 72;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 68 : 90, footerH: wide ? 92 : 108, btnY: height - 50 };
+    const headerH = chrome.headerH;
+    const footerH = chrome.footerH;
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1).setDepth(50);
     this.add.text(width / 2, wide ? 20 : 28, 'СТИЛИ', {
@@ -35,11 +36,11 @@ class SkinsScene extends Phaser.Scene {
     this.updateStatus();
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1).setDepth(50);
-    const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, 200, wide ? 40 : 48, 0x1a1a28)
+    const menuBtn = this.add.rectangle(width / 2, chrome.btnY, 200, wide ? 40 : 48, 0x1a1a28)
       .setStrokeStyle(2, 0x2e2e48)
       .setInteractive({ useHandCursor: true })
       .setDepth(51);
-    this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: wide ? '16px' : '19px',
       color: '#9a9ab8'
@@ -134,6 +135,7 @@ class SkinsScene extends Phaser.Scene {
     bg.on('pointerdown', () => bg.setScale(0.98));
     bg.on('pointerup', () => {
       bg.setScale(1);
+      if (window.pulseWasDrag && window.pulseWasDrag(this)) return;
       this.onCardTap(skin.id);
     });
     bg.on('pointerupoutside', () => bg.setScale(1));
@@ -143,19 +145,11 @@ class SkinsScene extends Phaser.Scene {
 
   setupScroll(contentBottom, height, headerH, footerH) {
     const maxScroll = Math.max(0, contentBottom - (height - footerH));
-    this.scrollY = 0;
-    let dragging = false;
-    let lastY = 0;
-
-    this.input.on('pointerdown', (p) => { dragging = true; lastY = p.y; });
-    this.input.on('pointerup', () => { dragging = false; });
-    this.input.on('pointermove', (p) => {
-      if (!dragging || maxScroll <= 0) return;
-      const dy = p.y - lastY;
-      lastY = p.y;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
-      this.cardsContainer.y = this.scrollY;
-    });
+    if (window.pulseBindScroll) {
+      window.pulseBindScroll(this, this.cardsContainer, {
+        headerH: headerH, footerTop: height - footerH, maxScroll: maxScroll
+      });
+    }
   }
 
   paintCard(card) {

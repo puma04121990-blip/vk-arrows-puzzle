@@ -156,25 +156,39 @@ window.createNiceButton = function (scene, x, y, label, callback, opts) {
   btn.setSize(bw, bh);
   btn.setInteractive({ useHandCursor: true });
 
+  let pressX = 0;
+  let pressY = 0;
   btn.on('pointerover', () => {
     if (window.playUiTone) window.playUiTone(300, 0.025, 'sine', 0.018);
     if (secondary) drawBg(0x262640, 0x4a4a6a);
     else drawBg(color, 0xffffff);
   });
   btn.on('pointerout', () => drawBg(fill, stroke));
-  btn.on('pointerdown', () => {
+  btn.on('pointerdown', (p) => {
+    pressX = p.x;
+    pressY = p.y;
     if (window.ensureGameAudio) window.ensureGameAudio();
-    if (window.playUiTone) window.playUiTone(420, 0.03, 'sine', 0.04);
     if (scene.sys && scene.sys.isActive()) {
       scene.tweens.add({
         targets: btn,
-        scale: 0.96,
-        duration: 70,
-        yoyo: true,
+        scale: 0.97,
+        duration: 60,
         ease: 'Sine.easeOut'
       });
     }
+  });
+  btn.on('pointerup', (p) => {
+    if (scene.sys && scene.sys.isActive()) {
+      scene.tweens.add({ targets: btn, scale: 1, duration: 70, ease: 'Sine.easeOut' });
+    }
+    if (Math.abs(p.x - pressX) > 12 || Math.abs(p.y - pressY) > 12) return;
+    if (window.playUiTone) window.playUiTone(420, 0.03, 'sine', 0.04);
     if (callback) callback();
+  });
+  btn.on('pointerupoutside', () => {
+    if (scene.sys && scene.sys.isActive()) {
+      scene.tweens.add({ targets: btn, scale: 1, duration: 70 });
+    }
   });
 
   return btn;

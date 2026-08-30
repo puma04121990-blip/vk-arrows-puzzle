@@ -20,8 +20,9 @@ class ShopScene extends Phaser.Scene {
       this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
     }
 
-    const headerH = wide ? 72 : 88;
-    const footerH = wide ? 72 : 96;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 72 : 88, footerH: wide ? 92 : 108, btnY: height - 44 };
+    const headerH = chrome.headerH;
+    const footerH = chrome.footerH + 8;
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 0.92).setDepth(40);
     this.add.text(width / 2, wide ? 22 : 30, 'МАГАЗИН', {
@@ -41,7 +42,7 @@ class ShopScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.98).setDepth(40);
     const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isSleeping('Game') || this.scene.isPaused('Game');
     const backLabel = fromGame ? '← К ИГРЕ' : '← МЕНЮ';
-    const btnY = height - Math.round(footerH * 0.38);
+    const btnY = chrome.btnY;
     const menuBtn = this.add.rectangle(width / 2, btnY, fromGame ? 240 : 200, wide ? 40 : 46, fromGame ? 0x00e8c8 : 0x1a1a28)
       .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)
       .setInteractive({ useHandCursor: true })
@@ -58,7 +59,7 @@ class ShopScene extends Phaser.Scene {
       if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
       else this.scene.start(fromGame ? 'Game' : 'Menu');
     });
-    this.note = this.add.text(width / 2, height - footerH + 14, 'Оплата голосами ВК · цена на кнопке', {
+    this.note = this.add.text(width / 2, height - footerH + 12, 'Оплата голосами ВК · цена на кнопке', {
       fontFamily: 'Arial',
       fontSize: '11px',
       color: '#6a6a82'
@@ -95,22 +96,10 @@ class ShopScene extends Phaser.Scene {
     const contentBottom = startY + (rows - 1) * (cardH + gapY) + cardH / 2 + 12;
     const listBottom = height - footerH;
     const maxScroll = Math.max(0, contentBottom - listBottom);
-    if (maxScroll > 0) {
-      this.input.on('wheel', (pointer, over, dx, dy) => {
-        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y - dy * 0.4, -maxScroll, 0);
+    if (window.pulseBindScroll) {
+      window.pulseBindScroll(this, this.scrollRoot, {
+        headerH: headerH, footerTop: listBottom, maxScroll: maxScroll
       });
-      let dragY = null;
-      this.input.on('pointerdown', (p) => {
-        if (p.y < headerH || p.y > listBottom) return;
-        dragY = p.y;
-      });
-      this.input.on('pointermove', (p) => {
-        if (dragY == null || !p.isDown) return;
-        const dy = p.y - dragY;
-        dragY = p.y;
-        this.scrollRoot.y = Phaser.Math.Clamp(this.scrollRoot.y + dy, -maxScroll, 0);
-      });
-      this.input.on('pointerup', () => { dragY = null; });
     }
   }
 
@@ -186,7 +175,10 @@ class ShopScene extends Phaser.Scene {
     if (!unavailable) {
       hit = this.add.zone(0, 0, w, h).setInteractive({ useHandCursor: true });
       container.add(hit);
-      hit.on('pointerup', () => this.onBuy(item.id));
+      hit.on('pointerup', () => {
+        if (window.pulseWasDrag && window.pulseWasDrag(this)) return;
+        this.onBuy(item.id);
+      });
     }
 
     container.itemId = item.id;

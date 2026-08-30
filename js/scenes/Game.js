@@ -67,7 +67,7 @@ class GameScene extends Phaser.Scene {
     const wide = width >= height;
     // Header, board frame and bottom actions must each have their own reserved space.
     const topPad = wide ? 102 : 148;
-    const bottomPad = wide ? 72 : 108;
+    const bottomPad = wide ? 88 : 118;
     const headerY = wide ? 24 : 40;
     const statsY = wide ? 50 : 98;
     const headerLabel = this.isDaily ? 'ЕЖЕДНЕВНЫЙ' : `УРОВЕНЬ ${this.levelIndex + 1}`;

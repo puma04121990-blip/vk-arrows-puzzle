@@ -16,7 +16,7 @@ class SupportScene extends Phaser.Scene {
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const headerH = wide ? 70 : 92;
-    const footerH = wide ? 56 : 72;
+    const footerH = wide ? 92 : 108;
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 0.96).setDepth(20);
     this.add.text(width / 2, wide ? 24 : 34, 'ПОДДЕРЖКА', {
       fontFamily: 'Arial Black, Arial',

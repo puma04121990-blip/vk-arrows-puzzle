@@ -161,13 +161,15 @@ window.pulseLeaveShop = function (to) {
 
       const have = window.getHints ? window.getHints() : 0;
       if (have <= 0) {
-        const ok = window.pulseOpenShop ? window.pulseOpenShop('Game', this.scene) : false;
-        if (!ok) {
-          window.__pulseShopFrom = 'Game';
-          this.scene.launch('Shop');
-          this.scene.bringToTop('Shop');
-          this.scene.sleep('Game');
-        }
+        this.time.delayedCall(20, () => {
+          const ok = window.pulseOpenShop ? window.pulseOpenShop('Game', this.scene) : false;
+          if (!ok) {
+            window.__pulseShopFrom = 'Game';
+            this.scene.launch('Shop');
+            this.scene.bringToTop('Shop');
+            this.scene.sleep('Game');
+          }
+        });
         return;
       }
 
@@ -246,7 +248,6 @@ window.pulseLeaveShop = function (to) {
     GameScene.prototype.createUI = function () {
       const { width, height } = this.scale;
       const wide = width >= height;
-      const by = height - (wide ? 38 : 54);
       const btnH = wide ? 40 : 46;
       const btnW = Math.max(96, Math.min(wide ? 118 : 112, Math.floor((width - 28) / 3) - 8));
       const span = Math.min(width - 20, btnW * 3 + (wide ? 24 : 16));
@@ -254,6 +255,9 @@ window.pulseLeaveShop = function (to) {
       const rightX = width / 2 + span / 2 - btnW / 2;
       const fontSize = btnW < 104 ? '11px' : (wide ? '13px' : '14px');
       const hints = window.getHints ? window.getHints() : 0;
+      const safeBottom = height - (wide ? 22 : 30);
+      let by = (this.boardPanelY || 0) + (this.boardPanelH || 0) + 14 + btnH / 2;
+      if (by + btnH / 2 > safeBottom) by = safeBottom - btnH / 2;
 
       if (window.createNiceButton) {
         window.createNiceButton(this, leftX, by, '↺ ЗАНОВО', () => this.scene.restart(), {

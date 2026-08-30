@@ -10,8 +10,9 @@ class HelpScene extends Phaser.Scene {
     if (window.drawAppBackground) window.drawAppBackground(this, width, height);
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const headerH = wide ? 52 : 68;
-    const footerH = wide ? 56 : 72;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 52 : 68, footerH: wide ? 92 : 108, btnY: height - 50 };
+    const headerH = chrome.headerH;
+    const footerH = chrome.footerH;
     const left = Math.max(24, (width - Math.min(width - 48, 560)) / 2);
     const maxW = Math.min(width - 48, 560);
 
@@ -23,11 +24,11 @@ class HelpScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(51);
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1).setDepth(50);
-    const menuBtn = this.add.rectangle(width / 2, height - footerH / 2, 200, wide ? 40 : 48, 0x1a1a28)
+    const menuBtn = this.add.rectangle(width / 2, chrome.btnY, 200, wide ? 40 : 48, 0x1a1a28)
       .setStrokeStyle(1, 0x2e2e48)
       .setInteractive({ useHandCursor: true })
       .setDepth(51);
-    this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: wide ? '16px' : '19px',
       color: '#9a9ab8'

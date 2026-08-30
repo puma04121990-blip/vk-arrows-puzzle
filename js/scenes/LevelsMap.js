@@ -28,35 +28,35 @@ class LevelsMapScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     // Fixed header bar (prevents text/buttons from sliding under title)
-    const headerH = wide ? 72 : 96;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 72 : 96, footerH: wide ? 92 : 108, btnY: height - 50 };
+    const headerH = chrome.headerH;
+    const footerH = chrome.footerH;
     const headerBg = this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1);
     headerBg.setDepth(50);
 
-    this.add.text(width / 2, wide ? 22 : 32, 'УРОВНИ', {
+    this.add.text(width / 2, wide ? 22 : 30, 'УРОВНИ', {
       fontFamily: 'Arial Black, Arial',
       fontSize: wide ? '26px' : '30px',
       color: '#00e8c8'
     }).setOrigin(0.5).setDepth(51);
 
-    this.add.text(width / 2, wide ? 50 : 68, `★ ${totalStars} / ${total * 3}`, {
+    this.add.text(width / 2, wide ? 48 : 64, `★ ${totalStars} / ${total * 3}`, {
       fontFamily: 'Arial',
       fontSize: wide ? '15px' : '17px',
       color: '#ffd166'
     }).setOrigin(0.5).setDepth(51);
 
-    // Fixed footer with menu button
-    const footerH = wide ? 56 : 72;
     const footerBg = this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1);
     footerBg.setDepth(50);
 
-    const back = this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    const back = this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: wide ? '18px' : '20px',
       color: '#9a9ab8',
       backgroundColor: '#181828',
       padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setDepth(51).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => this.scene.start('Menu'));
+    back.on('pointerup', () => this.scene.start('Menu'));
 
     this.mapContainer = this.add.container(0, 0);
     this.mapContainer.setDepth(10);
@@ -66,11 +66,12 @@ class LevelsMapScene extends Phaser.Scene {
     this.mapContainer.setMask(listMask.createGeometryMask());
 
     const cols = width < 420 ? 4 : 5;
-    const gridPad = 28;
-    const cellW = Math.floor((width - gridPad) / cols);
-    const gap = Math.max(8, Math.round(cellW * 0.1));
-    this.btnW = Math.max(58, cellW - gap);
-    this.btnH = Math.round(this.btnW * 0.92);
+    const maxCell = wide ? 108 : 86;
+    const gridPad = 40;
+    const cellW = Math.min(maxCell, Math.floor((width - gridPad) / cols));
+    const gap = Math.max(10, Math.round(cellW * 0.12));
+    this.btnW = Math.max(56, cellW - gap);
+    this.btnH = Math.round(this.btnW * 0.88);
     const cellH = this.btnH + 18;
     const btnHalfH = this.btnH / 2;
     const startX = (width - cols * cellW) / 2 + cellW / 2;
@@ -176,7 +177,8 @@ class LevelsMapScene extends Phaser.Scene {
     if (playable) {
       const zone = this.add.zone(x, y, bw, bh).setOrigin(0.5).setInteractive({ useHandCursor: true });
       this.mapContainer.add(zone);
-      zone.on('pointerdown', () => {
+      zone.on('pointerup', () => {
+        if (window.pulseWasDrag && window.pulseWasDrag(this)) return;
         if (window.startCampaignLevel) window.startCampaignLevel(index);
         else { window.gameData.mode = 'campaign'; window.gameData.currentLevel = index; }
         this.scene.start('Game');
@@ -187,32 +189,28 @@ class LevelsMapScene extends Phaser.Scene {
   setupScroll(contentH, height, headerH, footerH) {
     const viewH = height - headerH - footerH;
     const maxScroll = Math.max(0, contentH - headerH - viewH);
+    if (window.pulseBindScroll) {
+      window.pulseBindScroll(this, this.mapContainer, {
+        headerH: headerH,
+        footerTop: height - footerH,
+        maxScroll: maxScroll
+      });
+      return;
+    }
     this.scrollY = 0;
     let dragging = false;
     let lastY = 0;
     let startY = 0;
-    let moved = false;
-
     this.input.on('pointerdown', (p) => {
-      dragging = true;
-      lastY = p.y;
-      startY = p.y;
-      moved = false;
+      dragging = true; lastY = p.y; startY = p.y; this._pulseDragMoved = false;
     });
     this.input.on('pointerup', () => { dragging = false; });
     this.input.on('pointermove', (p) => {
       if (!dragging || maxScroll <= 0) return;
+      if (Math.abs(p.y - startY) > 14) this._pulseDragMoved = true;
       const dy = p.y - lastY;
-      if (Math.abs(p.y - startY) > 6) moved = true;
       lastY = p.y;
       this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
-      this.mapContainer.y = this.scrollY;
-    });
-
-    // Wheel support (desktop Web)
-    this.input.on('wheel', (pointer, over, dx, dy) => {
-      if (maxScroll <= 0) return;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.5, -maxScroll, 0);
       this.mapContainer.y = this.scrollY;
     });
   }

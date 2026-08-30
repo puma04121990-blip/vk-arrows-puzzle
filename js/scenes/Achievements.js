@@ -14,8 +14,9 @@ class AchievementsScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const headerH = wide ? 72 : 96;
-    const footerH = wide ? 56 : 72;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 72 : 96, footerH: wide ? 92 : 108, btnY: height - 50 };
+    const headerH = chrome.headerH;
+    const footerH = chrome.footerH;
 
     const headerBg = this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 1);
     headerBg.setDepth(50);
@@ -35,14 +36,14 @@ class AchievementsScene extends Phaser.Scene {
     const footerBg = this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1);
     footerBg.setDepth(50);
 
-    const back = this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    const back = this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
       fontFamily: 'Arial',
       fontSize: wide ? '18px' : '20px',
       color: '#9a9ab8',
       backgroundColor: '#181828',
       padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setDepth(51).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => this.scene.start('Menu'));
+    back.on('pointerup', () => this.scene.start('Menu'));
 
     this.listContainer = this.add.container(0, 0);
     this.listContainer.setDepth(10);
@@ -114,28 +115,10 @@ class AchievementsScene extends Phaser.Scene {
   setupScroll(contentH, height, headerH, footerH) {
     const viewH = height - headerH - footerH;
     const maxScroll = Math.max(0, contentH - headerH - viewH);
-    this.scrollY = 0;
-    let dragging = false;
-    let lastY = 0;
-
-    this.input.on('pointerdown', (p) => {
-      if (p.y < headerH || p.y > height - footerH) return;
-      dragging = true;
-      lastY = p.y;
-    });
-    this.input.on('pointerup', () => { dragging = false; });
-    this.input.on('pointermove', (p) => {
-      if (!dragging || maxScroll <= 0) return;
-      const dy = p.y - lastY;
-      lastY = p.y;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, -maxScroll, 0);
-      this.listContainer.y = this.scrollY;
-    });
-
-    this.input.on('wheel', (pointer, over, dx, dy) => {
-      if (maxScroll <= 0) return;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.5, -maxScroll, 0);
-      this.listContainer.y = this.scrollY;
-    });
+    if (window.pulseBindScroll) {
+      window.pulseBindScroll(this, this.listContainer, {
+        headerH: headerH, footerTop: height - footerH, maxScroll: maxScroll
+      });
+    }
   }
 }

@@ -9,7 +9,7 @@ class SettingsScene extends Phaser.Scene {
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
     const headerH = wide ? 70 : 92;
-    const footerH = wide ? 58 : 74;
+    const footerH = wide ? 92 : 108;
     const cardW = Math.min(width - 44, wide ? 520 : 460);
     const cardH = wide ? 88 : 104;
 
