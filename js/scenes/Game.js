@@ -664,7 +664,7 @@ class GameScene extends Phaser.Scene {
       }
     };
 
-    this.spawnExitTrail(gx, gy, dx, dy, data.color, skin);
+    this.spawnExitTrail(gx, gy, dx, dy, data.color);
 
     this.tweens.add({
       targets: g,
