@@ -37,8 +37,8 @@ class GameScene extends Phaser.Scene {
     this.skinId = (window.gameProgress && window.gameProgress.skin) || 'neon';
     this.combo = 0;
     this.bestCombo = 0;
-    this.chainTarget = Math.max(3, Math.min(7, 3 + Math.floor(this.levelIndex / 10)));
-    this.comboWindow = 3.4;
+    this.chainTarget = Math.max(3, Math.min(9, 3 + Math.floor(Math.max(0, this.levelIndex) / 6)));
+    this.comboWindow = 2.15;
     this.lastSafeMoveAt = -999;
     this.runStartedAt = 0;
     this.coachStep = 0;
@@ -48,12 +48,18 @@ class GameScene extends Phaser.Scene {
 
   calcTimeLimit() {
     const size = this.levelData.size;
-    const count = this.levelData.arrows.length;
-    if (this.isDaily) {
-      return Math.max(180, Math.min(600, 30 + count * 4 + size * 4));
+    const arrows = this.levelData.arrows || [];
+    const count = arrows.length;
+    let locks = 0, rots = 0;
+    for (let i = 0; i < arrows.length; i++) {
+      if (arrows[i].lockId != null) locks++;
+      if (arrows[i].rotates) rots++;
     }
-    let sec = 25 + count * 4 + size * 3 + Math.floor(this.levelIndex * 0.4);
-    return Math.max(30, Math.min(sec, 180));
+    if (this.isDaily) {
+      return Math.max(120, Math.min(360, 18 + count * 2.55 + size * 2 + locks * 4 + rots * 3));
+    }
+    let sec = 12 + count * 2.15 + size * 1.35 + locks * 3 + rots * 2.4 + Math.floor(Math.max(0, this.levelIndex) * 0.12);
+    return Math.max(22, Math.min(sec, 100));
   }
 
   create() {
