@@ -15,8 +15,9 @@ class SupportScene extends Phaser.Scene {
     if (window.drawAppBackground) window.drawAppBackground(this, width, height);
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const headerH = wide ? 70 : 92;
-    const footerH = wide ? 92 : 108;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : null;
+    const headerH = chrome ? chrome.headerH : (wide ? 70 : 92);
+    const footerH = chrome ? chrome.footerH : (wide ? 92 : 108);
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 0.96).setDepth(20);
     this.add.text(width / 2, wide ? 24 : 34, 'ПОДДЕРЖКА', {
       fontFamily: 'Arial Black, Arial',
@@ -83,20 +84,20 @@ class SupportScene extends Phaser.Scene {
       lineSpacing: 4
     }).setOrigin(0.5);
 
-    const btnY = height - footerH / 2;
-    this.add.rectangle(width / 2, btnY, width, footerH, 0x0b0b14, 0.96).setDepth(20);
-    const menuBtn = this.add.rectangle(width / 2, btnY, 200, wide ? 42 : 50, 0x1a1a28)
-      .setStrokeStyle(1, 0x2e2e48)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(21);
-    this.add.text(width / 2, btnY, '← МЕНЮ', {
-      fontFamily: 'Arial',
-      fontSize: wide ? '16px' : '19px',
-      color: '#9a9ab8'
-    }).setOrigin(0.5).setDepth(22);
-    menuBtn.on('pointerover', () => menuBtn.setFillStyle(0x222238));
-    menuBtn.on('pointerout', () => menuBtn.setFillStyle(0x1a1a28));
-    menuBtn.on('pointerup', () => this.scene.start('Menu'));
+    const btnY = (chrome && chrome.btnY) || (height - footerH / 2);
+    this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.96).setDepth(20);
+    if (window.pulseBackButton) {
+      window.pulseBackButton(this, () => this.scene.start('Menu'), { chrome: chrome, y: btnY, depth: 21 });
+    } else {
+      const menuBtn = this.add.rectangle(width / 2, btnY, 200, wide ? 42 : 50, 0x1a1a28)
+        .setStrokeStyle(1, 0x2e2e48)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(21);
+      this.add.text(width / 2, btnY, '← МЕНЮ', {
+        fontFamily: 'Arial', fontSize: wide ? '16px' : '19px', color: '#9a9ab8'
+      }).setOrigin(0.5).setDepth(22);
+      menuBtn.on('pointerup', () => this.scene.start('Menu'));
+    }
   }
 
   makeCard(cx, y, cardW, wide, opts) {

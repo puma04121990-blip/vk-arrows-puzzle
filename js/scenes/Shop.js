@@ -20,9 +20,10 @@ class ShopScene extends Phaser.Scene {
       this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
     }
 
-    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 72 : 88, footerH: wide ? 92 : 108, btnY: height - 44 };
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : { headerH: wide ? 72 : 88, footerH: wide ? 92 : 108, btnY: height - 44, btnH: wide ? 40 : 46 };
     const headerH = chrome.headerH;
-    const footerH = chrome.footerH + 8;
+    const noteH = 18;
+    const footerH = chrome.footerH + noteH;
 
     this.add.rectangle(width / 2, headerH / 2, width, headerH, 0x0b0b14, 0.92).setDepth(40);
     this.add.text(width / 2, wide ? 22 : 30, 'МАГАЗИН', {
@@ -43,27 +44,38 @@ class ShopScene extends Phaser.Scene {
     const fromGame = window.__pulseShopFrom === 'Game' || this.scene.isSleeping('Game') || this.scene.isPaused('Game');
     const backLabel = fromGame ? '← К ИГРЕ' : '← МЕНЮ';
     const btnY = chrome.btnY;
-    const menuBtn = this.add.rectangle(width / 2, btnY, fromGame ? 240 : 200, wide ? 40 : 46, fromGame ? 0x00e8c8 : 0x1a1a28)
-      .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(41);
-    this.add.text(width / 2, btnY, backLabel, {
-      fontFamily: 'Arial',
-      fontSize: wide ? '16px' : '18px',
-      color: fromGame ? '#0b0b14' : '#9a9ab8'
-    }).setOrigin(0.5).setDepth(42);
-    menuBtn.on('pointerover', () => menuBtn.setFillStyle(fromGame ? 0x00d4b8 : 0x222238));
-    menuBtn.on('pointerout', () => menuBtn.setFillStyle(fromGame ? 0x00e8c8 : 0x1a1a28));
-    menuBtn.on('pointerup', () => {
-      if (this.busy) return;
-      if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
-      else this.scene.start(fromGame ? 'Game' : 'Menu');
-    });
-    this.note = this.add.text(width / 2, height - footerH + 12, 'Оплата голосами ВК · цена на кнопке', {
+    if (window.pulseBackButton) {
+      window.pulseBackButton(this, () => {
+        if (this.busy) return;
+        if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
+        else this.scene.start(fromGame ? 'Game' : 'Menu');
+      }, {
+        chrome: chrome,
+        y: btnY,
+        label: backLabel,
+        w: fromGame ? 240 : 220,
+        primary: !!fromGame,
+        depth: 41
+      });
+    } else {
+      const menuBtn = this.add.rectangle(width / 2, btnY, fromGame ? 240 : 200, wide ? 40 : 46, fromGame ? 0x00e8c8 : 0x1a1a28)
+        .setStrokeStyle(2, fromGame ? 0x00e8c8 : 0x2e2e48)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(41);
+      this.add.text(width / 2, btnY, backLabel, {
+        fontFamily: 'Arial', fontSize: wide ? '16px' : '18px', color: fromGame ? '#0b0b14' : '#9a9ab8'
+      }).setOrigin(0.5).setDepth(42);
+      menuBtn.on('pointerup', () => {
+        if (this.busy) return;
+        if (window.pulseLeaveShop) window.pulseLeaveShop(fromGame ? 'Game' : 'Menu');
+        else this.scene.start(fromGame ? 'Game' : 'Menu');
+      });
+    }
+    this.note = this.add.text(width / 2, btnY - ((chrome.btnH || 42) / 2) - 12, 'Оплата голосами ВК · цена на кнопке', {
       fontFamily: 'Arial',
       fontSize: '11px',
       color: '#6a6a82'
-    }).setOrigin(0.5, 0).setDepth(41);
+    }).setOrigin(0.5, 1).setDepth(41);
 
     const items = window.SHOP_ITEMS || [];
     const cols = wide ? 2 : 1;

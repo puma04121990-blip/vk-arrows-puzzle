@@ -160,44 +160,49 @@ class WinScene extends Phaser.Scene {
       }
     }
 
-    const btnY = height * 0.70;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : null;
+    const btnH = chrome ? Math.min(48, (chrome.btnH || 42) + 4) : 52;
+    const gap = 12;
+    const menuY = chrome ? chrome.btnY : height * 0.92;
+    const midY = menuY - btnH - gap;
+    const topY = midY - btnH - gap;
 
     if (isDaily) {
-      this.createButton(width / 2, btnY, 'ЕЩЁ РАЗ', 0x00e8c8, () => {
+      this.createButton(width / 2, topY, 'ЕЩЁ РАЗ', 0x00e8c8, () => {
         if (window.startDailyPuzzle) window.startDailyPuzzle();
         this.scene.start('Game');
-      });
-      this.createButton(width / 2, height * 0.84, 'МЕНЮ', 0x222238, () => {
+      }, btnH);
+      this.createButton(width / 2, menuY, 'МЕНЮ', 0x222238, () => {
         if (window.gameData) window.gameData.mode = 'campaign';
         this.scene.start('Menu');
-      });
+      }, btnH);
     } else {
       const isLast = levelIndex >= LEVELS.length - 1;
       const nextIndex = levelIndex + 1;
       const canNext = !isLast && window.isLevelPlayable && window.isLevelPlayable(nextIndex);
 
       if (!isLast && canNext) {
-        this.createButton(width / 2, btnY, 'ДАЛЬШЕ →', 0x00e8c8, () => {
+        this.createButton(width / 2, topY, 'ДАЛЬШЕ →', 0x00e8c8, () => {
           window.gameData.currentLevel++;
           this.scene.start('Game');
-        });
+        }, btnH);
       } else if (!isLast && !canNext) {
         const need = window.getStarsNeededForLevel ? window.getStarsNeededForLevel(nextIndex) : 0;
         const have = window.getTotalStars ? window.getTotalStars() : 0;
-        this.add.text(width / 2, btnY, 'Нужно ★' + need + ' (есть ' + have + ')', {
+        this.add.text(width / 2, topY, 'Нужно ★' + need + ' (есть ' + have + ')', {
           fontFamily: 'Arial',
           fontSize: '18px',
           color: '#ff6b6b'
         }).setOrigin(0.5);
       }
 
-      this.createButton(width / 2, height * 0.82, 'УРОВНИ', 0x2a2a45, () => {
+      this.createButton(width / 2, midY, 'УРОВНИ', 0x2a2a45, () => {
         this.scene.start('LevelsMap');
-      });
+      }, btnH);
 
-      this.createButton(width / 2, height * 0.92, 'МЕНЮ', 0x222238, () => {
+      this.createButton(width / 2, menuY, 'МЕНЮ', 0x222238, () => {
         this.scene.start('Menu');
-      });
+      }, btnH);
     }
 
     this.playWinMelody();
@@ -222,11 +227,11 @@ class WinScene extends Phaser.Scene {
     return m > 0 ? m + ':' + r.toString().padStart(2, '0') : r + ' сек';
   }
 
-  createButton(x, y, label, color, callback) {
+  createButton(x, y, label, color, callback, btnH) {
     if (window.createNiceButton) {
       return window.createNiceButton(this, x, y, label, callback, {
         w: 240,
-        h: 56,
+        h: btnH || 48,
         color: color,
         secondary: color !== 0x00e8c8,
         fontSize: '20px',

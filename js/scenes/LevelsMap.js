@@ -49,14 +49,15 @@ class LevelsMapScene extends Phaser.Scene {
     const footerBg = this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 1);
     footerBg.setDepth(50);
 
-    const back = this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
-      fontFamily: 'Arial',
-      fontSize: wide ? '18px' : '20px',
-      color: '#9a9ab8',
-      backgroundColor: '#181828',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setDepth(51).setInteractive({ useHandCursor: true });
-    back.on('pointerup', () => this.scene.start('Menu'));
+    if (window.pulseBackButton) {
+      window.pulseBackButton(this, () => this.scene.start('Menu'), { chrome: chrome, depth: 51 });
+    } else {
+      const back = this.add.text(width / 2, chrome.btnY, '← МЕНЮ', {
+        fontFamily: 'Arial', fontSize: wide ? '18px' : '20px', color: '#9a9ab8',
+        backgroundColor: '#181828', padding: { x: 20, y: 10 }
+      }).setOrigin(0.5).setDepth(51).setInteractive({ useHandCursor: true });
+      back.on('pointerup', () => this.scene.start('Menu'));
+    }
 
     this.mapContainer = this.add.container(0, 0);
     this.mapContainer.setDepth(10);

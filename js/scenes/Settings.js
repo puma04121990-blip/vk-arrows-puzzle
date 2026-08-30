@@ -8,8 +8,9 @@ class SettingsScene extends Phaser.Scene {
     if (window.drawAppBackground) window.drawAppBackground(this, width, height);
     else this.add.rectangle(0, 0, width, height, 0x0b0b14).setOrigin(0);
 
-    const headerH = wide ? 70 : 92;
-    const footerH = wide ? 92 : 108;
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : null;
+    const headerH = chrome ? chrome.headerH : (wide ? 70 : 92);
+    const footerH = chrome ? chrome.footerH : (wide ? 92 : 108);
     const cardW = Math.min(width - 44, wide ? 520 : 460);
     const cardH = wide ? 88 : 104;
 
@@ -78,13 +79,10 @@ class SettingsScene extends Phaser.Scene {
     });
 
     this.add.rectangle(width / 2, height - footerH / 2, width, footerH, 0x0b0b14, 0.96).setDepth(20);
-    const back = window.createNiceButton
-      ? window.createNiceButton(this, width / 2, height - footerH / 2, '← МЕНЮ', () => this.scene.start('Menu'), {
-        w: 210, h: wide ? 40 : 48, color: 0x1a1a28, secondary: true, fontSize: wide ? '15px' : '17px', depth: 21
-      })
-      : null;
-    if (!back) {
-      const fallback = this.add.text(width / 2, height - footerH / 2, '← МЕНЮ', {
+    if (window.pulseBackButton) {
+      window.pulseBackButton(this, () => this.scene.start('Menu'), { chrome: chrome, depth: 21 });
+    } else {
+      const fallback = this.add.text(width / 2, (chrome && chrome.btnY) || (height - footerH / 2), '← МЕНЮ', {
         fontFamily: 'Arial', fontSize: '18px', color: '#9a9ab8', backgroundColor: '#181828', padding: { x: 20, y: 10 }
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
       fallback.on('pointerup', () => this.scene.start('Menu'));

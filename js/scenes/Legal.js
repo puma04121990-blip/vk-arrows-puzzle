@@ -90,19 +90,22 @@ class LegalScene extends Phaser.Scene {
       lineSpacing: 4
     }).setOrigin(0.5, 0);
 
-    const btnY = h - padB - 24;
-    const menuBtn = this.add.rectangle(cx, btnY, 200, 48, 0x1a1a28)
-      .setStrokeStyle(1, 0x2e2e48)
-      .setInteractive({ useHandCursor: true });
-    this.add.text(cx, btnY, '← МЕНЮ', {
-      fontFamily: 'Arial',
-      fontSize: '18px',
-      color: '#9a9ab8'
-    }).setOrigin(0.5);
-
-    menuBtn.on('pointerover', () => menuBtn.setFillStyle(0x222238));
-    menuBtn.on('pointerout', () => menuBtn.setFillStyle(0x1a1a28));
-    menuBtn.on('pointerup', () => this.scene.start('Menu'));
+    const chrome = window.pulseChrome ? window.pulseChrome(this) : null;
+    const footerH = chrome ? chrome.footerH : (padB + 56);
+    this.add.rectangle(cx, h - footerH / 2, w, footerH, 0x0b0b14, 1).setDepth(20);
+    if (window.pulseBackButton) {
+      window.pulseBackButton(this, () => this.scene.start('Menu'), { chrome: chrome, depth: 21 });
+    } else {
+      const btnY = chrome ? chrome.btnY : (h - padB - 24);
+      const menuBtn = this.add.rectangle(cx, btnY, 200, 48, 0x1a1a28)
+        .setStrokeStyle(1, 0x2e2e48)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(21);
+      this.add.text(cx, btnY, '← МЕНЮ', {
+        fontFamily: 'Arial', fontSize: '18px', color: '#9a9ab8'
+      }).setOrigin(0.5).setDepth(22);
+      menuBtn.on('pointerup', () => this.scene.start('Menu'));
+    }
   }
 
   openExternal(url) {

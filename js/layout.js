@@ -1,16 +1,16 @@
 /** Extra bottom inset: VK web iframe / browser chrome often covers the last pixels. */
 window.pulseWebInset = function () {
-  let extra = 12;
+  let extra = 16;
   try {
     const q = String(window.location.search || '') + String(window.location.hash || '');
     const platform = ((q.match(/[?&]vk_platform=([a-z0-9_]+)/i) || [])[1] || '').toLowerCase();
-    if (platform === 'desktop_web') extra = 40;
-    else if (platform === 'mobile_web' || platform === 'html5' || platform === 'html5_mobile') extra = 34;
-    else if (platform === 'mobile_android' || platform === 'mobile_iphone' || platform === 'mobile_ipad') extra = 10;
-    else extra = 24;
+    if (platform === 'desktop_web') extra = 48;
+    else if (platform === 'mobile_web' || platform === 'html5' || platform === 'html5_mobile') extra = 40;
+    else if (platform === 'mobile_android' || platform === 'mobile_iphone' || platform === 'mobile_ipad') extra = 12;
+    else extra = 32;
     if (window.visualViewport && window.innerHeight) {
       const delta = Math.round(window.innerHeight - window.visualViewport.height);
-      if (delta > extra) extra = Math.min(52, delta);
+      if (delta > extra) extra = Math.min(64, delta);
     }
   } catch (e) {}
   return extra;
@@ -41,20 +41,68 @@ window.pulseGap = function (aBottom, bTop) {
   return Math.max(0, bTop - aBottom);
 };
 
-/** Header/footer so «МЕНЮ» sits above the iframe edge, not under VK chrome. */
+/** Header/footer so «МЕНЮ» sits fully above the iframe edge, not under VK chrome. */
 window.pulseChrome = function (scene) {
   const w = Math.max(1, Math.round(scene.scale.width || 720));
   const h = Math.max(1, Math.round(scene.scale.height || 1280));
   const wide = w >= h;
-  const web = (window.pulseWebInset && window.pulseWebInset()) || 0;
+  const short = h < 560;
+  const web = (window.pulseWebInset && window.pulseWebInset()) || 16;
   const headerH = wide ? 70 : 92;
-  const footerH = (wide ? 92 : 108) + Math.max(0, web - 10);
-  let btnY = h - Math.round(footerH * 0.5);
-  const btnHalf = wide ? 20 : 24;
-  const maxBtnY = h - web - 8 - btnHalf;
+  const btnH = short ? 38 : (wide ? 42 : 46);
+  const gapTop = 8;
+  const gapBot = 10;
+  const footerH = gapTop + btnH + gapBot + web;
+  const dockY = Math.max(0, h - footerH);
+  let btnY = dockY + gapTop + btnH / 2;
+  const maxBtnY = h - web - gapBot - btnH / 2;
   if (btnY > maxBtnY) btnY = maxBtnY;
-  if (btnY < headerH + btnHalf + 8) btnY = Math.max(btnHalf + 8, h - footerH + btnHalf);
-  return { w: w, h: h, wide: wide, headerH: headerH, footerH: footerH, btnY: btnY, webInset: web };
+  if (btnY < headerH + btnH / 2 + 8) btnY = Math.max(btnH / 2 + 8, dockY + btnH / 2);
+  return {
+    w: w,
+    h: h,
+    wide: wide,
+    short: short,
+    headerH: headerH,
+    footerH: footerH,
+    btnY: btnY,
+    btnH: btnH,
+    webInset: web,
+    dockY: dockY
+  };
+};
+
+/** Same pill back-button on every sub-menu (Settings / Shop / Help / …). */
+window.pulseBackButton = function (scene, onClick, opts) {
+  opts = opts || {};
+  const chrome = opts.chrome || (window.pulseChrome && window.pulseChrome(scene)) || {};
+  const x = opts.x != null ? opts.x : (chrome.w || scene.scale.width) / 2;
+  const y = opts.y != null ? opts.y : (chrome.btnY || scene.scale.height - 56);
+  const label = opts.label || '← МЕНЮ';
+  const wide = chrome.wide != null ? chrome.wide : scene.scale.width >= scene.scale.height;
+  const btnH = opts.h || chrome.btnH || (wide ? 42 : 46);
+  const btnW = opts.w || 220;
+  const primary = !!opts.primary;
+  const depth = opts.depth != null ? opts.depth : 60;
+  if (window.createNiceButton) {
+    return window.createNiceButton(scene, x, y, label, onClick, {
+      w: btnW,
+      h: btnH,
+      color: primary ? 0x00e8c8 : 0x222238,
+      secondary: !primary,
+      fontSize: opts.fontSize || (wide ? '15px' : '16px'),
+      depth: depth
+    });
+  }
+  const t = scene.add.text(x, y, label, {
+    fontFamily: 'Manrope, Arial, sans-serif',
+    fontSize: wide ? '16px' : '18px',
+    color: primary ? '#0b0b14' : '#d0d0e8',
+    backgroundColor: primary ? '#00e8c8' : '#1e1e32',
+    padding: { x: 22, y: 12 }
+  }).setOrigin(0.5).setDepth(depth).setInteractive({ useHandCursor: true });
+  t.on('pointerup', onClick);
+  return t;
 };
 
 /** Game-scene action dock (ЗАНОВО / подсказка / МЕНЮ) — always fully on-screen. */
