@@ -14,6 +14,9 @@ class BootScene extends Phaser.Scene {
     this.load.image('shop_heart', 'assets/shop/heart.png');
     this.load.image('shop_noads', 'assets/shop/noads.png');
     this.load.image('shop_skins', 'assets/shop/skins.png');
+    ['neon', 'block', 'triangle', 'chevron', 'thin', 'feather'].forEach((id) => {
+      this.load.image('arrow_' + id, 'assets/arrows/' + id + '.png');
+    });
   }
 
   create() {

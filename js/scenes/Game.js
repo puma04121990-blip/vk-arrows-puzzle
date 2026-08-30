@@ -305,9 +305,8 @@ class GameScene extends Phaser.Scene {
     const gridBottom = this.offsetY + this.levelData.size * this.cellSize - 4;
     const gridLeft = this.offsetX + 4;
     const gridRight = this.offsetX + this.levelData.size * this.cellSize - 4;
-    const aa = 2;
-    const display = Math.ceil(this.cellSize * 1.55);
-    const texSize = display * aa;
+    const spriteKey = this.textures.exists('arrow_' + this.skinId) ? ('arrow_' + this.skinId) : (this.textures.exists('arrow_neon') ? 'arrow_neon' : null);
+    const spriteSize = Math.round(this.cellSize * 0.78);
 
     this.levelData.arrows.forEach((a, i) => {
       let color = palette[i % palette.length];
@@ -315,25 +314,17 @@ class GameScene extends Phaser.Scene {
       const cx = this.offsetX + a.x * this.cellSize + this.cellSize / 2;
       const cy = this.offsetY + a.y * this.cellSize + this.cellSize / 2;
 
-      const texKey = 'arw_' + this.skinId + '_' + a.dir + '_' + (color >>> 0).toString(16) + '_' + display + 'x' + aa;
-      if (!this.textures.exists(texKey)) {
-        const tmp = this.make.graphics({ x: 0, y: 0, add: false });
-        const savedCell = this.cellSize;
-        this.cellSize = savedCell * aa;
-        this.drawArrow(tmp, a.dir, color);
-        this.cellSize = savedCell;
-        const rt = this.make.renderTexture({ width: texSize, height: texSize, add: false });
-        rt.draw(tmp, texSize / 2, texSize / 2);
-        rt.saveTexture(texKey);
-        tmp.destroy();
-        rt.destroy();
-        const tex = this.textures.get(texKey);
-        if (tex && tex.setFilter) {
-          const linear = (Phaser.Textures && Phaser.Textures.FilterMode && Phaser.Textures.FilterMode.LINEAR) || 1;
-          tex.setFilter(linear);
-        }
+      let g;
+      if (spriteKey) {
+        g = this.add.image(cx, cy, spriteKey).setDepth(5);
+        g.setDisplaySize(spriteSize, spriteSize);
+        g.setTint(color);
+        g.setAngle(((a.dir - 1) * 90 + 360) % 360);
+      } else {
+        g = this.add.graphics().setDepth(5);
+        g.setPosition(cx, cy);
+        this.drawArrow(g, a.dir, color);
       }
-      const g = this.add.image(cx, cy, texKey).setDisplaySize(display, display).setDepth(5);
 
       let badge = null, rotBadge = null;
       const iconSize = Math.max(10, Math.floor(this.cellSize * 0.16));

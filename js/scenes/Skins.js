@@ -82,16 +82,23 @@ class SkinsScene extends Phaser.Scene {
     this.cardsContainer.add(bg);
 
     const colors = [0x00e8c8, 0xff6b6b, 0xffd166, 0x4cc9f0];
-    const previewScale = wide ? 0.6 : 0.72;
+    const spriteKey = this.textures.exists('arrow_' + skin.id) ? ('arrow_' + skin.id) : (this.textures.exists('arrow_neon') ? 'arrow_neon' : null);
+    const previewSize = wide ? 28 : 34;
     const previewStart = x - w / 2 + (wide ? 30 : 40);
     for (let i = 0; i < 4; i++) {
-      const g = this.add.graphics();
-      if (window.drawArrowSkin) {
-        window.drawArrowSkin(g, i, colors[i], wide ? 32 : 40, skin.id);
+      const px = previewStart + i * (wide ? 26 : 34);
+      if (spriteKey) {
+        const img = this.add.image(px, y - 6, spriteKey);
+        img.setDisplaySize(previewSize, previewSize);
+        img.setTint(colors[i]);
+        img.setAngle(((i - 1) * 90 + 360) % 360);
+        this.cardsContainer.add(img);
+      } else {
+        const g = this.add.graphics();
+        if (window.drawArrowSkin) window.drawArrowSkin(g, i, colors[i], wide ? 32 : 40, skin.id);
+        g.setPosition(px, y - 6);
+        this.cardsContainer.add(g);
       }
-      g.setPosition(previewStart + i * (wide ? 26 : 34), y - 6);
-      g.setScale(previewScale);
-      this.cardsContainer.add(g);
     }
 
     const textX = x - w / 2 + (wide ? 140 : 170);
